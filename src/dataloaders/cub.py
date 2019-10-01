@@ -45,3 +45,14 @@ def load_imgs(cub_data_dir: PathLike, img_paths: List[PathLike]) -> List[np.ndar
 def load_labels(img_paths:List[PathLike]) -> List[int]:
     # Class index is encoded in the path. Let's use it.
     return [(int(p.split('.')[0]) - 1) for p in img_paths]
+
+
+def load_class_attributes(cub_data_dir: PathLike) -> np.ndarray:
+    filename = os.path.join(cub_data_dir, 'attributes/class_attribute_labels_continuous.txt')
+
+    with open(filename) as f:
+        attrs = f.read().splitlines()
+        attrs = [[float(a) for a in attr.split(' ')] for attr in attrs]
+        attrs = np.array(attrs)
+
+    return attrs
