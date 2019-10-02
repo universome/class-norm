@@ -66,6 +66,10 @@ def load_class_attributes(cub_data_dir: PathLike) -> np.ndarray:
     #     attrs = f.read().splitlines()
     #     attrs = [[float(a) for a in attr.split(' ')] for attr in attrs]
     #     attrs = np.array(attrs)
+    #     #attrs = (attrs - attrs.mean(axis=0)) / attrs.max(axis=0)
+    #     attrs = attrs / (attrs.max(axis=0) * 5)
+    #     # attrs /= (attrs.std(axis=0) * 50)
+
     filename = os.path.join(cub_data_dir, 'CUB_attr_in_order.pickle')
 
     with open(filename, 'rb') as f:

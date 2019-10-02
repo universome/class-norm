@@ -37,7 +37,7 @@ class AgemTrainer(BaseTrainer):
 
     def init_optimizers(self):
         # TODO: without momentum?!
-        self.optim = torch.optim.SGD(self.model.parameters(), lr=0.03)
+        self.optim = torch.optim.SGD(self.model.parameters(), **self.config.hp.optim_kwargs.to_dict())
 
     def init_dataloaders(self):
         self.ds_train = load_cub_dataset(self.config.data_dir, is_train=True, target_shape=self.config.hp.img_target_shape)
@@ -45,7 +45,8 @@ class AgemTrainer(BaseTrainer):
         self.class_splits = split_classes_for_tasks(self.config.num_classes, self.config.hp.num_tasks)
         self.data_splits = get_train_test_data_splits(self.class_splits, self.ds_train, self.ds_test)
 
-        print('Class splits:', self.class_splits.tolist())
+        for task_idx, split in enumerate(self.class_splits):
+            print(f'[Task {task_idx}]:', self.class_splits[task_idx].tolist())
 
     def start(self):
         self.init()
@@ -59,6 +60,8 @@ class AgemTrainer(BaseTrainer):
             task_trainer.start()
             self.num_tasks_learnt += 1
             #self.validate()
+            print(f'Train accuracy: {task_trainer.compute_train_accuracy()}')
+            print(f'Test accuracy: {task_trainer.compute_test_accuracy()}')
 
             self.extend_episodic_memory(task_idx, self.config.hp.num_mem_samples_per_class)
 
@@ -135,7 +138,7 @@ class AgemTaskTrainer:
         pruned_logits = self.prune_logits(logits)
         loss = self.criterion(pruned_logits, y)
 
-        if len(self.episodic_memory) > 0:
+        if self.config.hp.get('use_agem', True) and len(self.episodic_memory) > 0:
             ref_grad = self.compute_ref_grad()
             loss.backward()
             grad = torch.cat([p.grad.data.view(-1) for p in self.model.parameters()])
