@@ -10,7 +10,7 @@ class ZSClassifier(nn.Module):
 
         self.resnet_emb = ResnetEmbedder(pretrained=pretrained)
         self.register_buffer('attrs', torch.tensor(attrs).float())
-        self.attr_emb = nn.Linear(attrs.shape[1], 512)
+        self.attr_emb = nn.Linear(attrs.shape[1], 512, bias=False)
         self.biases = nn.Parameter(torch.zeros(attrs.shape[0]))
 
     def forward(self, x):

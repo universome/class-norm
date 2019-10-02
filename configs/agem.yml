@@ -1,12 +1,12 @@
 data_dir: "../data/CUB2011"
-num_classes: 30
+num_classes: 200
 attr_size: 312
 max_num_epochs: 1
+gpus: []
 hp:
   num_mem_samples_per_class: 5
-  num_tasks: 4
-  pretrained: true
+  num_tasks: 17
+  pretrained: false
   batch_size: 10
-  img_width: 224
-  img_height: 224
+  img_target_shape: [224, 224]
   mem_batch_size: 128

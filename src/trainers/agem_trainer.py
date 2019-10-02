@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader, Dataset
 from firelab.base_trainer import BaseTrainer
 from firelab.config import Config
 import numpy as np
+from tqdm import tqdm
 
 from src.models.classifier import ZSClassifier
 from src.dataloaders.cub import load_cub_dataset, load_class_attributes
@@ -15,7 +16,6 @@ from src.utils.data_utils import (
     split_classes_for_tasks,
     get_train_test_data_splits,
     construct_output_mask,
-    resize_dataset,
 )
 
 
@@ -32,7 +32,7 @@ class AgemTrainer(BaseTrainer):
         self.accs_history = []
 
     def init_models(self):
-        self.model = ZSClassifier(load_class_attributes(self.config.data_dir)[:30], pretrained=self.config.hp.pretrained)
+        self.model = ZSClassifier(load_class_attributes(self.config.data_dir), pretrained=self.config.hp.pretrained)
         self.model = self.model.to(self.device_name)
 
     def init_optimizers(self):
@@ -40,35 +40,39 @@ class AgemTrainer(BaseTrainer):
         self.optim = torch.optim.SGD(self.model.parameters(), lr=0.03)
 
     def init_dataloaders(self):
-        self.ds_train = load_cub_dataset(self.config.data_dir, is_train=True)
-        self.ds_test = load_cub_dataset(self.config.data_dir, is_train=False)
-        self.ds_train = resize_dataset(self.ds_train, self.config.hp.img_width, self.config.hp.img_height)
-        self.ds_test = resize_dataset(self.ds_test, self.config.hp.img_width, self.config.hp.img_height)
-        self.ds_train = [(x.transpose(2, 0, 1).astype(np.float32), y) for x, y in self.ds_train]
-        self.ds_test = [(x.transpose(2, 0, 1).astype(np.float32), y) for x, y in self.ds_test]
+        self.ds_train = load_cub_dataset(self.config.data_dir, is_train=True, target_shape=self.config.hp.img_target_shape)
+        self.ds_test = load_cub_dataset(self.config.data_dir, is_train=False, target_shape=self.config.hp.img_target_shape)
         self.class_splits = split_classes_for_tasks(self.config.num_classes, self.config.hp.num_tasks)
         self.data_splits = get_train_test_data_splits(self.class_splits, self.ds_train, self.ds_test)
 
+        print('Class splits:', self.class_splits.tolist())
+
     def start(self):
         self.init()
+        self.num_tasks_learnt = 0
 
         for task_idx in range(self.config.hp.num_tasks):
-            trainer = AgemTaskTrainer(self, task_idx)
-            self.zst_accs.append(trainer.compute_test_accuracy())
-            trainer.start()
-            self.validate()
+            print(f'Starting task #{task_idx}', end='')
+            task_trainer = AgemTaskTrainer(self, task_idx)
+            self.zst_accs.append(task_trainer.compute_test_accuracy())
+            print(f'. ZST accuracy: {self.zst_accs[-1]}')
+            task_trainer.start()
+            self.num_tasks_learnt += 1
+            #self.validate()
 
             self.extend_episodic_memory(task_idx, self.config.hp.num_mem_samples_per_class)
+
+        print('ZST accs:', self.zst_accs)
 
     def validate(self):
         """Computes model accuracy on all the tasks"""
         accs = []
 
-        for task_idx in range(self.config.hp.num_tasks):
+        for task_idx in tqdm(range(self.config.hp.num_tasks), desc='[Validating]'):
             trainer = AgemTaskTrainer(self, task_idx)
             acc = trainer.compute_test_accuracy()
             accs.append(acc)
-            self.writer.add_scalar('Task_test_acc/{}', acc)
+            self.writer.add_scalar('Task_test_acc/{}', acc, self.num_tasks_learnt)
 
         self.accs_history.append(accs)
         print('Accuracies:', accs)
@@ -97,16 +101,15 @@ class AgemTrainer(BaseTrainer):
         self.episodic_memory_output_mask.extend([m for m in task_mask])
 
 
-class AgemTaskTrainer(BaseTrainer):
+class AgemTaskTrainer:
     def __init__(self, main_trainer:AgemTrainer, task_idx:int):
-        super(AgemTaskTrainer, self).__init__(main_trainer.config)
-
         self.task_idx = task_idx
         self.config = main_trainer.config
         self.model = main_trainer.model
         self.optim = main_trainer.optim
         self.episodic_memory = main_trainer.episodic_memory
         self.episodic_memory_output_mask = main_trainer.episodic_memory_output_mask
+        self.device_name = main_trainer.device_name
         self.criterion = nn.CrossEntropyLoss()
 
         self.task_ds_train, self.task_ds_test = main_trainer.data_splits[task_idx]
@@ -117,7 +120,14 @@ class AgemTaskTrainer(BaseTrainer):
         self.train_dataloader = DataLoader(self.task_ds_train, batch_size=self.config.hp.batch_size, collate_fn=lambda b: list(zip(*b)))
         self.test_dataloader = DataLoader(self.task_ds_test, batch_size=self.config.hp.batch_size, collate_fn=lambda b: list(zip(*b)))
 
+    def start(self):
+        """Runs training"""
+        for batch in tqdm(self.train_dataloader, desc=f'Task #{self.task_idx}'):
+            self.train_on_batch(batch)
+
     def train_on_batch(self, batch:Tuple[Tensor, Tensor]):
+        self.model.train()
+
         x = torch.tensor(batch[0]).to(self.device_name)
         y = torch.tensor(batch[1]).to(self.device_name)
 
@@ -184,11 +194,12 @@ class AgemTaskTrainer(BaseTrainer):
 
         return pruned
 
-    def compute_test_accuracy(self):
+    def compute_accuracy(self, dataloader:DataLoader):
         guessed = []
+        self.model.eval()
 
         with torch.no_grad():
-            for x, y in self.test_dataloader:
+            for x, y in dataloader:
                 x = torch.tensor(x).to(self.device_name)
                 y = torch.tensor(y).to(self.device_name)
 
@@ -198,3 +209,9 @@ class AgemTaskTrainer(BaseTrainer):
                 guessed.extend((pruned_logits.argmax(dim=1) == y).cpu().data.tolist())
 
         return np.mean(guessed)
+
+    def compute_test_accuracy(self):
+        return self.compute_accuracy(self.test_dataloader)
+
+    def compute_train_accuracy(self):
+        return self.compute_accuracy(self.train_dataloader)

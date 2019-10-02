@@ -7,3 +7,13 @@ Ideas:
 - Like in editable neural networks, but we can make outputs to be unchanged for just some random inputs.
 - Can we change episodic memory in the following way. We train a classification model together with a generative one. And instead of storing examples, we just generate them. We can generate them with the corresponding class labels. And we can do it without class labels by the following way. On each iteration we generate a batch of examples, remember our model's outputs on them. And then perform an optimization step in such a way that outputs for a generated batch does not change (either by regularization or by projecting the gradient).
 - Is it really better to use episodic memory for projecting the gradient? Maybe it will be more beneficial just to mix examples from the episodic memory?
+
+Tricks to use:
+- label smoothing
+- check "Bag of tricks to ..."
+- what if we train class attributes (but initialize from ready ones, ofc)?
+
+TODO:
+- B in RGB has wrong mean for our images (we should use other mean instead of imagenet-like mean)
+- We have quite large logits
+- Our model overfits
