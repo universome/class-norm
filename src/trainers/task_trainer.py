@@ -10,16 +10,14 @@ from src.utils.lll import prune_logits
 
 
 class TaskTrainer:
-    def __init__(self, main_trainer: "LLLTrainer", prev_model: "TaskTrainer", task_idx:int):
+    def __init__(self, main_trainer: "LLLTrainer", task_idx:int):
         self.task_idx = task_idx
+        self.main_trainer = main_trainer
         self.config = main_trainer.config
         self.model = main_trainer.model
         self.optim = main_trainer.optim
-        self.episodic_memory = main_trainer.episodic_memory
-        self.episodic_memory_output_mask = main_trainer.episodic_memory_output_mask
         self.device_name = main_trainer.device_name
         self.criterion = nn.CrossEntropyLoss()
-        self.prev_model = prev_model # TODO: that's a memory leak.
 
         self.task_ds_train, self.task_ds_test = main_trainer.data_splits[task_idx]
         self.output_mask = construct_output_mask(main_trainer.class_splits[task_idx], self.config.num_classes)

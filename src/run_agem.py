@@ -6,7 +6,7 @@ from firelab.utils.training_utils import fix_random_seed
 
 
 def run_trainer():
-    config = Config.load('configs/agem.yml')
+    config = Config.load('configs/ewc.yml')
     config.set('experiments_dir', 'experiments')
 
     all_zst_accs = []

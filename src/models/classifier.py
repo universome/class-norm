@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+from torch import Tensor
 import torch.nn as nn
 from torchvision.models.resnet import resnet18
 
@@ -17,6 +18,23 @@ class ZSClassifier(nn.Module):
         img_feats = self.resnet_emb(x)
         attrs_feats = self.attr_emb(self.attrs)
         logits = torch.mm(img_feats, attrs_feats.t()) + self.biases
+
+        return logits
+
+    def get_head_size(self) -> int:
+        return self.biases.numel() + self.attr_emb.weight.numel()
+
+
+class ResnetClassifier(nn.Module):
+    def __init__(self, num_classes: int, pretrained: bool=False):
+        super(ResnetClassifier, self).__init__()
+
+        self.resnet_emb = ResnetEmbedder(pretrained=pretrained)
+        self.head = nn.Linear(512, num_classes)
+
+    def forward(self, x: Tensor) -> Tensor:
+        feats = self.resnet_emb(x)
+        logits = self.head(feats)
 
         return logits
 
