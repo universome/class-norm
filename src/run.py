@@ -12,13 +12,12 @@ def run_trainer(args):
 
     all_zst_accs = []
 
-    for run_idx in range(config.get('num_runs', 1)):
-        print(f'\n\n<======= RUN # {run_idx} =======>\n\n')
+    for run_idx in range(args.num_runs):
+        print(f'\n<======= RUN # {run_idx} =======>\n')
         fix_random_seed(config.random_seed + run_idx)
         trainer = LLLTrainer(config)
         trainer.start()
-
-    all_zst_accs.append(trainer.zst_accs)
+        all_zst_accs.append(trainer.zst_accs)
 
     print(f'<======= Zero-Shot accuracies for [{args.config_name}] =======>')
 
@@ -29,7 +28,8 @@ def run_trainer(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Running LLL trainer')
     #parser.add_argument('-s', '--seed', default=42, help='Random seed to fix')
-    parser.add_argument('-c', '--config_name', default='basic_cub', help='Which config to run')
+    parser.add_argument('-c', '--config_name', type=str, default='mas_awa', help='Which config to run?')
+    parser.add_argument('-n', '--num_runs', type=int, default=1, help='How many times we should run the experiment?')
     args = parser.parse_args()
 
     run_trainer(args)

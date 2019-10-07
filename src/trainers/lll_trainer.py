@@ -7,11 +7,8 @@ from firelab.config import Config
 from tqdm import tqdm
 
 from src.models.classifier import ZSClassifier, ResnetClassifier
-from src.dataloaders.cub import load_cub_dataset, load_class_attributes
-from src.utils.data_utils import (
-    split_classes_for_tasks,
-    get_train_test_data_splits,
-)
+from src.dataloaders import cub, awa
+from src.utils.data_utils import split_classes_for_tasks, get_train_test_data_splits
 from src.trainers.basic_task_trainer import BasicTaskTrainer
 from src.trainers.agem_task_trainer import AgemTaskTrainer
 from src.trainers.ewc_task_trainer import EWCTaskTrainer
@@ -23,7 +20,7 @@ class LLLTrainer(BaseTrainer):
         super(LLLTrainer, self).__init__(config)
 
         self.logger.info(f'Implementation method: {self.config.task_trainer}')
-        self.logger.info(f'Using devie: {self.device_name}')
+        self.logger.info(f'Using device: {self.device_name}')
 
         self.episodic_memory = []
         self.episodic_memory_output_mask = []
@@ -32,7 +29,7 @@ class LLLTrainer(BaseTrainer):
 
     def init_models(self):
         if self.config.hp.get('use_class_attrs'):
-            self.model = ZSClassifier(load_class_attributes(self.config.data.dir), pretrained=self.config.hp.pretrained)
+            self.model = ZSClassifier(self.class_attributes, pretrained=self.config.hp.pretrained)
         else:
             self.model = ResnetClassifier(self.config.data.num_classes, pretrained=self.config.hp.pretrained)
 
@@ -43,8 +40,17 @@ class LLLTrainer(BaseTrainer):
         self.optim = torch.optim.SGD(self.model.parameters(), **self.config.hp.optim_kwargs.to_dict())
 
     def init_dataloaders(self):
-        self.ds_train = load_cub_dataset(self.config.data.dir, is_train=True, target_shape=self.config.hp.img_target_shape)
-        self.ds_test = load_cub_dataset(self.config.data.dir, is_train=False, target_shape=self.config.hp.img_target_shape)
+        if self.config.data.name == 'CUB':
+            self.ds_train = cub.load_dataset(self.config.data.dir, is_train=True, target_shape=self.config.hp.img_target_shape)
+            self.ds_test = cub.load_dataset(self.config.data.dir, is_train=False, target_shape=self.config.hp.img_target_shape)
+            self.class_attributes = cub.load_class_attributes(self.config.data.dir)
+        elif self.config.data.name == 'AWA':
+            self.ds_train = awa.load_dataset(self.config.data.dir, split='train', target_shape=self.config.hp.img_target_shape)
+            self.ds_test = awa.load_dataset(self.config.data.dir, split='test', target_shape=self.config.hp.img_target_shape)
+            self.class_attributes = awa.load_class_attributes(self.config.data.dir)
+        else:
+            raise NotImplementedError(f'Unkown dataset: {self.config.data.name}')
+
         self.class_splits = split_classes_for_tasks(self.config.data.num_classes, self.config.hp.num_tasks)
         self.data_splits = get_train_test_data_splits(self.class_splits, self.ds_train, self.ds_test)
 

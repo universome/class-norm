@@ -1,15 +1,14 @@
 data:
-  name: "CUB"
-  dir: "data/CUB2011"
-  num_classes: 200
-
+  name: "AWA"
+  dir: "data/AWA"
+  num_classes: 50
 max_num_epochs: 1
 random_seed: 42
 task_trainer: "mas"
 hp:
   use_class_attrs: true
-  num_tasks: 20
-  pretrained: true
+  num_tasks: 10
+  pretrained: false
   batch_size: 10
   img_target_shape: [224, 224]
   synaptic_strength: 0.1

@@ -1,7 +1,7 @@
 data:
+  name: "CUB"
   dir: "data/CUB2011"
   num_classes: 200
-
 max_num_epochs: 1
 random_seed: 42
 task_trainer: "basic"

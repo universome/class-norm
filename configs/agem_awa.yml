@@ -1,15 +1,15 @@
 data:
-  name: "CUB"
-  dir: "data/CUB2011"
-  num_classes: 200
+  dir: "data/AWA2"
+  num_classes: 50
+
 max_num_epochs: 1
 random_seed: 42
 task_trainer: "agem"
 hp:
   use_class_attrs: true
-  num_mem_samples_per_class: 5
-  num_tasks: 20
-  pretrained: true
+  num_mem_samples_per_class: 20
+  num_tasks: 10
+  pretrained: false
   batch_size: 10
   img_target_shape: [224, 224]
   mem_batch_size: 128
