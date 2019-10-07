@@ -8,9 +8,19 @@ import numpy as np
 from src.trainers.task_trainer import TaskTrainer
 from src.utils.lll import prune_logits
 from src.utils.constants import NEG_INF
+from src.utils.data_utils import construct_output_mask
 
 
 class AgemTaskTrainer(TaskTrainer):
+    def _after_init_hook(self):
+        if self.task_idx == 0:
+            self.episodic_memory = []
+            self.episodic_memory_output_mask = []
+        else:
+            prev_trainer = self.main_trainer.task_trainers[self.task_idx - 1]
+            self.episodic_memory = prev_trainer.episodic_memory
+            self.episodic_memory_output_mask = prev_trainer.episodic_memory_output_mask
+
     def train_on_batch(self, batch:Tuple[Tensor, Tensor]):
         self.model.train()
 
@@ -70,3 +80,26 @@ class AgemTaskTrainer(TaskTrainer):
 
         assert len(grad) == 0, "Not all weights were used!"
 
+    def extend_episodic_memory(self):
+        """
+        Adds examples from own data to episodic memory
+
+        :param:
+            - task_idx — task index
+            - num_samples_per_class — max number of samples of each class to add
+        """
+        num_samples_per_class = self.config.hp.num_mem_samples_per_class
+        ds_train, _ = self.main_trainer.data_splits[self.task_idx]
+        unique_labels = set([y for _,y in ds_train])
+        groups = [[(x,y) for (x,y) in ds_train if y == label] for label in unique_labels] # Slow but concise
+        num_samples_to_add = [min(len(g), num_samples_per_class) for g in groups]
+        task_memory = [random.sample(g, n) for g, n in zip(groups, num_samples_to_add)]
+        task_memory = [s for group in task_memory for s in group] # Flattening
+        task_mask = construct_output_mask(self.main_trainer.class_splits[self.task_idx], self.config.num_classes)
+        task_mask = task_mask.reshape(1, -1).repeat(len(task_memory), axis=0)
+
+        assert len(task_memory) <= num_samples_per_class * len(groups)
+        assert len(task_mask) <= num_samples_per_class * len(groups)
+
+        self.episodic_memory.extend(task_memory)
+        self.episodic_memory_output_mask.extend([m for m in task_mask])
