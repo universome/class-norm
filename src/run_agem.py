@@ -1,7 +1,6 @@
-import argparse
 import sys; sys.path.append('.')
 
-from src.trainers.agem_trainer import AgemTrainer
+from src.trainers.lll_trainer import LLLTrainer
 from firelab.config import Config
 from firelab.utils.training_utils import fix_random_seed
 
@@ -12,13 +11,13 @@ def run_trainer():
 
     all_zst_accs = []
 
-    for run_idx in range(5):
+    for run_idx in range(config.get('num_runs', 1)):
         print(f'\n\n<======= RUN # {run_idx} =======>\n\n')
         fix_random_seed(config.random_seed + run_idx)
-        trainer = AgemTrainer(config)
+        trainer = LLLTrainer(config)
         trainer.start()
 
-        all_zst_accs.append(trainer.zst_accs)
+    all_zst_accs.append(trainer.zst_accs)
 
     print(f'<======= Zero-Shot accuracies (A-GEM: {config.hp.use_agem}) =======>')
     for i, zst_accs in enumerate(all_zst_accs):

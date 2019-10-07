@@ -3,7 +3,8 @@ num_classes: 200
 attr_size: 312
 max_num_epochs: 1
 random_seed: 42
-gpus: []
+#gpus: []
+task_trainer: "agem"
 hp:
   num_mem_samples_per_class: 5
   num_tasks: 20

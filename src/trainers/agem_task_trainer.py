@@ -1,51 +1,16 @@
-from typing import List, Tuple
+from typing import Tuple
 import random
 
 import torch
-import torch.nn as nn
 from torch import Tensor
-from torch.utils.data import DataLoader, Dataset
-from firelab.base_trainer import BaseTrainer
-from firelab.config import Config
 import numpy as np
-from tqdm import tqdm
 
-from src.models.classifier import ZSClassifier
-from src.dataloaders.cub import load_cub_dataset, load_class_attributes
-from src.utils.data_utils import (
-    split_classes_for_tasks,
-    get_train_test_data_splits,
-    construct_output_mask,
-)
+from src.trainers.task_trainer import TaskTrainer
+from src.utils.lll import prune_logits
+from src.utils.constants import NEG_INF
 
 
-NEG_INF = float('-inf')
-
-
-class AgemTaskTrainer:
-    def __init__(self, main_trainer:AgemTrainer, task_idx:int):
-        self.task_idx = task_idx
-        self.config = main_trainer.config
-        self.model = main_trainer.model
-        self.optim = main_trainer.optim
-        self.episodic_memory = main_trainer.episodic_memory
-        self.episodic_memory_output_mask = main_trainer.episodic_memory_output_mask
-        self.device_name = main_trainer.device_name
-        self.criterion = nn.CrossEntropyLoss()
-
-        self.task_ds_train, self.task_ds_test = main_trainer.data_splits[task_idx]
-        self.output_mask = construct_output_mask(main_trainer.class_splits[task_idx], self.config.num_classes)
-        self.init_dataloaders()
-
-    def init_dataloaders(self):
-        self.train_dataloader = DataLoader(self.task_ds_train, batch_size=self.config.hp.batch_size, collate_fn=lambda b: list(zip(*b)))
-        self.test_dataloader = DataLoader(self.task_ds_test, batch_size=self.config.hp.batch_size, collate_fn=lambda b: list(zip(*b)))
-
-    def start(self):
-        """Runs training"""
-        for batch in tqdm(self.train_dataloader, desc=f'Task #{self.task_idx}'):
-            self.train_on_batch(batch)
-
+class AgemTaskTrainer(TaskTrainer):
     def train_on_batch(self, batch:Tuple[Tensor, Tensor]):
         self.model.train()
 
@@ -53,7 +18,7 @@ class AgemTaskTrainer:
         y = torch.tensor(batch[1]).to(self.device_name)
 
         logits = self.model(x)
-        pruned_logits = self.prune_logits(logits)
+        pruned_logits = prune_logits(logits, self.output_mask)
         loss = self.criterion(pruned_logits, y)
 
         if self.config.hp.get('use_agem', True) and len(self.episodic_memory) > 0:
@@ -105,34 +70,3 @@ class AgemTaskTrainer:
 
         assert len(grad) == 0, "Not all weights were used!"
 
-    def prune_logits(self, logits:Tensor) -> Tensor:
-        """
-        Takes logits and sets those classes which do not participate
-        in the current task to -infinity so they are not explicitly penalized and forgotten
-        """
-        mask_idx = np.nonzero(~self.output_mask)[0]
-        pruned = logits.index_fill(1, torch.tensor(mask_idx).to(self.device_name), NEG_INF)
-
-        return pruned
-
-    def compute_accuracy(self, dataloader:DataLoader):
-        guessed = []
-        self.model.eval()
-
-        with torch.no_grad():
-            for x, y in dataloader:
-                x = torch.tensor(x).to(self.device_name)
-                y = torch.tensor(y).to(self.device_name)
-
-                logits = self.model(x)
-                pruned_logits = self.prune_logits(logits)
-
-                guessed.extend((pruned_logits.argmax(dim=1) == y).cpu().data.tolist())
-
-        return np.mean(guessed)
-
-    def compute_test_accuracy(self):
-        return self.compute_accuracy(self.test_dataloader)
-
-    def compute_train_accuracy(self):
-        return self.compute_accuracy(self.train_dataloader)
