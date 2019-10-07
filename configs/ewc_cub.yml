@@ -1,10 +1,13 @@
-data_dir: "data/CUB2011"
-num_classes: 200
-attr_size: 312
+data:
+#  dir: "data/CUB2011"
+#  num_classes: 200
+  dir: "data/AWA2"
+  num_classes: 50
+
 max_num_epochs: 1
 random_seed: 42
 #gpus: []
-task_trainer: "agem"
+task_trainer: "ewc"
 hp:
   use_class_attrs: true
   num_mem_samples_per_class: 5
@@ -14,6 +17,6 @@ hp:
   img_target_shape: [224, 224]
   mem_batch_size: 128
   use_agem: false
-  optim_kwargs:
-    lr: 0.03
-    #weight_decay: 0.00001
+  synaptic_strength: 10 # TODO: for AWA should be 100
+  fisher_keep_prob: 0.5
+  optim_kwargs: {lr: 0.03}

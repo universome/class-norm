@@ -12,9 +12,10 @@ from src.utils.data_utils import (
     split_classes_for_tasks,
     get_train_test_data_splits,
 )
+from src.trainers.basic_task_trainer import BasicTaskTrainer
 from src.trainers.agem_task_trainer import AgemTaskTrainer
 from src.trainers.ewc_task_trainer import EWCTaskTrainer
-# from src.trainers.mas_task_trainer import MASTaskTrainer
+from src.trainers.mas_task_trainer import MASTaskTrainer
 
 
 class LLLTrainer(BaseTrainer):
@@ -22,6 +23,7 @@ class LLLTrainer(BaseTrainer):
         super(LLLTrainer, self).__init__(config)
 
         self.logger.info(f'Implementation method: {self.config.task_trainer}')
+        self.logger.info(f'Using devie: {self.device_name}')
 
         self.episodic_memory = []
         self.episodic_memory_output_mask = []
@@ -30,9 +32,9 @@ class LLLTrainer(BaseTrainer):
 
     def init_models(self):
         if self.config.hp.get('use_class_attrs'):
-            self.model = ZSClassifier(load_class_attributes(self.config.data_dir), pretrained=self.config.hp.pretrained)
+            self.model = ZSClassifier(load_class_attributes(self.config.data.dir), pretrained=self.config.hp.pretrained)
         else:
-            self.model = ResnetClassifier(self.config.num_classes, pretrained=self.config.hp.pretrained)
+            self.model = ResnetClassifier(self.config.data.num_classes, pretrained=self.config.hp.pretrained)
 
         self.model = self.model.to(self.device_name)
 
@@ -41,9 +43,9 @@ class LLLTrainer(BaseTrainer):
         self.optim = torch.optim.SGD(self.model.parameters(), **self.config.hp.optim_kwargs.to_dict())
 
     def init_dataloaders(self):
-        self.ds_train = load_cub_dataset(self.config.data_dir, is_train=True, target_shape=self.config.hp.img_target_shape)
-        self.ds_test = load_cub_dataset(self.config.data_dir, is_train=False, target_shape=self.config.hp.img_target_shape)
-        self.class_splits = split_classes_for_tasks(self.config.num_classes, self.config.hp.num_tasks)
+        self.ds_train = load_cub_dataset(self.config.data.dir, is_train=True, target_shape=self.config.hp.img_target_shape)
+        self.ds_test = load_cub_dataset(self.config.data.dir, is_train=False, target_shape=self.config.hp.img_target_shape)
+        self.class_splits = split_classes_for_tasks(self.config.data.num_classes, self.config.hp.num_tasks)
         self.data_splits = get_train_test_data_splits(self.class_splits, self.ds_train, self.ds_test)
 
         for task_idx, split in enumerate(self.class_splits):
@@ -74,10 +76,14 @@ class LLLTrainer(BaseTrainer):
         print('ZST accs:', self.zst_accs)
 
     def construct_trainer(self, task_idx: int) -> "TaskTrainer":
-        if self.config.task_trainer == 'agem':
+        if self.config.task_trainer == 'basic':
+            return BasicTaskTrainer(self, task_idx)
+        elif self.config.task_trainer == 'agem':
             return AgemTaskTrainer(self, task_idx)
         elif self.config.task_trainer == 'ewc':
             return EWCTaskTrainer(self, task_idx)
+        elif self.config.task_trainer == 'mas':
+            return MASTaskTrainer(self, task_idx)
         else:
             raise NotImplementedError(f'Unknown task trainer: {self.config.task_trainer}')
 

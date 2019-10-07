@@ -1,3 +1,4 @@
+import argparse
 import sys; sys.path.append('.')
 
 from src.trainers.lll_trainer import LLLTrainer
@@ -5,8 +6,8 @@ from firelab.config import Config
 from firelab.utils.training_utils import fix_random_seed
 
 
-def run_trainer():
-    config = Config.load('configs/ewc.yml')
+def run_trainer(args):
+    config = Config.load(f'configs/{args.config_name}.yml')
     config.set('experiments_dir', 'experiments')
 
     all_zst_accs = []
@@ -19,13 +20,16 @@ def run_trainer():
 
     all_zst_accs.append(trainer.zst_accs)
 
-    print(f'<======= Zero-Shot accuracies (A-GEM: {config.hp.use_agem}) =======>')
+    print(f'<======= Zero-Shot accuracies for [{args.config_name}] =======>')
+
     for i, zst_accs in enumerate(all_zst_accs):
         print(f'Run #{i}', zst_accs)
 
-if __name__ == '__main__':
-    # parser = argparse.ArgumentParser('Running AgemTrainer')
-    # parser.add_argument('-s', '--seed', default=42, help='Random seed to fix')
-    # args = parser.parse_args()
 
-    run_trainer()
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser('Running LLL trainer')
+    #parser.add_argument('-s', '--seed', default=42, help='Random seed to fix')
+    parser.add_argument('-c', '--config_name', default='basic_cub', help='Which config to run')
+    args = parser.parse_args()
+
+    run_trainer(args)
