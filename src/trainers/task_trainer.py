@@ -20,7 +20,7 @@ class TaskTrainer:
         self.criterion = nn.CrossEntropyLoss()
 
         self.task_ds_train, self.task_ds_test = main_trainer.data_splits[task_idx]
-        self.output_mask = construct_output_mask(main_trainer.class_splits[task_idx], self.config.num_classes)
+        self.output_mask = construct_output_mask(main_trainer.class_splits[task_idx], self.config.data.num_classes)
         self.init_dataloaders()
 
         self._after_init_hook()

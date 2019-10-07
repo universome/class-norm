@@ -31,7 +31,9 @@ class AgemTaskTrainer(TaskTrainer):
         pruned_logits = prune_logits(logits, self.output_mask)
         loss = self.criterion(pruned_logits, y)
 
-        if self.config.hp.get('use_agem', True) and len(self.episodic_memory) > 0:
+        if self.task_idx > 0:
+            assert len(self.episodic_memory) > 0
+
             ref_grad = self.compute_ref_grad()
             loss.backward()
             grad = torch.cat([p.grad.data.view(-1) for p in self.model.parameters()])
@@ -95,7 +97,7 @@ class AgemTaskTrainer(TaskTrainer):
         num_samples_to_add = [min(len(g), num_samples_per_class) for g in groups]
         task_memory = [random.sample(g, n) for g, n in zip(groups, num_samples_to_add)]
         task_memory = [s for group in task_memory for s in group] # Flattening
-        task_mask = construct_output_mask(self.main_trainer.class_splits[self.task_idx], self.config.num_classes)
+        task_mask = construct_output_mask(self.main_trainer.class_splits[self.task_idx], self.config.data.num_classes)
         task_mask = task_mask.reshape(1, -1).repeat(len(task_memory), axis=0)
 
         assert len(task_memory) <= num_samples_per_class * len(groups)

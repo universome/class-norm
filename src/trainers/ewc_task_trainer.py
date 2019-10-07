@@ -28,7 +28,7 @@ class EWCTaskTrainer(TaskTrainer):
 
         if self.task_idx > 0:
             reg = self.compute_regularization()
-            loss += self.config.hp.ewc.reg_coef * reg
+            loss += self.config.hp.synaptic_strength * reg
 
         self.optim.zero_grad()
         loss.backward()
@@ -36,7 +36,7 @@ class EWCTaskTrainer(TaskTrainer):
 
     def compute_regularization(self) -> Tensor:
         head_size = self.model.get_head_size()
-        keep_prob = self.config.hp.ewc.get('fisher_keep_prob', 1.)
+        keep_prob = self.config.hp.get('fisher_keep_prob', 1.)
         weights_curr = torch.cat([p.view(-1) for p in self.model.parameters()])
 
         if keep_prob < 1:
@@ -47,6 +47,6 @@ class EWCTaskTrainer(TaskTrainer):
         else:
             fisher = self.fisher
 
-        ewc_reg = torch.dot((weights_curr - self.weights_prev).pow(2), fisher)
+        reg = torch.dot((weights_curr - self.weights_prev).pow(2), fisher)
 
-        return ewc_reg
+        return reg

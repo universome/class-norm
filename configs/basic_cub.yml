@@ -1,0 +1,14 @@
+data:
+  dir: "data/CUB2011"
+  num_classes: 200
+
+max_num_epochs: 1
+random_seed: 42
+task_trainer: "basic"
+hp:
+  use_class_attrs: true
+  num_tasks: 20
+  pretrained: true
+  batch_size: 10
+  img_target_shape: [224, 224]
+  optim_kwargs: {lr: 0.03}
