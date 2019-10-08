@@ -1,5 +1,4 @@
 data:
-  name: "CUB"
   dir: "data/CUB2011"
   num_classes: 200
 metrics:

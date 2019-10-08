@@ -9,6 +9,7 @@ from firelab.utils.training_utils import fix_random_seed
 def run_trainer(args):
     config = Config.load(f'configs/{args.config_name}.yml')
     config.set('experiments_dir', 'experiments')
+    config.set('exp_name', args.config_name)
 
     all_zst_accs = []
 
