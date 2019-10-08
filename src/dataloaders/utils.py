@@ -27,15 +27,23 @@ def shuffle_dataset(imgs: List[Any], labels: List[int]) -> Tuple[List[Any], List
     return imgs, labels
 
 
-def load_imgs(image_folder: PathLike, img_paths: List[PathLike]) -> List[np.ndarray]:
+def load_imgs(image_folder: PathLike, img_paths: List[PathLike], target_shape=None) -> List[np.ndarray]:
     full_img_paths = [os.path.join(image_folder, p) for p in img_paths]
-    images = [cv2.imread(p).astype(np.float32) for p in tqdm(full_img_paths, desc='[Loading CUB dataset]')]
+    images = [load_img(p, target_shape) for p in tqdm(full_img_paths, desc='[Loading dataset]')]
 
     return images
 
 
-def preprocess_imgs(imgs: List[np.ndarray], target_shape: Tuple[int, int]) -> List[np.ndarray]:
-    imgs = [cv2.resize(img, target_shape) for img in tqdm(imgs, desc='[Resizing]')]
+def load_img(img_path: PathLike, target_shape: Tuple[int, int]=None):
+    img = cv2.imread(img_path)
+
+    if target_shape != None:
+        img = cv2.resize(img, target_shape)
+
+    return img.astype(np.float32)
+
+
+def preprocess_imgs(imgs: List[np.ndarray]) -> List[np.ndarray]:
     imgs = [img.transpose(2, 0, 1) for img in tqdm(imgs, desc='[Reshaping]')]
     imgs = [imagenet_normalization(torch.tensor(img) / 255).numpy() for img in tqdm(imgs, desc='Normalizing')]
 
