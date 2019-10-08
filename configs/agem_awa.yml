@@ -1,4 +1,5 @@
 data:
+  name: "AWA"
   dir: "data/AWA2"
   num_classes: 50
 metrics:
