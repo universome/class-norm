@@ -11,10 +11,14 @@ from src.trainers.task_trainer import TaskTrainer
 
 class EWCTaskTrainer(TaskTrainer):
     def _after_init_hook(self):
-        if self.task_idx > 0:
-            prev_trainer = self.main_trainer.task_trainers[self.task_idx - 1]
+        prev_trainer = self.get_previous_trainer()
+
+        if prev_trainer != None:
             self.fisher = compute_diagonal_fisher(self.model, self.train_dataloader, prev_trainer.output_mask)
             self.weights_prev = torch.cat([p.data.view(-1) for p in self.model.parameters()])
+
+    def is_trainable(self) -> bool:
+        return (self.task_idx == 0) or (self.get_previous_trainer() != None)
 
     def train_on_batch(self, batch:Tuple[Tensor, Tensor]):
         self.model.train()

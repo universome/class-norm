@@ -13,13 +13,18 @@ from src.utils.data_utils import construct_output_mask
 
 class AgemTaskTrainer(TaskTrainer):
     def _after_init_hook(self):
+        prev_trainer = self.get_previous_trainer()
+
         if self.task_idx == 0:
             self.episodic_memory = []
             self.episodic_memory_output_mask = []
-        else:
+        elif prev_trainer != None:
             prev_trainer = self.main_trainer.task_trainers[self.task_idx - 1]
             self.episodic_memory = prev_trainer.episodic_memory
             self.episodic_memory_output_mask = prev_trainer.episodic_memory_output_mask
+
+    def is_trainable(self) -> bool:
+        return self.task_idx == 0 or self.get_previous_trainer() != None
 
     def train_on_batch(self, batch:Tuple[Tensor, Tensor]):
         self.model.train()

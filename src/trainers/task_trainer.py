@@ -22,6 +22,7 @@ class TaskTrainer:
         self.task_ds_train, self.task_ds_test = main_trainer.data_splits[task_idx]
         self.output_mask = construct_output_mask(main_trainer.class_splits[task_idx], self.config.data.num_classes)
         self.init_dataloaders()
+        self.test_acc_batch_history = []
 
         self._after_init_hook()
 
@@ -32,9 +33,25 @@ class TaskTrainer:
     def _after_init_hook(self):
         pass
 
+    def get_previous_trainer(self) -> "TaskTrainer":
+        if self.task_idx == 0 or (self.task_idx - 1) >= len(self.main_trainer.task_trainers):
+            return None
+        else:
+            return self.main_trainer.task_trainers[self.task_idx - 1]
+
+    @property
+    def is_trainable(self) -> bool:
+        return True
+
     def start(self):
         """Runs training"""
-        for batch in tqdm(self.train_dataloader, desc=f'Task #{self.task_idx}'):
+        assert self.is_trainable, "We do not have enough conditions to train this Task Trainer"\
+                                  "(for example, previous trainers was not finished or this trainer was already run)"
+
+        for batch_idx, batch in tqdm(enumerate(self.train_dataloader), desc=f'Task #{self.task_idx}'):
+            if self.config.get('metrics.lca_num_batches', -1) >= batch_idx:
+                self.test_acc_batch_history.append(self.compute_test_accuracy())
+
             self.train_on_batch(batch)
 
     def train_on_batch(self, batch):

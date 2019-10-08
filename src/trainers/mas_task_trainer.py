@@ -10,8 +10,9 @@ from src.trainers.ewc_task_trainer import EWCTaskTrainer
 
 class MASTaskTrainer(EWCTaskTrainer):
     def _after_init_hook(self):
-        if self.task_idx > 0:
-            prev_trainer = self.main_trainer.task_trainers[self.task_idx - 1]
+        prev_trainer = self.get_previous_trainer()
+
+        if prev_trainer != None:
             self.weights_prev = torch.cat([p.data.view(-1) for p in self.model.parameters()])
             self.mse_grad = compute_mse_grad(self.model, self.train_dataloader, prev_trainer.output_mask)
 

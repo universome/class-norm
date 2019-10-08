@@ -1,7 +1,8 @@
-from typing import List, Tuple
-import random
+import os
+from typing import List
 
 import torch
+import numpy as np
 from firelab.base_trainer import BaseTrainer
 from firelab.config import Config
 from tqdm import tqdm
@@ -13,6 +14,7 @@ from src.trainers.basic_task_trainer import BasicTaskTrainer
 from src.trainers.agem_task_trainer import AgemTaskTrainer
 from src.trainers.ewc_task_trainer import EWCTaskTrainer
 from src.trainers.mas_task_trainer import MASTaskTrainer
+from src.utils.metrics import compute_average_accuracy, compute_forgetting_measure, compute_learning_curve_area
 
 
 class LLLTrainer(BaseTrainer):
@@ -72,14 +74,35 @@ class LLLTrainer(BaseTrainer):
             print(f'. ZST accuracy: {self.zst_accs[-1]}')
             task_trainer.start()
             self.num_tasks_learnt += 1
-            #self.validate()
             print(f'Train accuracy: {task_trainer.compute_train_accuracy()}')
             print(f'Test accuracy: {task_trainer.compute_test_accuracy()}')
 
             if self.config.task_trainer == 'agem':
                 task_trainer.extend_episodic_memory()
 
-        print('ZST accs:', self.zst_accs)
+            if self.config.get('metrics.average_accuracy') or self.config.get('metrics.forgetting_measure'):
+                self.validate()
+
+        self.compute_metrics()
+        self.save_scores()
+
+    def compute_metrics(self):
+        if self.config.get('metrics.average_accuracy'):
+            print('Average Accuracy:', compute_average_accuracy(self.accs_history))
+
+        if self.config.get('metrics.forgetting_measure'):
+            print('Forgetting Measure:', compute_forgetting_measure(self.accs_history))
+
+        if self.config.get('metrics.lca_num_batches', -1) >= -1:
+            lca_accs = [t.test_acc_batch_history for t in self.task_trainers]
+            lca_n_batches = min(self.config.metrics.lca_num_batches, min([len(accs) - 1 for accs in lca_accs]))
+            print(f'Learning Curve Area [beta = {lca_n_batches}]:', compute_learning_curve_area(lca_accs, lca_n_batches))
+
+    def save_scores(self):
+        np.save(os.path.join(self.paths.custom_data_path, 'zst_accs'), self.zst_accs)
+        np.save(os.path.join(self.paths.custom_data_path, 'accs_history'), self.accs_history)
+        np.save(os.path.join(self.paths.custom_data_path, 'test_acc_batch_histories'),
+                [t.test_acc_batch_history for t in self.task_trainers])
 
     def construct_trainer(self, task_idx: int) -> "TaskTrainer":
         if self.config.task_trainer == 'basic':
@@ -93,15 +116,21 @@ class LLLTrainer(BaseTrainer):
         else:
             raise NotImplementedError(f'Unknown task trainer: {self.config.task_trainer}')
 
-    def validate(self):
-        """Computes model accuracy on all the tasks"""
-        accs = []
+    def compute_test_accs(self) -> List[float]:
+        """Computes model test accuracy on all the tasks"""
+        accuracies = []
 
         for task_idx in tqdm(range(self.config.hp.num_tasks), desc='[Validating]'):
             trainer = self.construct_trainer(task_idx)
-            acc = trainer.compute_test_accuracy()
-            accs.append(acc)
+            accuracy = trainer.compute_test_accuracy()
+            accuracies.append(accuracy)
+
+        return accuracies
+
+    def validate(self):
+        accs = self.compute_test_accs()
+
+        for task_id, acc in enumerate(accs):
             self.writer.add_scalar('Task_test_acc/{}', acc, self.num_tasks_learnt)
 
         self.accs_history.append(accs)
-        print('Accuracies:', accs)

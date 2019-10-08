@@ -2,6 +2,10 @@ data:
   name: "AWA"
   dir: "data/AWA"
   num_classes: 50
+metrics:
+  average_accuracy: true
+  forgetting_measure: true
+  lca_num_batches: 10
 max_num_epochs: 1
 random_seed: 42
 task_trainer: "basic"

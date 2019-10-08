@@ -2,6 +2,10 @@ data:
   name: "CUB"
   dir: "data/CUB2011"
   num_classes: 200
+metrics:
+  average_accuracy: true
+  forgetting_measure: true
+  lca_num_batches: 10
 max_num_epochs: 1
 random_seed: 42
 task_trainer: "ewc"
