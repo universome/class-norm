@@ -19,16 +19,17 @@ def compute_average_accuracy(accuracies_history: List[List[float]], after_task_i
 
 def compute_forgetting_measure(accuracies_history: List[List[float]], after_task_idx: int=-1) -> float:
     """
-    Computes forgetting measure after specified task
+    Computes forgetting measure after specified task.
+    Not that it is computed for all tasks except the last one
 
-    :param accuracies_history:
-    :param after_task_idx:
+    :param accuracies_history: matrix of size [NUM_TASKS x NUM_TASKS]
+    :param after_task_idx: up to which task (non-inclusive) to compute the metric
     :return: forgetting measure
     """
     accuracies_history = np.array(accuracies_history)
     after_task_num = (after_task_idx + 1) if after_task_idx >= 0 else len(accuracies_history)
     prev_accs = accuracies_history[:after_task_num - 1, :after_task_num - 1]
-    forgettings = prev_accs - accuracies_history[after_task_num - 1, :after_task_num - 1]
+    forgettings = prev_accs.max(axis=0) - accuracies_history[after_task_num - 1, :after_task_num - 1]
     forgetting_measure = np.mean(forgettings).item()
 
     return forgetting_measure
