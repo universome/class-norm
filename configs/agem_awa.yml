@@ -1,6 +1,6 @@
 data:
   name: "AWA"
-  dir: "data/AWA2"
+  dir: "data/AWA"
   num_classes: 50
 metrics:
   average_accuracy: true
