@@ -4,10 +4,14 @@ from typing import List, Tuple, Any
 
 import cv2
 import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader
 import numpy as np
 from tqdm import tqdm
 from torchvision import transforms
+from firelab.utils.training_utils import get_module_device
 
+from src.models.classifier import ResnetEmbedder
 
 imagenet_normalization = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 
@@ -48,3 +52,24 @@ def preprocess_imgs(imgs: List[np.ndarray]) -> List[np.ndarray]:
     imgs = [imagenet_normalization(torch.tensor(img) / 255).numpy() for img in tqdm(imgs, desc='Normalizing')]
 
     return imgs
+
+
+def extract_features(imgs: List[np.ndarray], embedder: nn.Module, batch_size: int=64) -> List[np.ndarray]:
+    dataloader = DataLoader(imgs, batch_size=batch_size)
+    device = get_module_device(embedder)
+    result = []
+
+    with torch.no_grad():
+        for x in tqdm(dataloader, desc='[Extracting features]'):
+            feats = embedder(x.to(device)).cpu().numpy()
+            result.extend(feats)
+
+    return result
+
+
+def extract_resnet18_features_for_dataset(dataset: List[Tuple[np.ndarray, int]], device: str='cpu') -> List[Tuple[np.ndarray, int]]:
+    resnet18 = ResnetEmbedder(pretrained=True).to(device)
+    imgs = [x for x, _ in dataset]
+    features = extract_features(imgs, resnet18)
+
+    return list(zip(features, [y for _, y in dataset]))
