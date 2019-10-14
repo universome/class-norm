@@ -50,7 +50,6 @@ def compute_grad(model: nn.Module, criterion: nn.Module, dataloader: DataLoader,
     :param dataloader:
     :return:
     """
-    dummy_optim = torch.optim.SGD(model.parameters(), lr=1) # Just for zeroing gradient
     num_samples = 0
     num_params = sum(p.numel() for p in model.parameters())
     device = get_module_device(model)
@@ -63,7 +62,7 @@ def compute_grad(model: nn.Module, criterion: nn.Module, dataloader: DataLoader,
         pruned_logits = prune_logits(logits, output_mask)
         loss = criterion(pruned_logits, y)
 
-        dummy_optim.zero_grad()
+        model.zero_grad()
         loss.backward()
         curr_grad = torch.cat([p.grad.data.view(-1) for p in model.parameters()])
 
