@@ -74,3 +74,18 @@ def construct_output_mask(task_labels:List[int], total_num_classes:int) -> np.nd
 def resize_dataset(dataset:Dataset, w:int, h:int) -> Dataset:
     return [(resize(x, (w, h)), y) for x, y in dataset]
 
+
+def compute_class_centroids(dataset: List[Tuple[np.ndarray, int]], total_num_classes: int) -> np.ndarray:
+    """
+    Computes class centroids and returns a matrix of size [TOTAL_NUM_CLASSES x X_DIM]
+    :param imgs:
+    :param labels:
+    :return:
+    """
+    assert np.array(dataset[0][0]).ndim == 1, "We should work in features space instead of image space"
+
+    centroids = np.zeros((total_num_classes, len(dataset[0][0])))
+    unique_labels = list(set(y for _, y in dataset))
+    centroids[unique_labels] = [np.mean([x for x, y in dataset if y == l], axis=0) for l in unique_labels] # TODO: this can be done much faster
+
+    return centroids
