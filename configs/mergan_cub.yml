@@ -1,0 +1,36 @@
+data:
+  name: "CUB"
+  dir: "data/CUB2011"
+  num_classes: 200
+  should_embed: true
+gpus: []
+#metrics:
+#  average_accuracy: true
+#  forgetting_measure: true
+#  lca_num_batches: 10
+max_num_epochs: 1
+random_seed: 42
+task_trainer: "mergan"
+hp:
+  use_class_attrs: true
+  num_tasks: 20
+  batch_size: 10
+  img_target_shape: [224, 224]
+
+  model_type: "gan_classifier"
+  model_config:
+    z_dim: 100
+    prediction_strategy: "nearest_neighbor"
+    num_hallicinated_samples_per_class: 100
+    feat_dim: 512
+    attr_input_dim: 312
+    attr_output_dim: 512
+    hid_dim: 512
+    num_classes: 200
+    gen_optim_kwargs: {lr: 0.03}
+    discr_optim_kwargs: {lr: 0.03}
+    num_discr_steps_per_gen_step: 5
+    centroid_reg_coef: 1
+    distill_batch_size: 100
+    model_distill_coef: 0.001
+

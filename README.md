@@ -9,6 +9,9 @@ Ideas:
 - Is it really better to use episodic memory for projecting the gradient? Maybe it will be more beneficial just to mix examples from the episodic memory?
 - It will be an interseting survey to see how diffferent LLL methods work on tasks which come from different data distributions. I.e. if we have completely different tasks.
 - Are adversarially robust classifiers less prone to catastrophic forgetting?
+- Recent LTH works ([1](https://arxiv.org/abs/1905.07785), [2](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=8852405&tag=1)) imply that winning tickets are quite the same for similar tasks. In our LLL setup we use very similar tasks (subsets of the same dataset). This means that EWC/MAS/similar methods shouldn't work well, because they restrict changing the winning ticket, and those weights which these methods allow to change — we do not need to, because they are not a part of the winning ticket.
+- What if we'll hallucinate future classes?
+- Can we have a scheduled learning, i.e. a task sequence, that is made up in such a way that it's easier for us to learn? Just like in school
 
 Tricks to use:
 - label smoothing
@@ -23,3 +26,4 @@ TODO:
 - For memory replay, try taking only those samples for each classifier is very certain. This potentially will allow to take very good images. Actually, we can verify (manually or automatically) if such images are really better.
 - Perceptual loss instead of MSE loss?
 - New metric for LLL: plasticity, which is how much tasks can an agent learn. Because some regularizations can be good, but they are too constraining for acquiring new tasks.
+- Will it be better if we sample random classes from Generator on each trianing step? And not classes from the current batch?

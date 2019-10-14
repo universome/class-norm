@@ -11,8 +11,7 @@ class BasicTaskTrainer(TaskTrainer):
         x = torch.tensor(batch[0]).to(self.device_name)
         y = torch.tensor(batch[1]).to(self.device_name)
 
-        logits = self.model(x)
-        pruned_logits = prune_logits(logits, self.output_mask)
+        pruned_logits = self.model.compute_pruned_predictions(x, self.output_mask)
         loss = self.criterion(pruned_logits, y)
 
         self.optim.zero_grad()

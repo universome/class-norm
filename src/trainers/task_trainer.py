@@ -6,7 +6,6 @@ import numpy as np
 from tqdm import tqdm
 
 from src.utils.data_utils import construct_output_mask
-from src.utils.lll import prune_logits
 
 
 class TaskTrainer:
@@ -18,11 +17,13 @@ class TaskTrainer:
         self.optim = main_trainer.optim
         self.device_name = main_trainer.device_name
         self.criterion = nn.CrossEntropyLoss()
+        self.writer = main_trainer.writer
 
         self.task_ds_train, self.task_ds_test = main_trainer.data_splits[task_idx]
         self.output_mask = construct_output_mask(main_trainer.class_splits[task_idx], self.config.data.num_classes)
         self.init_dataloaders()
         self.test_acc_batch_history = []
+        self.num_iters_done = 0
 
         self._after_init_hook()
 
@@ -48,11 +49,12 @@ class TaskTrainer:
         assert self.is_trainable, "We do not have enough conditions to train this Task Trainer"\
                                   "(for example, previous trainers was not finished or this trainer was already run)"
 
-        for batch_idx, batch in tqdm(enumerate(self.train_dataloader), desc=f'Task #{self.task_idx}'):
-            if self.config.get('metrics.lca_num_batches', -1) >= batch_idx:
+        for batch in tqdm(self.train_dataloader, desc=f'Task #{self.task_idx}'):
+            if self.config.get('metrics.lca_num_batches', -1) >= self.num_iters_done:
                 self.test_acc_batch_history.append(self.compute_test_accuracy())
 
             self.train_on_batch(batch)
+            self.num_iters_done += 1
 
     def train_on_batch(self, batch):
         raise NotImplementedError
@@ -67,8 +69,7 @@ class TaskTrainer:
                 x = torch.tensor(x).to(self.device_name)
                 y = torch.tensor(y).to(self.device_name)
 
-                logits = self.model(x)
-                pruned_logits = prune_logits(logits, self.output_mask)
+                pruned_logits = self.model.compute_pruned_predictions(x, self.output_mask)
 
                 guessed.extend((pruned_logits.argmax(dim=1) == y).cpu().data.tolist())
 

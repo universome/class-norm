@@ -8,14 +8,16 @@ from firelab.config import Config
 from tqdm import tqdm
 
 from src.models.classifier import ZSClassifier, ResnetClassifier
+from src.models.gan_classifier import GANClassifier
 from src.dataloaders import cub, awa
 from src.utils.data_utils import split_classes_for_tasks, get_train_test_data_splits
 from src.trainers.basic_task_trainer import BasicTaskTrainer
 from src.trainers.agem_task_trainer import AgemTaskTrainer
 from src.trainers.ewc_task_trainer import EWCTaskTrainer
 from src.trainers.mas_task_trainer import MASTaskTrainer
+from src.trainers.mergan_task_trainer import MeRGANTaskTrainer
 from src.utils.metrics import compute_average_accuracy, compute_forgetting_measure, compute_learning_curve_area
-
+from src.dataloaders.utils import extract_resnet18_features_for_dataset
 
 class LLLTrainer(BaseTrainer):
     def __init__(self, config: Config):
@@ -31,15 +33,30 @@ class LLLTrainer(BaseTrainer):
 
     def init_models(self):
         if self.config.hp.get('use_class_attrs'):
-            self.model = ZSClassifier(self.class_attributes, pretrained=self.config.hp.pretrained)
+            if self.config.hp.get('model_type', 'simple_classifier') == 'simple_classifier':
+                self.model = ZSClassifier(self.class_attributes, pretrained=self.config.hp.pretrained)
+            elif self.config.hp.model_type == 'gan_classifier':
+                self.model = GANClassifier(self.class_attributes, self.config.hp.model_config)
+            else:
+                raise NotImplementedError(f'Unknown model type {self.config.hp.model_type}')
         else:
+            assert self.config.hp.get('model_type', 'simple_classifier') == 'simple_classifier'
             self.model = ResnetClassifier(self.config.data.num_classes, pretrained=self.config.hp.pretrained)
 
         self.model = self.model.to(self.device_name)
 
     def init_optimizers(self):
-        # TODO: without momentum?!
-        self.optim = torch.optim.SGD(self.model.parameters(), **self.config.hp.optim_kwargs.to_dict())
+        if self.config.hp.get('model_type', 'simple_classifier') == 'simple_classifier':
+            # TODO: without momentum?!
+            self.optim = torch.optim.SGD(self.model.parameters(), **self.config.hp.optim_kwargs.to_dict())
+        elif self.config.hp.model_type == 'gan_classifier':
+            # TODO: well, now this does not look like a good code...
+            self.optim = {
+                'gen': torch.optim.SGD(self.model.generator.parameters(), **self.config.hp.model_config.gen_optim_kwargs.to_dict()),
+                'discr': torch.optim.SGD(self.model.discriminator.parameters(), **self.config.hp.model_config.discr_optim_kwargs.to_dict()),
+            }
+        else:
+            raise NotImplementedError(f'Unknown model type {self.config.hp.model_type}')
 
     def init_dataloaders(self):
         if self.config.data.name == 'CUB':
@@ -52,6 +69,10 @@ class LLLTrainer(BaseTrainer):
             self.class_attributes = awa.load_class_attributes(self.config.data.dir)
         else:
             raise NotImplementedError(f'Unkown dataset: {self.config.data.name}')
+
+        if self.config.data.get('should_embed'):
+            self.ds_train = extract_resnet18_features_for_dataset(self.ds_train)
+            self.ds_test = extract_resnet18_features_for_dataset(self.ds_test)
 
         self.class_splits = split_classes_for_tasks(self.config.data.num_classes, self.config.hp.num_tasks)
         self.data_splits = get_train_test_data_splits(self.class_splits, self.ds_train, self.ds_test)
@@ -93,7 +114,7 @@ class LLLTrainer(BaseTrainer):
         if self.config.get('metrics.forgetting_measure'):
             print('Forgetting Measure:', compute_forgetting_measure(self.accs_history))
 
-        if self.config.get('metrics.lca_num_batches', -1) >= -1:
+        if self.config.get('metrics.lca_num_batches', -1) >= 0:
             lca_accs = [t.test_acc_batch_history for t in self.task_trainers]
             lca_n_batches = min(self.config.metrics.lca_num_batches, min([len(accs) - 1 for accs in lca_accs]))
             print(f'Learning Curve Area [beta = {lca_n_batches}]:', compute_learning_curve_area(lca_accs, lca_n_batches))
@@ -113,6 +134,8 @@ class LLLTrainer(BaseTrainer):
             return EWCTaskTrainer(self, task_idx)
         elif self.config.task_trainer == 'mas':
             return MASTaskTrainer(self, task_idx)
+        elif self.config.task_trainer == 'mergan':
+            return MeRGANTaskTrainer(self, task_idx)
         else:
             raise NotImplementedError(f'Unknown task trainer: {self.config.task_trainer}')
 
