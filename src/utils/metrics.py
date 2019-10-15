@@ -74,12 +74,17 @@ def compute_ausuc(logits: List[List[float]], targets: List[int], seen_classes_ma
 
     seen_classes = np.nonzero(seen_classes_mask)[0]
     unseen_classes = np.nonzero(~seen_classes_mask)[0]
+
     logits_seen = logits[:, seen_classes]
     logits_unseen = logits[:, unseen_classes]
-    gaps = logits_seen.max(axis=1) - logits_unseen.max(axis=1)
 
     targets_seen = np.array([next((i for i, t in enumerate(seen_classes) if y == t), -1) for y in targets])
     targets_unseen = np.array([next((i for i, t in enumerate(unseen_classes) if y == t), -1) for y in targets])
+
+    if len(seen_classes) == 0: return (logits_unseen.argmax(axis=1) == targets_unseen).mean()
+    if len(unseen_classes) == 0: return (logits_seen.argmax(axis=1) == targets_seen).mean()
+
+    gaps = logits_seen.max(axis=1) - logits_unseen.max(axis=1)
 
     sorting = np.argsort(gaps)[::-1]
     guessed_seen = logits_seen[sorting].argmax(axis=1) == targets_seen[sorting]
