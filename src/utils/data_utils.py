@@ -18,12 +18,19 @@ def get_train_test_data_splits(class_splits:List[List[int]], ds_train:Dataset, d
     return data_splits
 
 
-def split_classes_for_tasks(num_classes: int, num_tasks: int, num_classes_per_task: int) -> List[List[int]]:
+def split_classes_for_tasks(num_classes: int, num_tasks: int, num_classes_per_task: int, num_reserved_classes: int=0) -> List[List[int]]:
     """
     Splits classes into `num_tasks` groups and returns these splits
+
+    :param num_classes:
+    :param num_tasks:
+    :param num_classes_per_task:
+    :param num_reserved_classes: — if we run live HPO, then we would like to reserve some of the first classes for it
+    :return:
     """
-    num_classes_to_use = num_tasks * num_classes_per_task
-    splits = np.random.permutation(num_classes_to_use).reshape(num_tasks, num_classes_per_task)
+    classes = np.arange(num_tasks * num_classes_per_task)
+    classes = classes[num_reserved_classes:]
+    splits = np.random.permutation(classes).reshape(num_tasks, num_classes_per_task)
 
     if num_tasks * num_classes_per_task > num_classes:
         warnings.warn('We will have duplicated classes')
@@ -32,7 +39,7 @@ def split_classes_for_tasks(num_classes: int, num_tasks: int, num_classes_per_ta
     return splits
 
 
-def get_subset_by_labels(dataset, labels:List[int]) -> Dataset:
+def get_subset_by_labels(dataset, labels: List[int]) -> List[int]:
     """
     Finds objects with specific labels and returns them
     """

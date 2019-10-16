@@ -10,8 +10,9 @@ metrics:
   forgetting_measure: true
   lca_num_batches: 10
 
-num_tasks: 20
+num_tasks: 17
 num_classes_per_task: 5
+num_reserved_classes: 15
 
 hp:
   use_class_attrs: true

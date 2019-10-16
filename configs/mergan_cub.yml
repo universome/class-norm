@@ -12,7 +12,7 @@ max_num_epochs: 1
 random_seed: 42
 task_trainer: "mergan"
 
-num_tasks: 20
+num_tasks: 17
 num_classes_per_task: 10
 
 hp:

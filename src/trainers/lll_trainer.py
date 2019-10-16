@@ -83,7 +83,9 @@ class LLLTrainer(BaseTrainer):
             self.ds_train = extract_resnet18_features_for_dataset(self.ds_train)
             self.ds_test = extract_resnet18_features_for_dataset(self.ds_test)
 
-        self.class_splits = split_classes_for_tasks(self.config.data.num_classes, self.config.num_tasks, self.config.num_classes_per_task)
+        self.class_splits = split_classes_for_tasks(
+            self.config.data.num_classes, self.config.num_tasks,
+            self.config.num_classes_per_task, self.config.get('num_reserved_classes', 0))
         self.data_splits = get_train_test_data_splits(self.class_splits, self.ds_train, self.ds_test)
 
         for task_idx, split in enumerate(self.class_splits):
