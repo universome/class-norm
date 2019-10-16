@@ -11,9 +11,12 @@ gpus: []
 max_num_epochs: 1
 random_seed: 42
 task_trainer: "mergan"
+
+num_tasks: 20
+num_classes_per_task: 10
+
 hp:
   use_class_attrs: true
-  num_tasks: 20
   batch_size: 10
   img_target_shape: [224, 224]
 

@@ -9,9 +9,12 @@ metrics:
   average_accuracy: true
   forgetting_measure: true
   lca_num_batches: 10
+
+num_tasks: 20
+num_classes_per_task: 5
+
 hp:
   use_class_attrs: true
-  num_tasks: 10
   pretrained: false
   batch_size: 10
   img_target_shape: [224, 224]

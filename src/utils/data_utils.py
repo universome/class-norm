@@ -18,36 +18,16 @@ def get_train_test_data_splits(class_splits:List[List[int]], ds_train:Dataset, d
     return data_splits
 
 
-def split_classes_for_tasks(num_classes: int, num_tasks: int) -> List[List[int]]:
+def split_classes_for_tasks(num_classes: int, num_tasks: int, num_classes_per_task: int) -> List[List[int]]:
     """
     Splits classes into `num_tasks` groups and returns these splits
     """
-    if not num_classes % num_tasks != 0:
-        warnings.warn(f'{num_classes} % {num_tasks} != 0. There are unused classes.')
-
-    num_classes_per_task = num_classes // num_tasks
     num_classes_to_use = num_tasks * num_classes_per_task
     splits = np.random.permutation(num_classes_to_use).reshape(num_tasks, num_classes_per_task)
 
-    # splits = np.array([
-    #     [87, 81, 139, 180, 163, 78, 70, 159, 124, 131],
-    #     [61, 162, 136, 151, 186, 174, 36, 177, 118, 107],
-    #     [160, 197, 39, 156, 127, 57, 93, 55, 153, 62],
-    #     [69, 59, 187, 165, 95, 84, 41, 166, 88, 47],
-    #     [133, 103, 185, 65, 50, 121, 134, 72, 141, 192],
-    #     [66, 129, 140, 175, 91, 161, 89, 73, 155, 172],
-    #     [96, 135, 122, 104, 54, 147, 38, 149, 52, 109],
-    #     [125, 190, 171, 42, 191, 194, 167, 31, 189, 94],
-    #     [82, 164, 98, 101, 51, 63, 30, 195, 123, 92],
-    #     [181, 193, 108, 85, 176, 112, 34, 58, 40, 178],
-    #     [45, 132, 144, 35, 97, 130, 37, 198, 179, 128],
-    #     [76, 115, 48, 79, 199, 113, 120, 74, 116, 152],
-    #     [100, 138, 86, 102, 71, 46, 75, 114, 119, 143],
-    #     [126, 196, 43, 117, 111, 168, 90, 44, 137, 145],
-    #     [170, 49, 32, 33, 183, 105, 158, 169, 64, 67],
-    #     [106, 80, 157, 110, 99, 142, 150, 148, 56, 154],
-    #     [188, 60, 184, 53, 173, 182, 146, 83, 68, 77]
-    # ])
+    if num_tasks * num_classes_per_task > num_classes:
+        warnings.warn('We will have duplicated classes')
+        splits %= num_classes # Let's do this via module to have as less duplications as possbile
 
     return splits
 
