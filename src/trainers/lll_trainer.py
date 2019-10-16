@@ -1,7 +1,8 @@
 import os
-from typing import List
+from typing import List, Tuple
 
 import torch
+from torch.utils.data import Dataset, DataLoader
 import numpy as np
 from firelab.base_trainer import BaseTrainer
 from firelab.config import Config
@@ -16,8 +17,14 @@ from src.trainers.agem_task_trainer import AgemTaskTrainer
 from src.trainers.ewc_task_trainer import EWCTaskTrainer
 from src.trainers.mas_task_trainer import MASTaskTrainer
 from src.trainers.mergan_task_trainer import MeRGANTaskTrainer
-from src.utils.metrics import compute_average_accuracy, compute_forgetting_measure, compute_learning_curve_area
+from src.utils.data_utils import construct_output_mask
 from src.dataloaders.utils import extract_resnet18_features_for_dataset
+from src.utils.metrics import (
+    compute_average_accuracy,
+    compute_forgetting_measure,
+    compute_learning_curve_area,
+    compute_ausuc
+)
 
 class LLLTrainer(BaseTrainer):
     def __init__(self, config: Config):
@@ -30,6 +37,8 @@ class LLLTrainer(BaseTrainer):
         self.episodic_memory_output_mask = []
         self.zst_accs = []
         self.accs_history = []
+        self.ausuc_scores = []
+        self.ausuc_accs = []
 
     def init_models(self):
         if self.config.hp.get('use_class_attrs'):
@@ -90,6 +99,9 @@ class LLLTrainer(BaseTrainer):
 
             task_trainer = self.construct_trainer(task_idx)
 
+            if self.config.get('metrics.ausuc'):
+                self.track_ausuc()
+
             self.task_trainers.append(task_trainer)
             self.zst_accs.append(task_trainer.compute_test_accuracy())
             print(f'. ZST accuracy: {self.zst_accs[-1]}')
@@ -119,11 +131,39 @@ class LLLTrainer(BaseTrainer):
             lca_n_batches = min(self.config.metrics.lca_num_batches, min([len(accs) - 1 for accs in lca_accs]))
             print(f'Learning Curve Area [beta = {lca_n_batches}]:', compute_learning_curve_area(lca_accs, lca_n_batches))
 
+        if self.config.get('metrics.ausuc'):
+            self.track_ausuc()
+            print('Mean ausuc:', np.mean(self.ausuc_scores))
+
+    def track_ausuc(self):
+        logits = self.run_inference(self.ds_test)
+        targets = np.array([y for _, y in self.ds_test])
+        seen_classes = [c for cls in self.class_splits[:self.num_tasks_learnt] for c in cls]
+        seen_classes_mask = construct_output_mask(seen_classes, self.config.data.num_classes)
+        ausuc, ausuc_accs = compute_ausuc(logits, targets, seen_classes_mask)
+
+        self.ausuc_scores.append(ausuc)
+        self.ausuc_accs.append(ausuc_accs)
+
+        self.writer.add_scalar('AUSUC', ausuc, self.num_tasks_learnt)
+
+    def run_inference(self, dataset: List[Tuple[np.ndarray, int]]):
+        examples = [x for x, _ in dataset]
+        dataloader = DataLoader(examples, batch_size=self.config.get('inference_batch_size', self.config.hp.batch_size))
+
+        with torch.no_grad():
+            logits = [self.model(torch.tensor(b).to(self.device_name)).cpu().numpy() for b in dataloader]
+            logits = np.vstack(logits)
+
+        return logits
+
     def save_scores(self):
         np.save(os.path.join(self.paths.custom_data_path, 'zst_accs'), self.zst_accs)
         np.save(os.path.join(self.paths.custom_data_path, 'accs_history'), self.accs_history)
         np.save(os.path.join(self.paths.custom_data_path, 'test_acc_batch_histories'),
                 [t.test_acc_batch_history for t in self.task_trainers])
+        np.save(os.path.join(self.paths.custom_data_path, 'ausuc_scores'), self.ausuc_scores)
+        np.save(os.path.join(self.paths.custom_data_path, 'ausuc_accs'), self.ausuc_accs)
 
     def construct_trainer(self, task_idx: int) -> "TaskTrainer":
         if self.config.task_trainer == 'basic':

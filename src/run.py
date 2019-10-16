@@ -29,7 +29,7 @@ def run_trainer(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Running LLL trainer')
     #parser.add_argument('-s', '--seed', default=42, help='Random seed to fix')
-    parser.add_argument('-c', '--config_name', type=str, default='mergan_cub', help='Which config to run?')
+    parser.add_argument('-c', '--config_name', type=str, default='basic_cub', help='Which config to run?')
     parser.add_argument('-n', '--num_runs', type=int, default=1, help='How many times we should run the experiment?')
     args = parser.parse_args()
 
