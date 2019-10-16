@@ -28,13 +28,14 @@ def split_classes_for_tasks(num_classes: int, num_tasks: int, num_classes_per_ta
     :param num_reserved_classes: — if we run live HPO, then we would like to reserve some of the first classes for it
     :return:
     """
-    classes = np.arange(num_tasks * num_classes_per_task)
-    classes = classes[num_reserved_classes:]
-    splits = np.random.permutation(classes).reshape(num_tasks, num_classes_per_task)
+    num_classes_to_use = num_tasks * num_classes_per_task
 
-    if num_tasks * num_classes_per_task > num_classes:
-        warnings.warn('We will have duplicated classes')
-        splits %= num_classes # Let's do this via module to have as less duplications as possbile
+    if num_classes_to_use > num_classes - num_reserved_classes:
+        warnings.warn(f'We will have duplicated classes: {num_classes_to_use} > {num_classes - num_reserved_classes}')
+
+    classes = np.arange(num_classes)[num_reserved_classes:]
+    classes = np.tile(classes, np.ceil(num_classes_to_use / len(classes)))[:num_classes_to_use]
+    splits = np.random.permutation(classes).reshape(num_tasks, num_classes_per_task)
 
     return splits
 
