@@ -9,7 +9,7 @@ gpus: []
 #  forgetting_measure: true
 #  lca_num_batches: 10
 max_num_epochs: 1
-random_seed: 42
+
 task_trainer: "mergan"
 
 num_tasks: 17

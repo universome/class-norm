@@ -3,12 +3,13 @@ data:
   dir: "data/AWA"
   num_classes: 50
 max_num_epochs: 1
-random_seed: 42
+
 task_trainer: "mas"
 metrics:
   average_accuracy: true
   forgetting_measure: true
   lca_num_batches: 10
+  ausuc: true
 
 num_tasks: 17
 num_classes_per_task: 5

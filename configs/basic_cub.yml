@@ -9,7 +9,7 @@ metrics:
   ausuc: true
 inference_batch_size: 512
 max_num_epochs: 1
-random_seed: 42
+
 task_trainer: "basic"
 
 num_tasks: 17
