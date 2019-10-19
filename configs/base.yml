@@ -1,0 +1,28 @@
+training:
+  max_num_epochs: 20
+  inference_batch_size: 512
+
+datasets:
+  cub:
+    name: "CUB"
+    dir: "data/CUB2011"
+    num_classes: 200
+
+    num_tasks: 17
+    num_classes_per_task: 10
+    num_reserved_classes: 30
+
+  awa:
+    name: "AWA"
+    dir: "data/AWA"
+    num_classes: 50
+
+    num_tasks: 17
+    num_classes_per_task: 5
+    num_reserved_classes: 15
+
+metrics:
+  average_accuracy: true
+  forgetting_measure: true
+  lca_num_batches: 10
+  ausuc: true

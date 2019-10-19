@@ -84,8 +84,8 @@ class LLLTrainer(BaseTrainer):
             self.ds_test = extract_resnet18_features_for_dataset(self.ds_test)
 
         self.class_splits = split_classes_for_tasks(
-            self.config.data.num_classes, self.config.num_tasks,
-            self.config.num_classes_per_task, self.config.get('num_reserved_classes', 0))
+            self.config.data.num_classes, self.config.data.num_tasks,
+            self.config.data.num_classes_per_task, self.config.data.get('num_reserved_classes', 0))
         self.data_splits = get_train_test_data_splits(self.class_splits, self.ds_train, self.ds_test)
 
         for task_idx, split in enumerate(self.class_splits):
@@ -96,7 +96,7 @@ class LLLTrainer(BaseTrainer):
         self.num_tasks_learnt = 0
         self.task_trainers = [] # TODO: this is memory-leaky :|
 
-        for task_idx in range(self.config.num_tasks):
+        for task_idx in range(self.config.data.num_tasks):
             print(f'Starting task #{task_idx}', end='')
 
             task_trainer = self.construct_trainer(task_idx)
@@ -185,7 +185,7 @@ class LLLTrainer(BaseTrainer):
         """Computes model test accuracy on all the tasks"""
         accuracies = []
 
-        for task_idx in tqdm(range(self.config.num_tasks), desc='[Validating]'):
+        for task_idx in tqdm(range(self.config.data.num_tasks), desc='[Validating]'):
             trainer = self.construct_trainer(task_idx)
             accuracy = trainer.compute_test_accuracy()
             accuracies.append(accuracy)

@@ -1,0 +1,11 @@
+task_trainer: "basic"
+hp:
+  use_class_attrs: true
+  pretrained: true
+  batch_size: 10
+  img_target_shape: [224, 224]
+  optim_kwargs: {lr: 0.03}
+
+hp_for_datasets:
+  cub: {}
+  awa: {}

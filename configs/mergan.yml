@@ -1,24 +1,10 @@
-data:
-  name: "CUB"
-  dir: "data/CUB2011"
-  num_classes: 200
-  should_embed: true
-gpus: []
-#metrics:
-#  average_accuracy: true
-#  forgetting_measure: true
-#  lca_num_batches: 10
-max_num_epochs: 1
-
 task_trainer: "mergan"
-
-num_tasks: 17
-num_classes_per_task: 10
 
 hp:
   use_class_attrs: true
   batch_size: 10
   img_target_shape: [224, 224]
+  embed_data: true
 
   model_type: "gan_classifier"
   model_config:
@@ -36,4 +22,3 @@ hp:
     centroid_reg_coef: 1
     distill_batch_size: 100
     model_distill_coef: 0.001
-

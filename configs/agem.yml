@@ -1,0 +1,17 @@
+task_trainer: "agem"
+
+hp:
+  use_class_attrs: true
+  batch_size: 10
+  img_target_shape: [224, 224]
+  mem_batch_size: 128
+  use_agem: false
+  optim_kwargs: {lr: 0.03}
+
+hp_for_datasets:
+  awa:
+    num_mem_samples_per_class: 20
+    pretrained: false
+  cub:
+    num_mem_samples_per_class: 5
+    pretrained: true

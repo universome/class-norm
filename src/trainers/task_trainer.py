@@ -49,12 +49,13 @@ class TaskTrainer:
         assert self.is_trainable, "We do not have enough conditions to train this Task Trainer"\
                                   "(for example, previous trainers was not finished or this trainer was already run)"
 
-        for batch in tqdm(self.train_dataloader, desc=f'Task #{self.task_idx}'):
-            if self.config.get('metrics.lca_num_batches', -1) >= self.num_iters_done:
-                self.test_acc_batch_history.append(self.compute_test_accuracy())
+        for epoch in range(self.config.max_num_epochs):
+            for batch in tqdm(self.train_dataloader, desc=f'Task #{self.task_idx}'):
+                if self.config.get('metrics.lca_num_batches', -1) >= self.num_iters_done:
+                    self.test_acc_batch_history.append(self.compute_test_accuracy())
 
-            self.train_on_batch(batch)
-            self.num_iters_done += 1
+                self.train_on_batch(batch)
+                self.num_iters_done += 1
 
     def train_on_batch(self, batch):
         raise NotImplementedError
