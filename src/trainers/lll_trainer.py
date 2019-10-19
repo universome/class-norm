@@ -140,7 +140,7 @@ class LLLTrainer(BaseTrainer):
     def track_ausuc(self):
         logits = self.run_inference(self.ds_test)
         targets = np.array([y for _, y in self.ds_test])
-        seen_classes = [c for cls in self.class_splits[:self.num_tasks_learnt] for c in cls]
+        seen_classes = np.unique(self.class_splits[:self.num_tasks_learnt])
         seen_classes_mask = construct_output_mask(seen_classes, self.config.data.num_classes)
         ausuc, ausuc_accs = compute_ausuc(logits, targets, seen_classes_mask)
 
