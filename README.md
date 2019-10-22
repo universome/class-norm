@@ -17,6 +17,7 @@ Tricks to use:
 - label smoothing
 - check "Bag of tricks to ..."
 - what if we train class attributes (but initialize from ready ones, ofc)?
+- penalize other logits sometimes to make model be prepared for operating in "distinguish between all-classes" regime. For A-GEM we could use episodic memory for this.
 
 TODO:
 - B in RGB has wrong mean for our images (we should use other mean instead of imagenet-like mean)

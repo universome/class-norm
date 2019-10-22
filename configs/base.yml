@@ -1,5 +1,5 @@
 training:
-  max_num_epochs: 20
+  max_num_epochs: 10
   inference_batch_size: 512
 
 datasets:
