@@ -15,8 +15,6 @@ CONFIG_ARG_PREFIX = '--config.'
 
 def run_trainer(args: argparse.Namespace, config_cli_args: List[str]):
     config = load_config(args, config_cli_args)
-
-    print('Config:')
     print(config)
 
     for run_idx in range(args.num_runs):
@@ -118,7 +116,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser('Running LLL trainer')
     parser.add_argument('-d', '--dataset', default='cub', type=str, help='Dataset')
     parser.add_argument('-s', '--random_seed', default=42, type=int, help='Random seed to fix')
-    parser.add_argument('-c', '--config_name', type=str, default='basic', help='Which config to run?')
+    parser.add_argument('-c', '--config_name', type=str, default='mergazsl', help='Which config to run?')
     parser.add_argument('-n', '--num_runs', type=int, default=1, help='How many times we should run the experiment?')
 
     args, config_args = parser.parse_known_args()

@@ -132,3 +132,4 @@ def compute_ausuc_slow(logits: List[List[float]], targets: List[int], seen_class
         acc_U_T_list.append((tmp_unseen_sim.argmax(axis=1) == targets_on_unseen_ds).mean())
 
     return np.trapz(y=acc_S_T_list, x=acc_U_T_list) * 100.0
+

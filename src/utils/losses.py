@@ -16,7 +16,7 @@ def compute_gradient_penalty(discriminator, x_real, x_fake) -> Tensor:
     grads = autograd.grad(
         outputs=outputs,
         inputs=interpolations,
-        grad_outputs=torch.ones(outputs.size()),
+        grad_outputs=torch.ones(outputs.size()).to(x_real.device),
         retain_graph=True, create_graph=True, only_inputs=True
     )[0]
 

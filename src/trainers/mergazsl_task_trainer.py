@@ -11,7 +11,7 @@ from src.utils.losses import compute_gradient_penalty
 from src.utils.data_utils import compute_class_centroids
 
 
-class MeRGANTaskTrainer(TaskTrainer):
+class MeRGAZSLTaskTrainer(TaskTrainer):
     def _after_init_hook(self):
         assert self.config.hp.model_type == 'gan_classifier'
 

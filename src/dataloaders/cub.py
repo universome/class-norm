@@ -15,7 +15,7 @@ def load_dataset(data_dir: PathLike, is_train:bool=True, target_shape=(224, 224)
     img_paths = [p for (p, train) in zip(img_paths, train_test_split) if train == is_train]
 
     # import random
-    # img_paths = random.sample(img_paths, 50)
+    # img_paths = random.sample(img_paths, 500)
 
     imgs = load_imgs(os.path.join(data_dir, 'images'), img_paths, target_shape)
     labels = load_labels(img_paths)

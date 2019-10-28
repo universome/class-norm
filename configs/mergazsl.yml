@@ -1,4 +1,4 @@
-task_trainer: "mergan"
+task_trainer: "mergazsl"
 
 hp:
   use_class_attrs: true
@@ -15,10 +15,15 @@ hp:
     attr_input_dim: 312
     attr_output_dim: 512
     hid_dim: 512
-    num_classes: 200
     gen_optim_kwargs: {lr: 0.03}
     discr_optim_kwargs: {lr: 0.03}
     num_discr_steps_per_gen_step: 5
     centroid_reg_coef: 1
     distill_batch_size: 100
     model_distill_coef: 0.001
+
+hp_for_datasets:
+  cub:
+    pretrained: true
+    model_config:
+      num_classes: 200

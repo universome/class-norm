@@ -16,7 +16,7 @@ from src.trainers.basic_task_trainer import BasicTaskTrainer
 from src.trainers.agem_task_trainer import AgemTaskTrainer
 from src.trainers.ewc_task_trainer import EWCTaskTrainer
 from src.trainers.mas_task_trainer import MASTaskTrainer
-from src.trainers.mergan_task_trainer import MeRGANTaskTrainer
+from src.trainers.mergazsl_task_trainer import MeRGAZSLTaskTrainer
 from src.utils.data_utils import construct_output_mask
 from src.dataloaders.utils import extract_resnet18_features_for_dataset
 from src.utils.metrics import (
@@ -79,7 +79,7 @@ class LLLTrainer(BaseTrainer):
         else:
             raise NotImplementedError(f'Unkown dataset: {self.config.data.name}')
 
-        if self.config.data.get('should_embed'):
+        if self.config.hp.get('embed_data'):
             self.ds_train = extract_resnet18_features_for_dataset(self.ds_train)
             self.ds_test = extract_resnet18_features_for_dataset(self.ds_test)
 
@@ -150,6 +150,8 @@ class LLLTrainer(BaseTrainer):
         self.writer.add_scalar('AUSUC', ausuc, self.num_tasks_learnt)
 
     def run_inference(self, dataset: List[Tuple[np.ndarray, int]]):
+        self.model.eval()
+
         examples = [x for x, _ in dataset]
         dataloader = DataLoader(examples, batch_size=self.config.get('inference_batch_size', self.config.hp.batch_size))
 
@@ -176,8 +178,8 @@ class LLLTrainer(BaseTrainer):
             return EWCTaskTrainer(self, task_idx)
         elif self.config.task_trainer == 'mas':
             return MASTaskTrainer(self, task_idx)
-        elif self.config.task_trainer == 'mergan':
-            return MeRGANTaskTrainer(self, task_idx)
+        elif self.config.task_trainer == 'mergazsl':
+            return MeRGAZSLTaskTrainer(self, task_idx)
         else:
             raise NotImplementedError(f'Unknown task trainer: {self.config.task_trainer}')
 

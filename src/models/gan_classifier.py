@@ -24,7 +24,7 @@ class GANClassifier(nn.Module):
         """
         assert self.training is False
 
-        return self.compute_class_predictions(x)
+        return self.compute_pruned_predictions(x, np.ones(self.attrs.shape[0]))
 
     def compute_pruned_predictions(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
         """
