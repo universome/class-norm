@@ -54,7 +54,7 @@ def compute_learning_curve_area(accs:List[List[float]], beta: int=10) -> float:
     return lca
 
 
-def compute_ausuc(logits: List[List[float]], targets: List[int], seen_classes_mask: List[int], return_accs: bool=False) -> Tuple[float, Tuple[List[float], List[float]]]:
+def compute_ausuc(logits: List[List[float]], targets: List[int], seen_classes_mask: List[bool], return_accs: bool=False) -> Tuple[float, Tuple[List[float], List[float]]]:
     """
     Computes area under Seen-Unseen curve (https://arxiv.org/abs/1605.04253)
 
@@ -108,7 +108,7 @@ def compute_ausuc(logits: List[List[float]], targets: List[int], seen_classes_ma
     return auc_score, (accs_seen, accs_unseen)
 
 
-def compute_ausuc_slow(logits: List[List[float]], targets: List[int], seen_classes_mask: List[int],
+def compute_ausuc_slow(logits: List[List[float]], targets: List[int], seen_classes_mask: List[bool],
                        lambda_range=np.arange(-10, 10, 0.01)) -> float:
     targets = np.array(targets)
     logits = np.array(logits)
@@ -132,4 +132,49 @@ def compute_ausuc_slow(logits: List[List[float]], targets: List[int], seen_class
         acc_U_T_list.append((tmp_unseen_sim.argmax(axis=1) == targets_on_unseen_ds).mean())
 
     return np.trapz(y=acc_S_T_list, x=acc_U_T_list) * 100.0
+
+
+def compute_ausuc_matrix(logits_history: np.ndarray, targets: List[int], class_splits: np.ndarray) -> np.ndarray:
+    """
+    Computes pairwise AUSUC scores between tasks given logits history
+
+    :param logits_history: history of model logits, evaluated BEFORE each task,
+                           i.e. matrix of size [NUM_TASKS x DATASET_SIZE x NUM_CLASSES]
+    :param targets: targets for the objects of size [DATASET_SIZE]
+    :param class_splits: list of classes for each task of size [NUM_TASKS x NUM_CLASSES_PER_TASK]
+
+    :return: AUCSUC value and a matrix of pairwise AUSUCS
+    """
+    num_tasks = len(logits_history) + 1
+    ausuc_matrix = []
+
+    for task_from in range(num_tasks):
+        ausucs = []
+
+        for task_to in range(num_tasks):
+            unseen_classes = list(set(class_splits[task_to]) - set(class_splits[task_from]))
+            classes = set(class_splits[task_to] + class_splits[task_from])
+            logits = [l for l, t in zip(logits_history[task_from], targets) if t in classes]
+            targets = [t for t in targets if t in classes]
+
+            classes = list(classes)
+            targets = remap_targets(targets, classes)
+            seen_classes_mask = np.array([not c in unseen_classes for c in classes])
+            ausuc, _ = compute_ausuc(np.array(logits)[classes], targets, seen_classes_mask)
+            ausucs.append(ausuc)
+
+        ausuc_matrix.append(ausucs)
+
+    return np.ndarray(ausuc_matrix)
+
+
+def remap_targets(targets: List[int], classes: List[int]) -> List[int]:
+    """
+    Takes target classes and remaps them into a smaller range, determined by classes argument
+
+    :param targets: dataset targets, vector if length [DATASET_SIZE]
+    :param classes: classes to map
+    :return: remapped classes
+    """
+    return [(classes.index(t) if t in classes else -1) for t in targets]
 
