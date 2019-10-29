@@ -168,7 +168,7 @@ def compute_ausuc_matrix(logits_history: np.ndarray, targets: List[int], class_s
     return np.ndarray(ausuc_matrix)
 
 
-def compute_accs_matrix(logits_history: np.ndarray, targets: List[int], class_splits: np.ndarray) -> np.ndarray:
+def compute_individual_zst_accs_matrix(logits_history: np.ndarray, targets: List[int], class_splits: np.ndarray) -> np.ndarray:
     """
     Computes accuracy matrix for each task before each task.
     You would like to use np.triu or np.triu_indices to get zero-shot accuracies
@@ -180,27 +180,47 @@ def compute_accs_matrix(logits_history: np.ndarray, targets: List[int], class_sp
 
     :return: matrix of accuracies of size NUM_TASKS x NUM_TASKS
     """
-    return np.array([compute_acc_history(logits_history, cs, targets) for cs in class_splits])
+
+    # TODO: actually, we do a lot of computations that can be cached here :|
+    return np.array([[compute_acc_for_classes(l, cs, targets) for cs in class_splits] for l in logits_history])
 
 
-def compute_acc_history(logits_history, classes: List[int], targets: List[int]) -> List[float]:
+def compute_joined_zst_acc_history(logits_history: List[List[List[float]]], targets: List[int], class_splits: List[List[int]]) -> np.ndarray:
     """
-    Computes accuracy history for a given task (defined by classes split)
+    Computes accuracy matrix for each task before each task.
+    You would like to use np.triu or np.triu_indices to get zero-shot accuracies
 
     :param logits_history: history of model logits, evaluated BEFORE each task,
                            i.e. matrix of size [NUM_TASKS x DATASET_SIZE x NUM_CLASSES]
-    :param classes: list of classes for a given task of size [NUM_CLASSES_PER_TASK]
     :param targets: targets for the objects of size [DATASET_SIZE]
+    :param class_splits: list of classes for each task of size [NUM_TASKS x NUM_CLASSES_PER_TASK]
 
-    :return: history of accuracies of size [NUM_TASKS]
+    :return: zero-shot accuracies NUM_TASKS
+    """
+    unseen_classes = [np.array(class_splits[i:]).reshape(-1) for i in range(len(class_splits))]
+    unseen_classes = [np.unique(cs) for cs in unseen_classes]
+    accs = [compute_acc_for_classes(l, targets, cs) for l, cs in zip(logits_history, unseen_classes)]
+
+    return accs
+
+
+def compute_acc_for_classes(logits: List[List[float]], targets: List[int], classes: List[int]) -> float:
+    """
+    Computes accuracy for a given classes, i.e. we prune out all the other classes
+
+    :param logits: matrix of size [DATASET_SIZE x NUM_CLASSES]
+    :param targets: targets for the objects of size [DATASET_SIZE]
+    :param classes: list of classes to consider
+
+    :return: accuracy
     """
     data_idx = [i for i, t in enumerate(targets) if t in classes]
     targets = remap_targets(np.array(targets)[data_idx], list(classes))
-    logits = logits_history[:, data_idx][:, :, classes]
-    guessed = logits.argmax(axis=2) == np.array(targets).reshape(1, -1)
-    accs = guessed.mean(axis=1)
+    logits = np.array(logits)[data_idx][:, classes]
+    acc = (logits.argmax(axis=1) == np.array(targets)).mean()
 
-    return accs
+    return acc
+
 
 
 def remap_targets(targets: List[int], classes: List[int]) -> List[int]:
