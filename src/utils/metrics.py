@@ -168,6 +168,41 @@ def compute_ausuc_matrix(logits_history: np.ndarray, targets: List[int], class_s
     return np.ndarray(ausuc_matrix)
 
 
+def compute_accs_matrix(logits_history: np.ndarray, targets: List[int], class_splits: np.ndarray) -> np.ndarray:
+    """
+    Computes accuracy matrix for each task before each task.
+    You would like to use np.triu or np.triu_indices to get zero-shot accuracies
+
+    :param logits_history: history of model logits, evaluated BEFORE each task,
+                           i.e. matrix of size [NUM_TASKS x DATASET_SIZE x NUM_CLASSES]
+    :param targets: targets for the objects of size [DATASET_SIZE]
+    :param class_splits: list of classes for each task of size [NUM_TASKS x NUM_CLASSES_PER_TASK]
+
+    :return: matrix of accuracies of size NUM_TASKS x NUM_TASKS
+    """
+    return np.array([compute_acc_history(logits_history, cs, targets) for cs in class_splits])
+
+
+def compute_acc_history(logits_history, classes: List[int], targets: List[int]) -> List[float]:
+    """
+    Computes accuracy history for a given task (defined by classes split)
+
+    :param logits_history: history of model logits, evaluated BEFORE each task,
+                           i.e. matrix of size [NUM_TASKS x DATASET_SIZE x NUM_CLASSES]
+    :param classes: list of classes for a given task of size [NUM_CLASSES_PER_TASK]
+    :param targets: targets for the objects of size [DATASET_SIZE]
+
+    :return: history of accuracies of size [NUM_TASKS]
+    """
+    data_idx = [i for i, t in enumerate(targets) if t in classes]
+    targets = remap_targets(np.array(targets)[data_idx], list(classes))
+    logits = logits_history[:, data_idx][:, :, classes]
+    guessed = logits.argmax(axis=2) == np.array(targets).reshape(1, -1)
+    accs = guessed.mean(axis=1)
+
+    return accs
+
+
 def remap_targets(targets: List[int], classes: List[int]) -> List[int]:
     """
     Takes target classes and remaps them into a smaller range, determined by classes argument
