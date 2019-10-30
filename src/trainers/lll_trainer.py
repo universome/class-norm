@@ -9,7 +9,7 @@ from firelab.config import Config
 from tqdm import tqdm
 
 from src.models.classifier import ZSClassifier, ResnetClassifier
-from src.models.gan_classifier import GANClassifier
+from src.models.feat_gan_classifier import FeatGANClassifier
 from src.dataloaders import cub, awa
 from src.utils.data_utils import split_classes_for_tasks, get_train_test_data_splits
 from src.trainers.basic_task_trainer import BasicTaskTrainer
@@ -45,8 +45,8 @@ class LLLTrainer(BaseTrainer):
         if self.config.hp.get('use_class_attrs'):
             if self.config.hp.get('model_type', 'simple_classifier') == 'simple_classifier':
                 self.model = ZSClassifier(self.class_attributes, pretrained=self.config.hp.pretrained)
-            elif self.config.hp.model_type == 'gan_classifier':
-                self.model = GANClassifier(self.class_attributes, self.config.hp.model_config)
+            elif self.config.hp.model_type == 'feat_gan_classifier':
+                self.model = FeatGANClassifier(self.class_attributes, self.config.hp.model_config)
             else:
                 raise NotImplementedError(f'Unknown model type {self.config.hp.model_type}')
         else:
@@ -59,11 +59,11 @@ class LLLTrainer(BaseTrainer):
         if self.config.hp.get('model_type', 'simple_classifier') == 'simple_classifier':
             # TODO: without momentum?!
             self.optim = torch.optim.SGD(self.model.parameters(), **self.config.hp.optim_kwargs.to_dict())
-        elif self.config.hp.model_type == 'gan_classifier':
+        elif self.config.hp.model_type == 'feat_gan_classifier':
             # TODO: well, now this does not look like a good code...
             self.optim = {
-                'gen': torch.optim.SGD(self.model.generator.parameters(), **self.config.hp.model_config.gen_optim_kwargs.to_dict()),
-                'discr': torch.optim.SGD(self.model.discriminator.parameters(), **self.config.hp.model_config.discr_optim_kwargs.to_dict()),
+                'gen': torch.optim.Adam(self.model.generator.parameters(), **self.config.hp.model_config.gen_optim_kwargs.to_dict()),
+                'discr': torch.optim.Adam(self.model.discriminator.parameters(), **self.config.hp.model_config.discr_optim_kwargs.to_dict()),
             }
         else:
             raise NotImplementedError(f'Unknown model type {self.config.hp.model_type}')
@@ -188,7 +188,8 @@ class LLLTrainer(BaseTrainer):
             return MASTaskTrainer(self, task_idx)
         elif self.config.task_trainer == 'mergazsl':
             return MeRGAZSLTaskTrainer(self, task_idx)
-        else:
+        elif self.config.task_trainer == 'cgm':
+            return CGMTaskTrainer(self, task_idx)
             raise NotImplementedError(f'Unknown task trainer: {self.config.task_trainer}')
 
     def compute_test_accs(self) -> List[float]:

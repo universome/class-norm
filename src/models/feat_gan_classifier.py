@@ -5,17 +5,18 @@ from torch import Tensor
 from firelab.config import Config
 
 from src.utils.constants import POS_INF
-from .gan import Generator, Discriminator
+from src.utils.lll import prune_logits
+from .gan import FeatGenerator, FeatDiscriminator
 
 
-class GANClassifier(nn.Module):
+class FeatGANClassifier(nn.Module):
     def __init__(self, attrs: np.ndarray, config: Config):
-        super(GANClassifier, self).__init__()
+        super(FeatGANClassifier, self).__init__()
 
         self.config = config
         self.register_buffer('attrs', torch.tensor(attrs).float())
-        self.generator = Generator(config)
-        self.discriminator = Discriminator(config)
+        self.generator = FeatGenerator(config)
+        self.discriminator = FeatDiscriminator(config, attrs)
 
     def forward(self, x: Tensor) -> Tensor:
         """
@@ -24,15 +25,22 @@ class GANClassifier(nn.Module):
         """
         assert self.training is False
 
-        return self.compute_pruned_predictions(x, np.ones(self.attrs.shape[0]))
+        return self.compute_pruned_predictions(x, np.ones(self.attrs.shape[0]).astype(bool))
 
     def compute_pruned_predictions(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
         """
         :param x:
         :param output_mask: 1D boolean vector
-        :return:
+        :return: pruned logits
         """
-        assert self.config.prediction_strategy == 'nearest_neighbor', "Other prediction strategies are not supported"
+        if self.config.prediction_strategy == 'nearest_neighbor':
+            return self.compute_pruned_predictions_via_centroids(x, output_mask)
+        elif self.config.prediction_strategy == 'classifier':
+            return self.compute_pruned_predictions_via_classifier(x, output_mask)
+        else:
+            raise NotImplementedError(f"Unknown prediction strategy: {self.config.prediction_strategy}")
+
+    def compute_pruned_predictions_via_centroids(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
         assert self.training is False, "Backprop through this thing is not supported (but can be, actually)"
 
         attrs = self.attrs[output_mask]
@@ -46,6 +54,12 @@ class GANClassifier(nn.Module):
         pseudo_logits[torch.arange(len(x)), closest_class_idx] = POS_INF
 
         return pseudo_logits
+
+    def compute_pruned_predictions_via_classifier(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
+        logits = self.discriminator.run_cls_head(x)
+        pruned = prune_logits(logits, output_mask)
+
+        return pruned
 
     def compute_class_centroids(self, attrs) -> Tensor:
         num_classes = len(attrs)

@@ -1,3 +1,4 @@
+import random
 from copy import deepcopy
 from typing import Tuple
 
@@ -13,7 +14,7 @@ from src.utils.data_utils import compute_class_centroids
 
 class MeRGAZSLTaskTrainer(TaskTrainer):
     def _after_init_hook(self):
-        assert self.config.hp.model_type == 'gan_classifier'
+        assert self.config.hp.model_type == 'feat_gan_classifier'
 
         # TODO: replace with running centroids if you want more fair LLL setup (seeing one example only once)
         self.class_centroids = compute_class_centroids(self.task_ds_train, self.config.data.num_classes)
@@ -34,6 +35,9 @@ class MeRGAZSLTaskTrainer(TaskTrainer):
 
         if self.task_idx > 0:
             self.knowledge_distillation_step()
+
+        if self.task_idx > 0 and self.config.hp.get('use_joint_classifier_training'):
+            self.classifier_trainer_step()
 
     def discriminator_step(self, x: Tensor, y: Tensor):
         with torch.no_grad():
@@ -98,6 +102,25 @@ class MeRGAZSLTaskTrainer(TaskTrainer):
         self.optim['gen'].zero_grad()
 
         self.writer.add_scalar(f'Train/task_{self.task_idx}/gen/knowledge_distillation', loss.item(), self.num_iters_done)
+
+    def classifier_trainer_step(self):
+        # Randomly sampling classes
+        y = random.sample(self.seen_classes, self.config.hp.joint_clf_training_batch_size)
+        y = torch.tensor(y).to(self.device_name).long()
+
+        with torch.no_grad():
+            z = self.model.generator.sample_noise(y.size(0)).to(self.device_name)
+            x = self.model.generator(z, self.model.attrs[y])
+
+        cls_logits = self.model.discriminator.run_cls_head(x)
+        loss = self.criterion(cls_logits, y)
+        loss *= self.config.hp.joint_cls_training_loss_coef
+
+        self.optim['discr'].zero_grad()
+        loss.backward()
+        self.optim['discr'].step()
+
+        self.writer.add_scalar(f'Train/task_{self.task_idx}/cls/loss', loss.item(), self.num_iters_done)
 
     def compute_centroid_loss(self, x_fake, y):
         groups = {}

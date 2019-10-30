@@ -48,10 +48,16 @@ class TaskTrainer:
         assert self.is_trainable, "We do not have enough conditions to train this Task Trainer"\
                                   "(for example, previous trainers was not finished or this trainer was already run)"
 
-        for epoch in range(self.config.max_num_epochs):
-            tqdm_desc = f'Task #{self.task_idx} [epoch {epoch + 1}/{self.config.max_num_epochs}]'
+        epochs = range(1, self.config.max_num_epochs + 1)
+        if len(epochs) > 10: epochs = tqdm(epochs, desc=f'Task #{self.task_idx}')
 
-            for batch in tqdm(self.train_dataloader, desc=tqdm_desc):
+        for epoch in epochs:
+            batches = self.train_dataloader
+
+            if len(epochs) <= 10:
+                batches = tqdm(batches, desc=f'Task #{self.task_idx} [epoch {epoch}/{self.config.max_num_epochs}]')
+
+            for batch in batches:
                 if self.config.get('metrics.lca_num_batches', -1) >= self.num_iters_done:
                     self.test_acc_batch_history.append(self.compute_test_accuracy())
 
@@ -60,7 +66,6 @@ class TaskTrainer:
 
     def train_on_batch(self, batch):
         raise NotImplementedError
-
 
     def compute_accuracy(self, dataloader:DataLoader):
         guessed = []

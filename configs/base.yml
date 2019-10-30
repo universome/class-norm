@@ -15,15 +15,15 @@ datasets:
     dir: "data/CUB2011"
     num_classes: 200
 
-    num_tasks: 17
-    num_classes_per_task: 10
-    num_reserved_classes: 30
+    num_tasks: 10
+    num_classes_per_task: 20
+    num_reserved_classes: 0
 
   awa:
     name: "AWA"
     dir: "data/AWA"
     num_classes: 50
 
-    num_tasks: 17
-    num_classes_per_task: 5
-    num_reserved_classes: 15
+    num_tasks: 5
+    num_classes_per_task: 10
+    num_reserved_classes: 0

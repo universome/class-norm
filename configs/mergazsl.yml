@@ -1,4 +1,6 @@
 task_trainer: "mergazsl"
+max_num_epochs: 1000
+batch_size: 256
 
 hp:
   use_class_attrs: true
@@ -6,11 +8,12 @@ hp:
   img_target_shape: [224, 224]
   embed_data: true
 
-  model_type: "gan_classifier"
+  model_type: "feat_gan_classifier"
   model_config:
     z_dim: 100
-    prediction_strategy: "nearest_neighbor"
-    num_hallicinated_samples_per_class: 100
+    # prediction_strategy: "nearest_neighbor"
+    # num_hallicinated_samples_per_class: 100
+    prediction_strategy: "classifier"
     feat_dim: 512
     attr_input_dim: 312
     attr_output_dim: 512
@@ -21,6 +24,10 @@ hp:
     centroid_reg_coef: 1
     distill_batch_size: 100
     model_distill_coef: 0.001
+
+    use_joint_clf_trainign: true
+    joint_clf_training_batch_size: 100
+    joint_cls_training_loss_coef: 0.1
 
 hp_for_datasets:
   cub:

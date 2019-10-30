@@ -5,7 +5,6 @@ hp:
   batch_size: 10
   img_target_shape: [224, 224]
   mem_batch_size: 128
-  use_agem: false
   optim_kwargs: {lr: 0.03}
 
 hp_for_datasets:
