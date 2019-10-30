@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 import numpy as np
 from tqdm import tqdm
@@ -51,7 +50,7 @@ class TaskTrainer:
 
         for epoch in range(self.config.max_num_epochs):
             tqdm_desc = f'Task #{self.task_idx} [epoch {epoch + 1}/{self.config.max_num_epochs}]'
-            
+
             for batch in tqdm(self.train_dataloader, desc=tqdm_desc):
                 if self.config.get('metrics.lca_num_batches', -1) >= self.num_iters_done:
                     self.test_acc_batch_history.append(self.compute_test_accuracy())

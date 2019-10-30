@@ -4,7 +4,6 @@ import torch
 from torch import Tensor
 
 from src.utils.weights_importance import compute_mse_grad
-from src.utils.lll import prune_logits
 from src.trainers.ewc_task_trainer import EWCTaskTrainer
 
 
@@ -21,5 +20,3 @@ class MASTaskTrainer(EWCTaskTrainer):
         reg = torch.dot((weights_curr - self.weights_prev).pow(2), self.mse_grad)
 
         return reg
-
-

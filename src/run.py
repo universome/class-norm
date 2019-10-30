@@ -11,6 +11,7 @@ from src.utils.metrics import compute_average_accuracy
 
 
 CONFIG_ARG_PREFIX = '--config.'
+RANDOM_SEED = np.random.randint(np.iinfo(np.int32).max)
 
 
 def run_trainer(args: argparse.Namespace, config_cli_args: List[str]):
@@ -106,7 +107,6 @@ def is_float(value:Any) -> bool:
         return False
 
 
-
 def get_hpo_configs(config: Config) -> List[Config]:
     return [config.overwrite(Config({'hp': {'optim_kwargs': kwg}})) for kwg in config.live_hpo.optim_kwargs_list]
 
@@ -114,7 +114,7 @@ def get_hpo_configs(config: Config) -> List[Config]:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Running LLL trainer')
     parser.add_argument('-d', '--dataset', default='cub', type=str, help='Dataset')
-    parser.add_argument('-s', '--random_seed', default=42, type=int, help='Random seed to fix')
+    parser.add_argument('-s', '--random_seed', type=int, default=RANDOM_SEED, help='Random seed to fix')
     parser.add_argument('-c', '--config_name', type=str, default='mergazsl', help='Which config to run?')
     parser.add_argument('-n', '--num_runs', type=int, default=1, help='How many times we should run the experiment?')
 
