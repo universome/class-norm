@@ -1,7 +1,6 @@
 import torch
 
 from src.trainers.task_trainer import TaskTrainer
-from src.utils.lll import prune_logits
 
 
 class BasicTaskTrainer(TaskTrainer):

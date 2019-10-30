@@ -1,6 +1,13 @@
-training:
+base:
   max_num_epochs: 10
   inference_batch_size: 512
+  #metrics:
+  #  average_accuracy: true
+  #  forgetting_measure: true
+  #  lca_num_batches: 10
+  #  ausuc: true
+  logging:
+    save_logits: true
 
 datasets:
   cub:
@@ -20,9 +27,3 @@ datasets:
     num_tasks: 17
     num_classes_per_task: 5
     num_reserved_classes: 15
-
-metrics:
-  average_accuracy: true
-  forgetting_measure: true
-  lca_num_batches: 10
-  ausuc: true

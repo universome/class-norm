@@ -49,8 +49,7 @@ def load_config(args: argparse.Namespace, config_cli_args: List[str]) -> Config:
 
     # Setting properties from the base config
     config.set('data', base_config.datasets.get(args.dataset))
-    config.set('metrics', base_config.metrics)
-    config = config.overwrite(base_config.training)
+    config = config.overwrite(base_config.base)
     hp = config.hp.overwrite(config.hp_for_datasets.get(args.dataset))
     config = config.overwrite(Config({'hp': hp.to_dict()}))
 

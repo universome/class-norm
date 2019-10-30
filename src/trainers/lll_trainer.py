@@ -37,6 +37,7 @@ class LLLTrainer(BaseTrainer):
         self.episodic_memory_output_mask = []
         self.zst_accs = []
         self.accs_history = []
+        self.logits_history = []
         self.ausuc_scores = []
         self.ausuc_accs = []
 
@@ -101,6 +102,9 @@ class LLLTrainer(BaseTrainer):
 
             task_trainer = self.construct_trainer(task_idx)
 
+            if self.config.get('logging.save_logits'):
+                self.logits_history.append(self.run_inference(self.ds_test))
+
             if self.config.get('metrics.ausuc'):
                 self.track_ausuc()
 
@@ -137,6 +141,9 @@ class LLLTrainer(BaseTrainer):
             self.track_ausuc()
             print('Mean ausuc:', np.mean(self.ausuc_scores))
 
+        if self.config.get('logging.save_logits'):
+            self.logits_history.append(self.run_inference(self.ds_test))
+
     def track_ausuc(self):
         logits = self.run_inference(self.ds_test)
         targets = np.array([y for _, y in self.ds_test])
@@ -168,6 +175,7 @@ class LLLTrainer(BaseTrainer):
                 [t.test_acc_batch_history for t in self.task_trainers])
         np.save(os.path.join(self.paths.custom_data_path, 'ausuc_scores'), self.ausuc_scores)
         np.save(os.path.join(self.paths.custom_data_path, 'ausuc_accs'), self.ausuc_accs)
+        np.save(os.path.join(self.paths.custom_data_path, 'logits_history'), self.logits_history)
 
     def construct_trainer(self, task_idx: int) -> "TaskTrainer":
         if self.config.task_trainer == 'basic':

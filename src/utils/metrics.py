@@ -185,7 +185,8 @@ def compute_individual_zst_accs_matrix(logits_history: np.ndarray, targets: List
     return np.array([[compute_acc_for_classes(l, cs, targets) for cs in class_splits] for l in logits_history])
 
 
-def compute_joined_zst_acc_history(logits_history: List[List[List[float]]], targets: List[int], class_splits: List[List[int]]) -> np.ndarray:
+def compute_joined_zst_acc_history(logits_history: List[List[List[float]]], targets: List[int],
+                                   class_splits: List[List[int]]) -> List[float]:
     """
     Computes accuracy matrix for each task before each task.
     You would like to use np.triu or np.triu_indices to get zero-shot accuracies

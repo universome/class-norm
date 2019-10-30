@@ -50,7 +50,9 @@ class TaskTrainer:
                                   "(for example, previous trainers was not finished or this trainer was already run)"
 
         for epoch in range(self.config.max_num_epochs):
-            for batch in tqdm(self.train_dataloader, desc=f'Task #{self.task_idx}'):
+            tqdm_desc = f'Task #{self.task_idx} [epoch {epoch + 1}/{self.config.max_num_epochs}]'
+            
+            for batch in tqdm(self.train_dataloader, desc=tqdm_desc):
                 if self.config.get('metrics.lca_num_batches', -1) >= self.num_iters_done:
                     self.test_acc_batch_history.append(self.compute_test_accuracy())
 
