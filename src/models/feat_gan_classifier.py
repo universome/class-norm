@@ -7,6 +7,7 @@ from firelab.config import Config
 from src.utils.constants import POS_INF
 from src.utils.lll import prune_logits
 from .gan import FeatGenerator, FeatDiscriminator
+from .classifier import FeatClassifier
 
 
 class FeatGANClassifier(nn.Module):
@@ -16,7 +17,8 @@ class FeatGANClassifier(nn.Module):
         self.config = config
         self.register_buffer('attrs', torch.tensor(attrs).float())
         self.generator = FeatGenerator(config)
-        self.discriminator = FeatDiscriminator(config, attrs)
+        self.discriminator = FeatDiscriminator(config)
+        self.classifier = FeatClassifier(config, attrs)
 
     def forward(self, x: Tensor) -> Tensor:
         """
@@ -56,7 +58,7 @@ class FeatGANClassifier(nn.Module):
         return pseudo_logits
 
     def compute_pruned_predictions_via_classifier(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
-        logits = self.discriminator.run_cls_head(x)
+        logits = self.classifier(x)
         pruned = prune_logits(logits, output_mask)
 
         return pruned

@@ -19,8 +19,9 @@ hp:
     attr_input_dim: 312
     attr_output_dim: 512
     hid_dim: 512
-    gen_optim_kwargs: {lr: 0.03}
-    discr_optim_kwargs: {lr: 0.03}
+    gen_optim_kwargs: {lr: 0.01}
+    discr_optim_kwargs: {lr: 0.01}
+    cls_optim_kwargs: {lr: 0.01}
     num_discr_steps_per_gen_step: 5
     centroid_reg_coef: 1
     distill_batch_size: 100

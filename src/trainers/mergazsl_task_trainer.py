@@ -26,61 +26,75 @@ class MeRGAZSLTaskTrainer(TaskTrainer):
         self.seen_classes = np.unique(self.main_trainer.class_splits[:self.task_idx + 1]).tolist()
         self.writer = SummaryWriter(os.path.join(self.main_trainer.paths.logs_path, f'task_{self.task_idx}'))
 
+        self.optim = {
+            'gen': torch.optim.Adam(self.model.generator.parameters(),
+                                   **self.config.hp.model_config.gen_optim_kwargs.to_dict()),
+            'discr': torch.optim.Adam(self.model.discriminator.parameters(),
+                                     **self.config.hp.model_config.discr_optim_kwargs.to_dict()),
+            'cls': torch.optim.Adam(self.model.classifier.parameters(),
+                                   **self.config.hp.model_config.cls_optim_kwargs.to_dict()),
+        }
+
     def train_on_batch(self, batch: Tuple[np.ndarray, np.ndarray]):
         self.model.train()
 
         x = torch.tensor(batch[0]).to(self.device_name)
         y = torch.tensor(batch[1]).to(self.device_name)
 
-        self.discriminator_step(x, y)
+        # self.discriminator_step(x, y)
+        self.classifier_step(x, y)
 
-        if self.num_iters_done % self.config.hp.model_config.num_discr_steps_per_gen_step == 0:
-            self.generator_step(x, y)
-
-        if self.task_idx > 0:
-            self.knowledge_distillation_step()
-
-        if self.task_idx > 0 and self.config.hp.get('use_joint_cls_training'):
-            self.classifier_trainer_step()
+        # if self.num_iters_done % self.config.hp.model_config.num_discr_steps_per_gen_step == 0:
+        #     self.generator_step(y)
+        #
+        # if self.task_idx > 0:
+        #     self.knowledge_distillation_step()
+        #
+        # if self.task_idx > 0 and self.config.hp.get('use_joint_cls_training'):
+        #     self.classifier_trainer_step()
 
     def discriminator_step(self, x: Tensor, y: Tensor):
         with torch.no_grad():
             z = self.model.generator.sample_noise(x.size(0)).to(self.device_name)
             x_fake = self.model.generator(z, self.model.attrs[y])
 
-        discr_logits_on_real, cls_logits_on_real = self.model.discriminator(x)
-        discr_logits_on_fake, cls_logits_on_fake = self.model.discriminator(x_fake)
+        logits_on_real = self.model.discriminator(x)
+        logits_on_fake = self.model.discriminator(x_fake)
 
-        cls_pruned_logits_on_real = prune_logits(cls_logits_on_real, self.output_mask)
-        cls_pruned_logits_on_fake = prune_logits(cls_logits_on_fake, self.output_mask)
+        discr_loss = -logits_on_real.mean() + logits_on_fake.mean()
+        grad_penalty = compute_gradient_penalty(self.model.discriminator, x, x_fake)
+        discr_loss_total = discr_loss + grad_penalty
 
-        discr_loss = -discr_logits_on_real.mean() + discr_logits_on_fake.mean()
-        cls_loss = self.criterion(cls_pruned_logits_on_real, y) + self.criterion(cls_pruned_logits_on_fake, y)
-        grad_penalty = compute_gradient_penalty(self.model.discriminator.run_discr_head, x, x_fake)
-        discr_loss_total = discr_loss + cls_loss + grad_penalty
-
+        self.optim['discr'].zero_grad()
         discr_loss_total.backward()
         self.optim['discr'].step()
-        self.optim['discr'].zero_grad()
 
         self.writer.add_scalar(f'discr/discr_loss', discr_loss.item(), self.num_iters_done)
-        self.writer.add_scalar(f'discr/cls_loss', cls_loss.item(), self.num_iters_done)
         self.writer.add_scalar(f'discr/grad_penalty', grad_penalty.item(), self.num_iters_done)
 
-        acc_on_real = (cls_pruned_logits_on_real.argmax(axis=1) == y).float().mean()
-        acc_on_fake = (cls_pruned_logits_on_fake.argmax(axis=1) == y).float().mean()
+    def classifier_step(self, x: Tensor, y: Tensor):
+        pruned_logits = self.model.classifier.compute_pruned_predictions(x, self.output_mask)
+        loss = self.criterion(pruned_logits, y)
+        acc = (pruned_logits.argmax(axis=1) == y).float().mean()
 
-        self.writer.add_scalar(f'discr/cls_acc_on_real', acc_on_real.item(), self.num_iters_done)
-        self.writer.add_scalar(f'discr/cls_acc_on_fake', acc_on_fake.item(), self.num_iters_done)
+        self.optim['cls'].zero_grad()
+        loss.backward()
+        if self.config.hp.has('clip_grad_norm'):
+            grad_norm = clip_grad_norm_(self.model.classifier.parameters(), self.config.hp.clip_grad_norm)
+            self.writer.add_scalar(f'cls/grad_norm', grad_norm, self.num_iters_done)
+        self.optim['cls'].step()
 
-    def generator_step(self, x: Tensor, y: Tensor):
-        z = self.model.generator.sample_noise(x.size(0)).to(self.device_name)
+        self.writer.add_scalar(f'cls/loss', loss.item(), self.num_iters_done)
+        self.writer.add_scalar(f'cls/acc', acc.item(), self.num_iters_done)
+
+    def generator_step(self, y: Tensor):
+        z = self.model.generator.sample_noise(y.size(0)).to(self.device_name)
         x_fake = self.model.generator(z, self.model.attrs[y])
-        _, cls_logits_on_real = self.model.discriminator(x)
-        discr_logits_on_fake, cls_logits_on_fake = self.model.discriminator(x_fake)
+        discr_logits_on_fake = self.model.discriminator(x_fake)
+        cls_logits_on_fake = self.model.classifier(x_fake)
 
         discr_loss = -discr_logits_on_fake.mean()
-        # TODO: CIZSL for some reason uses C_real here
+        # TODO: CIZSL for some reason additionally uses C_real here. Why?
         cls_loss = self.criterion(prune_logits(cls_logits_on_fake, self.output_mask), y)
 
         if self.config.hp.model_config.centroid_reg_coef > 0:
@@ -92,9 +106,10 @@ class MeRGAZSLTaskTrainer(TaskTrainer):
         # TODO: CIZSL uses additional L2 reg for generator attr embeddings
 
         total_loss = discr_loss + cls_loss + self.config.hp.model_config.centroid_reg_coef * centroid_loss
+
+        self.optim['gen'].zero_grad()
         total_loss.backward()
         self.optim['gen'].step()
-        self.optim['gen'].zero_grad()
 
         self.writer.add_scalar(f'gen/discr_loss', discr_loss.item(), self.num_iters_done)
         self.writer.add_scalar(f'gen/cls_loss', cls_loss.item(), self.num_iters_done)
@@ -107,11 +122,11 @@ class MeRGAZSLTaskTrainer(TaskTrainer):
         x_fake_student = self.model.generator(z, self.model.attrs[y])
         loss = self.config.hp.model_config.model_distill_coef * (x_fake_teacher - x_fake_student).norm()
 
+        self.optim['gen'].zero_grad()
         loss.backward()
         self.optim['gen'].step()
-        self.optim['gen'].zero_grad()
 
-        self.writer.add_scalar(f'gen/knowledge_distillation_loss', loss.item(), self.num_iters_done)
+        self.writer.add_scalar(f'gen/distillation_loss', loss.item(), self.num_iters_done)
 
     def classifier_trainer_step(self):
         # Randomly sampling classes
@@ -122,23 +137,22 @@ class MeRGAZSLTaskTrainer(TaskTrainer):
             z = self.model.generator.sample_noise(y.size(0)).to(self.device_name)
             x = self.model.generator(z, self.model.attrs[y])
 
-        cls_logits = self.model.discriminator.run_cls_head(x)
         seen_classes_output_mask = np.zeros(self.config.data.num_classes).astype(bool)
         seen_classes_output_mask[self.seen_classes] = True
-        pruned_logits = prune_logits(cls_logits, seen_classes_output_mask)
+        pruned_logits = self.model.classifier.compute_pruned_predictions(x, seen_classes_output_mask)
         loss = self.criterion(pruned_logits, y)
         loss *= self.config.hp.joint_cls_training_loss_coef
         acc = (pruned_logits.argmax(axis=1) == y).float().mean()
 
-        self.optim['discr'].zero_grad()
+        self.optim['cls'].zero_grad()
         loss.backward()
         if self.config.hp.has('clip_grad_norm'):
-            grad_norm = clip_grad_norm_(self.model.parameters(), self.config.hp.clip_grad_norm)
-            self.writer.add_scalar(f'cls/grad_norm', grad_norm.item(), self.num_iters_done)
-        self.optim['discr'].step()
+            grad_norm = clip_grad_norm_(self.model.classifier.parameters(), self.config.hp.clip_grad_norm)
+            self.writer.add_scalar(f'cls/grad_norm_on_synthetic', grad_norm, self.num_iters_done)
+        self.optim['cls'].step()
 
-        self.writer.add_scalar(f'cls/loss', loss.item(), self.num_iters_done)
-        self.writer.add_scalar(f'cls/acc', acc.item(), self.num_iters_done)
+        self.writer.add_scalar(f'cls/loss_on_synthetic', loss.item(), self.num_iters_done)
+        self.writer.add_scalar(f'cls/acc_on_synthetic', acc.item(), self.num_iters_done)
 
     def compute_centroid_loss(self, x_fake, y):
         groups = {}

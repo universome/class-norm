@@ -62,8 +62,9 @@ class LLLTrainer(BaseTrainer):
         elif self.config.hp.model_type == 'feat_gan_classifier':
             # TODO: well, now this does not look like a good code...
             self.optim = {
-                'gen': torch.optim.Adam(self.model.generator.parameters(), **self.config.hp.model_config.gen_optim_kwargs.to_dict()),
-                'discr': torch.optim.Adam(self.model.discriminator.parameters(), **self.config.hp.model_config.discr_optim_kwargs.to_dict()),
+                'gen': torch.optim.SGD(self.model.generator.parameters(), **self.config.hp.model_config.gen_optim_kwargs.to_dict()),
+                'discr': torch.optim.SGD(self.model.discriminator.parameters(), **self.config.hp.model_config.discr_optim_kwargs.to_dict()),
+                'cls': torch.optim.SGD(self.model.classifier.parameters(), **self.config.hp.model_config.cls_optim_kwargs.to_dict()),
             }
         else:
             raise NotImplementedError(f'Unknown model type {self.config.hp.model_type}')

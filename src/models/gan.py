@@ -33,8 +33,23 @@ class FeatGenerator(nn.Module):
 
 
 class FeatDiscriminator(nn.Module):
-    def __init__(self, config: Config, attrs: np.ndarray=None):
+    def __init__(self, config: Config):
         super(FeatDiscriminator, self).__init__()
+
+        self.config = config
+        self.model = nn.Sequential(
+            nn.Linear(config.feat_dim, config.hid_dim),
+            nn.ReLU(),
+            nn.Linear(config.hid_dim, 1)
+        )
+
+    def forward(self, x: Tensor) -> Tensor:
+        return self.model(x)
+
+
+class FeatDiscriminatorWithClfHead(nn.Module):
+    def __init__(self, config: Config, attrs: np.ndarray=None):
+        super(FeatDiscriminatorWithClfHead, self).__init__()
 
         self.config = config
         self.body = nn.Sequential(

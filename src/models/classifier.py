@@ -3,6 +3,7 @@ import torch
 from torch import Tensor
 import torch.nn as nn
 from torchvision.models.resnet import resnet18
+from firelab.config import Config
 
 from src.utils.lll import prune_logits
 
@@ -11,13 +12,13 @@ class ZSClassifier(nn.Module):
     def __init__(self, attrs:np.ndarray, pretrained:bool=False):
         super(ZSClassifier, self).__init__()
 
-        self.resnet_emb = ResnetEmbedder(pretrained=pretrained)
+        self.embedder = ResnetEmbedder(pretrained=pretrained)
         self.register_buffer('attrs', torch.tensor(attrs).float())
         self.attr_emb = nn.Linear(attrs.shape[1], 512, bias=False)
         self.biases = nn.Parameter(torch.zeros(attrs.shape[0]))
 
     def forward(self, x: Tensor) -> Tensor:
-        img_feats = self.resnet_emb(x)
+        img_feats = self.embedder(x)
         attrs_feats = self.attr_emb(self.attrs)
         logits = torch.mm(img_feats, attrs_feats.t()) + self.biases
 
@@ -37,18 +38,18 @@ class ResnetClassifier(nn.Module):
     def __init__(self, num_classes: int, pretrained: bool=False):
         super(ResnetClassifier, self).__init__()
 
-        self.resnet_emb = ResnetEmbedder(pretrained=pretrained)
+        self.embedder = ResnetEmbedder(pretrained=pretrained)
         self.head = nn.Linear(512, num_classes)
 
     def forward(self, x: Tensor) -> Tensor:
-        feats = self.resnet_emb(x)
+        feats = self.embedder(x)
         logits = self.head(feats)
 
         return logits
 
 
 class ResnetEmbedder(nn.Module):
-    def __init__(self, pretrained:bool=True):
+    def __init__(self, pretrained: bool=True):
         super(ResnetEmbedder, self).__init__()
 
         self.resnet = resnet18(pretrained=pretrained)
@@ -70,3 +71,39 @@ class ResnetEmbedder(nn.Module):
         x = torch.flatten(x, 1)
 
         return x
+
+
+class FeatClassifier(ZSClassifier):
+    def __init__(self, config: Config, attrs: np.ndarray):
+        nn.Module.__init__(self) # Since we do not want ZSClassifier's init
+        #super(FeatClassifier, self).__init__(attrs)
+
+        self.embedder = nn.Sequential(
+            nn.Linear(config.feat_dim, config.hid_dim),
+            nn.ReLU(),
+            nn.Linear(config.hid_dim, config.hid_dim)
+        )
+        self.register_buffer('attrs', torch.tensor(attrs).float())
+        self.attr_emb = nn.Sequential(
+            nn.Linear(attrs.shape[1], config.hid_dim),
+            nn.Linear(config.hid_dim, config.hid_dim),
+        )
+        self.biases = nn.Parameter(torch.zeros(attrs.shape[0]))
+# class FeatClassifier(nn.Module):
+#     def __init__(self, config: Config, attrs: np.ndarray):
+#         super(FeatClassifier, self).__init__()
+#
+#         self.model = nn.Sequential(
+#             nn.Linear(config.feat_dim, config.hid_dim),
+#             nn.ReLU(),
+#             nn.Linear(config.hid_dim, 200)
+#         )
+#
+#     def forward(self, x):
+#         return self.model(x)
+#
+#     def compute_pruned_predictions(self, x, output_mask):
+#         logits = self.model(x)
+#         pruned = prune_logits(logits, output_mask)
+#
+#         return pruned
