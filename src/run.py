@@ -11,7 +11,7 @@ from src.utils.metrics import compute_average_accuracy
 
 
 CONFIG_ARG_PREFIX = '--config.'
-RANDOM_SEED = np.random.randint(np.iinfo(np.int32).max)
+DEFAULT_RANDOM_SEED = np.random.randint(np.iinfo(np.int32).max)
 
 
 def run_trainer(args: argparse.Namespace, config_cli_args: List[str]):
@@ -45,8 +45,8 @@ def load_config(args: argparse.Namespace, config_cli_args: List[str]) -> Config:
 
     # Setting experiment-specific properties
     config.set('experiments_dir', 'experiments')
-    config.set('exp_name', args.config_name)
     config.set('random_seed', args.random_seed)
+    config.set('exp_name', f'{args.config_name}-{config.random_seed}')
 
     # Setting properties from the base config
     config.set('data', base_config.datasets.get(args.dataset))
@@ -114,7 +114,7 @@ def get_hpo_configs(config: Config) -> List[Config]:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Running LLL trainer')
     parser.add_argument('-d', '--dataset', default='cub', type=str, help='Dataset')
-    parser.add_argument('-s', '--random_seed', type=int, default=RANDOM_SEED, help='Random seed to fix')
+    parser.add_argument('-s', '--random_seed', type=int, default=DEFAULT_RANDOM_SEED, help='Random seed to fix')
     parser.add_argument('-c', '--config_name', type=str, default='mergazsl', help='Which config to run?')
     parser.add_argument('-n', '--num_runs', type=int, default=1, help='How many times we should run the experiment?')
 

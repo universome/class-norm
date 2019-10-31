@@ -123,7 +123,7 @@ class LLLTrainer(BaseTrainer):
                 self.validate()
 
         self.compute_metrics()
-        self.save_scores()
+        self.save_experiment_data()
 
     def compute_metrics(self):
         if self.config.get('metrics.average_accuracy'):
@@ -168,14 +168,15 @@ class LLLTrainer(BaseTrainer):
 
         return logits
 
-    def save_scores(self):
+    def save_experiment_data(self):
         np.save(os.path.join(self.paths.custom_data_path, 'zst_accs'), self.zst_accs)
         np.save(os.path.join(self.paths.custom_data_path, 'accs_history'), self.accs_history)
         np.save(os.path.join(self.paths.custom_data_path, 'test_acc_batch_histories'),
-                [t.test_acc_batch_history for t in self.task_trainers])
+            [t.test_acc_batch_history for t in self.task_trainers])
         np.save(os.path.join(self.paths.custom_data_path, 'ausuc_scores'), self.ausuc_scores)
         np.save(os.path.join(self.paths.custom_data_path, 'ausuc_accs'), self.ausuc_accs)
         np.save(os.path.join(self.paths.custom_data_path, 'logits_history'), self.logits_history)
+        np.save(os.path.join(self.paths.custom_data_path, 'class_splits'), self.class_splits)
 
     def construct_trainer(self, task_idx: int) -> "TaskTrainer":
         if self.config.task_trainer == 'basic':
@@ -188,8 +189,7 @@ class LLLTrainer(BaseTrainer):
             return MASTaskTrainer(self, task_idx)
         elif self.config.task_trainer == 'mergazsl':
             return MeRGAZSLTaskTrainer(self, task_idx)
-        elif self.config.task_trainer == 'cgm':
-            return CGMTaskTrainer(self, task_idx)
+        else:
             raise NotImplementedError(f'Unknown task trainer: {self.config.task_trainer}')
 
     def compute_test_accs(self) -> List[float]:
