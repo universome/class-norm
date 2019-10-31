@@ -1,6 +1,6 @@
 task_trainer: "mergazsl"
-max_num_epochs: 1000
-batch_size: 256
+max_num_epochs: 100
+batch_size: 64
 
 hp:
   use_class_attrs: true
@@ -25,9 +25,9 @@ hp:
     distill_batch_size: 100
     model_distill_coef: 0.001
 
-    use_joint_clf_trainign: true
+    use_joint_cls_training: true
     joint_clf_training_batch_size: 100
-    joint_cls_training_loss_coef: 0.1
+    joint_cls_training_loss_coef: 1
 
 hp_for_datasets:
   cub:

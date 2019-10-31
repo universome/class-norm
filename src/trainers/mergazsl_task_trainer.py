@@ -1,3 +1,4 @@
+import os
 import random
 from copy import deepcopy
 from typing import Tuple
@@ -5,6 +6,7 @@ from typing import Tuple
 import torch
 from torch import Tensor
 import numpy as np
+from torch.utils.tensorboard import SummaryWriter
 
 from src.trainers.task_trainer import TaskTrainer
 from src.utils.lll import prune_logits
@@ -21,6 +23,7 @@ class MeRGAZSLTaskTrainer(TaskTrainer):
         self.prev_model = deepcopy(self.model).to(self.device_name).eval()
         self.current_classes = self.main_trainer.class_splits[self.task_idx]
         self.previously_seen_classes = list(set([c for task_id in range(self.task_idx) for c in self.main_trainer.class_splits[task_id]]))
+        self.writer = SummaryWriter(os.path.join(self.main_trainer.paths.logs_path, f'task_{self.task_idx}'))
 
     def train_on_batch(self, batch: Tuple[np.ndarray, np.ndarray]):
         self.model.train()
@@ -36,7 +39,7 @@ class MeRGAZSLTaskTrainer(TaskTrainer):
         if self.task_idx > 0:
             self.knowledge_distillation_step()
 
-        if self.task_idx > 0 and self.config.hp.get('use_joint_classifier_training'):
+        if self.task_idx > 0 and self.config.hp.get('use_joint_cls_training'):
             self.classifier_trainer_step()
 
     def discriminator_step(self, x: Tensor, y: Tensor):
@@ -59,9 +62,15 @@ class MeRGAZSLTaskTrainer(TaskTrainer):
         self.optim['discr'].step()
         self.optim['discr'].zero_grad()
 
-        self.writer.add_scalar(f'Train/task_{self.task_idx}/discr/discr_loss', discr_loss.item(), self.num_iters_done)
-        self.writer.add_scalar(f'Train/task_{self.task_idx}/discr/cls_loss', cls_loss.item(), self.num_iters_done)
-        self.writer.add_scalar(f'Train/task_{self.task_idx}/discr/grad_penalty', grad_penalty.item(), self.num_iters_done)
+        self.writer.add_scalar(f'Train/discr/discr_loss', discr_loss.item(), self.num_iters_done)
+        self.writer.add_scalar(f'Train/discr/cls_loss', cls_loss.item(), self.num_iters_done)
+        self.writer.add_scalar(f'Train/discr/grad_penalty', grad_penalty.item(), self.num_iters_done)
+
+        acc_on_real = (cls_pruned_logits_on_real.argmax(axis=1) == y).float().mean()
+        acc_on_fake = (cls_pruned_logits_on_fake.argmax(axis=1) == y).float().mean()
+
+        self.writer.add_scalar(f'Train/discr/cls_acc_on_real', acc_on_real.item(), self.num_iters_done)
+        self.writer.add_scalar(f'Train/discr/cls_acc_on_fake', acc_on_fake.item(), self.num_iters_done)
 
     def generator_step(self, x: Tensor, y: Tensor):
         z = self.model.generator.sample_noise(x.size(0)).to(self.device_name)
@@ -86,9 +95,9 @@ class MeRGAZSLTaskTrainer(TaskTrainer):
         self.optim['gen'].step()
         self.optim['gen'].zero_grad()
 
-        self.writer.add_scalar(f'Train/task_{self.task_idx}/gen/discr_loss', discr_loss.item(), self.num_iters_done)
-        self.writer.add_scalar(f'Train/task_{self.task_idx}/gen/cls_loss', cls_loss.item(), self.num_iters_done)
-        self.writer.add_scalar(f'Train/task_{self.task_idx}/gen/centroid_loss', centroid_loss.item(), self.num_iters_done)
+        self.writer.add_scalar(f'Train/gen/discr_loss', discr_loss.item(), self.num_iters_done)
+        self.writer.add_scalar(f'Train/gen/cls_loss', cls_loss.item(), self.num_iters_done)
+        self.writer.add_scalar(f'Train/gen/centroid_loss', centroid_loss.item(), self.num_iters_done)
 
     def knowledge_distillation_step(self):
         z = self.model.generator.sample_noise(self.config.hp.model_config.distill_batch_size).to(self.device_name)
@@ -101,7 +110,7 @@ class MeRGAZSLTaskTrainer(TaskTrainer):
         self.optim['gen'].step()
         self.optim['gen'].zero_grad()
 
-        self.writer.add_scalar(f'Train/task_{self.task_idx}/gen/knowledge_distillation', loss.item(), self.num_iters_done)
+        self.writer.add_scalar(f'Train/gen/knowledge_distillation_loss', loss.item(), self.num_iters_done)
 
     def classifier_trainer_step(self):
         # Randomly sampling classes
@@ -113,14 +122,19 @@ class MeRGAZSLTaskTrainer(TaskTrainer):
             x = self.model.generator(z, self.model.attrs[y])
 
         cls_logits = self.model.discriminator.run_cls_head(x)
-        loss = self.criterion(cls_logits, y)
+        seen_classes_output_mask = np.zeros(self.config.data.num_classes)
+        seen_classes_output_mask[self.seen_classes] = True
+        pruned_logits = prune_logits(cls_logits, seen_classes_output_mask)
+        loss = self.criterion(pruned_logits, y)
         loss *= self.config.hp.joint_cls_training_loss_coef
+        acc = (pruned_logits.argmax(axis=1) == y).float().mean()
 
         self.optim['discr'].zero_grad()
         loss.backward()
         self.optim['discr'].step()
 
-        self.writer.add_scalar(f'Train/task_{self.task_idx}/cls/loss', loss.item(), self.num_iters_done)
+        self.writer.add_scalar(f'Train/cls/loss', loss.item(), self.num_iters_done)
+        self.writer.add_scalar(f'Train/cls/acc', acc.item(), self.num_iters_done)
 
     def compute_centroid_loss(self, x_fake, y):
         groups = {}
