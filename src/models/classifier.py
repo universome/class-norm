@@ -73,22 +73,36 @@ class ResnetEmbedder(nn.Module):
         return x
 
 
-class FeatClassifier(ZSClassifier):
+class FeatClassifier(nn.Module):
     def __init__(self, config: Config, attrs: np.ndarray):
-        nn.Module.__init__(self) # Since we do not want ZSClassifier's init
-        #super(FeatClassifier, self).__init__(attrs)
+        super(FeatClassifier, self).__init__()
 
         self.embedder = nn.Sequential(
             nn.Linear(config.feat_dim, config.hid_dim),
-            nn.ReLU(),
-            nn.Linear(config.hid_dim, config.hid_dim)
+            # nn.ReLU(),
+            # nn.Linear(config.hid_dim, config.hid_dim)
         )
         self.register_buffer('attrs', torch.tensor(attrs).float())
         self.attr_emb = nn.Sequential(
-            nn.Linear(attrs.shape[1], config.hid_dim),
-            nn.Linear(config.hid_dim, config.hid_dim),
+            nn.Linear(attrs.shape[1], config.hid_dim, bias=False),
+            # nn.ReLU(),
+            # nn.Linear(config.hid_dim, config.hid_dim, bias=False),
         )
         self.biases = nn.Parameter(torch.zeros(attrs.shape[0]))
+
+    def forward(self, x: Tensor) -> Tensor:
+        img_feats = self.embedder(x)
+        attrs_feats = self.attr_emb(self.attrs)
+        logits = torch.mm(img_feats, attrs_feats.t()) + self.biases
+
+        return logits
+
+    def compute_pruned_predictions(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
+        logits = self.forward(x)
+        pruned_logits = prune_logits(logits, output_mask)
+
+        return pruned_logits
+
 # class FeatClassifier(nn.Module):
 #     def __init__(self, config: Config, attrs: np.ndarray):
 #         super(FeatClassifier, self).__init__()

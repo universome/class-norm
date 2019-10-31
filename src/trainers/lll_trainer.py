@@ -71,8 +71,8 @@ class LLLTrainer(BaseTrainer):
 
     def init_dataloaders(self):
         if self.config.data.name == 'CUB':
-            self.ds_train = cub.load_dataset(self.config.data.dir, is_train=True, target_shape=self.config.hp.img_target_shape)
-            self.ds_test = cub.load_dataset(self.config.data.dir, is_train=False, target_shape=self.config.hp.img_target_shape)
+            #self.ds_train = cub.load_dataset(self.config.data.dir, is_train=True, target_shape=self.config.hp.img_target_shape)
+            #self.ds_test = cub.load_dataset(self.config.data.dir, is_train=False, target_shape=self.config.hp.img_target_shape)
             self.class_attributes = cub.load_class_attributes(self.config.data.dir)
         elif self.config.data.name == 'AWA':
             self.ds_train = awa.load_dataset(self.config.data.dir, split='train', target_shape=self.config.hp.img_target_shape)
@@ -81,9 +81,14 @@ class LLLTrainer(BaseTrainer):
         else:
             raise NotImplementedError(f'Unkown dataset: {self.config.data.name}')
 
-        if self.config.hp.get('embed_data'):
-            self.ds_train = extract_resnet18_features_for_dataset(self.ds_train)
-            self.ds_test = extract_resnet18_features_for_dataset(self.ds_test)
+        # if self.config.hp.get('embed_data'):
+        #     self.ds_train = extract_resnet18_features_for_dataset(self.ds_train)
+        #     self.ds_test = extract_resnet18_features_for_dataset(self.ds_test)
+
+        # np.save('/tmp/ds_train', self.ds_train)
+        # np.save('/tmp/ds_test', self.ds_test)
+        self.ds_train = np.load('/tmp/ds_train.npy', allow_pickle=True)
+        self.ds_test = np.load('/tmp/ds_test.npy', allow_pickle=True)
 
         self.class_splits = split_classes_for_tasks(
             self.config.data.num_classes, self.config.data.num_tasks,
