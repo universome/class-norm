@@ -7,6 +7,7 @@ hp:
   batch_size: 10
   img_target_shape: [224, 224]
   embed_data: true
+  clip_grad_norm: 100
 
   model_type: "feat_gan_classifier"
   model_config:
@@ -23,11 +24,11 @@ hp:
     num_discr_steps_per_gen_step: 5
     centroid_reg_coef: 1
     distill_batch_size: 100
-    model_distill_coef: 0.001
+    model_distill_coef: 0.0001
 
-    use_joint_cls_training: true
-    joint_clf_training_batch_size: 100
-    joint_cls_training_loss_coef: 1
+  use_joint_cls_training: true
+  joint_clf_training_batch_size: 100
+  joint_cls_training_loss_coef: 1
 
 hp_for_datasets:
   cub:
