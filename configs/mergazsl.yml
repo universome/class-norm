@@ -22,10 +22,10 @@ hp:
     gen_optim_kwargs: {lr: 0.01}
     discr_optim_kwargs: {lr: 0.01}
     cls_optim_kwargs: {lr: 0.01}
-    num_discr_steps_per_gen_step: 5
+    num_discr_steps_per_gen_step: 1
     centroid_reg_coef: 1
     distill_batch_size: 100
-    model_distill_coef: 0.0001
+    model_distill_coef: 0.001
 
   use_joint_cls_training: true
   joint_clf_training_batch_size: 100

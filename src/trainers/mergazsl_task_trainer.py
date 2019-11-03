@@ -41,17 +41,17 @@ class MeRGAZSLTaskTrainer(TaskTrainer):
         x = torch.tensor(batch[0]).to(self.device_name)
         y = torch.tensor(batch[1]).to(self.device_name)
 
-        # self.discriminator_step(x, y)
+        self.discriminator_step(x, y)
         self.classifier_step(x, y)
 
-        # if self.num_iters_done % self.config.hp.model_config.num_discr_steps_per_gen_step == 0:
-        #     self.generator_step(y)
-        #
-        # if self.task_idx > 0:
-        #     self.knowledge_distillation_step()
-        #
-        # if self.task_idx > 0 and self.config.hp.get('use_joint_cls_training'):
-        #     self.classifier_trainer_step()
+        if self.num_iters_done % self.config.hp.model_config.num_discr_steps_per_gen_step == 0:
+            self.generator_step(y)
+
+        if self.task_idx > 0:
+            self.knowledge_distillation_step()
+
+        if self.task_idx > 0 and self.config.hp.get('use_joint_cls_training'):
+            self.classifier_trainer_step()
 
     def discriminator_step(self, x: Tensor, y: Tensor):
         with torch.no_grad():
