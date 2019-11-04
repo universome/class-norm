@@ -20,8 +20,7 @@ def load_dataset(data_dir: PathLike, is_train:bool=True, target_shape=(224, 224)
     imgs = load_imgs(os.path.join(data_dir, 'images'), img_paths, target_shape)
     labels = load_labels(img_paths)
     imgs = preprocess_imgs(imgs)
-
-    imgs, labels = shuffle_dataset(imgs, labels)
+    if is_train: imgs, labels = shuffle_dataset(imgs, labels)
 
     return list(zip(imgs, labels))
 

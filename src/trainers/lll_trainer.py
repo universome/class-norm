@@ -183,6 +183,7 @@ class LLLTrainer(BaseTrainer):
         np.save(os.path.join(self.paths.custom_data_path, 'ausuc_accs'), self.ausuc_accs)
         np.save(os.path.join(self.paths.custom_data_path, 'logits_history'), self.logits_history)
         np.save(os.path.join(self.paths.custom_data_path, 'class_splits'), self.class_splits)
+        #np.save(os.path.join(self.paths.custom_data_path, 'labels'), [y for _, y in self.ds_test])
 
     def construct_trainer(self, task_idx: int) -> "TaskTrainer":
         if self.config.task_trainer == 'basic':

@@ -6,5 +6,5 @@
 #SBATCH --cpus-per-task 4
 #SBATCH -o logs/output-%j.out
 
-cd /users/skoroki/zslll
+cd /home/skoroki/zslll
 python src/run.py $cli_args

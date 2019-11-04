@@ -24,7 +24,7 @@ def load_dataset(data_dir: PathLike, split: str='train', target_shape=(224, 224)
 
     imgs = load_imgs(os.path.join(data_dir, 'Animals_with_Attributes2'), img_paths, target_shape)
     imgs = preprocess_imgs(imgs)
-    imgs, labels = shuffle_dataset(imgs, labels)
+    if is_train: imgs, labels = shuffle_dataset(imgs, labels)
 
     return list(zip(imgs, labels))
 
