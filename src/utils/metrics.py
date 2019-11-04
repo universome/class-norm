@@ -182,27 +182,45 @@ def compute_individual_zst_accs_matrix(logits_history: np.ndarray, targets: List
     """
 
     # TODO: actually, we do a lot of computations that can be cached here :|
-    return np.array([[compute_acc_for_classes(l, cs, targets) for cs in class_splits] for l in logits_history])
+    return np.array([[compute_acc_for_classes(l, targets, cs) for cs in class_splits] for l in logits_history])
 
 
 def compute_joined_zst_acc_history(logits_history: List[List[List[float]]], targets: List[int],
                                    class_splits: List[List[int]]) -> List[float]:
     """
-    Computes accuracy matrix for each task before each task.
-    You would like to use np.triu or np.triu_indices to get zero-shot accuracies
+    Computes zero-shot history on all the remaining tasks before starting each task
 
     :param logits_history: history of model logits, evaluated BEFORE each task,
                            i.e. matrix of size [NUM_TASKS x DATASET_SIZE x NUM_CLASSES]
     :param targets: targets for the objects of size [DATASET_SIZE]
     :param class_splits: list of classes for each task of size [NUM_TASKS x NUM_CLASSES_PER_TASK]
 
-    :return: zero-shot accuracies NUM_TASKS
+    :return: zero-shot accuracies of size [NUM_TASKS]
     """
-    unseen_classes = [np.array(class_splits[i:]).reshape(-1) for i in range(len(class_splits))]
-    unseen_classes = [np.unique(cs) for cs in unseen_classes]
+    unseen_classes = [np.unique(class_splits[i:]) for i in range(len(class_splits))]
     accs = [compute_acc_for_classes(l, targets, cs) for l, cs in zip(logits_history, unseen_classes)]
 
     return accs
+
+
+def compute_joined_ausuc_history(logits_history: List[List[List[float]]], targets: List[int],
+                                 class_splits: List[List[int]]) -> List[float]:
+    """
+    Computes AUSUC history on all the remaining tasks before starting each task
+
+    :param logits_history: history of model logits, evaluated BEFORE each task,
+                           i.e. matrix of size [NUM_TASKS x DATASET_SIZE x NUM_CLASSES]
+    :param targets: targets for the objects of size [DATASET_SIZE]
+    :param class_splits: list of classes for each task of size [NUM_TASKS x NUM_CLASSES_PER_TASK]
+
+    :return: AUSUC scores of size [NUM_TASKS]
+    """
+    num_classes = len(logits_history[0][0])
+    seen_classes = [np.unique(class_splits[:i]) for i in range(len(class_splits))]
+    seen_classes_masks = [construct_mask(num_classes, cs) for cs in seen_classes]
+    ausuc_scores = [compute_ausuc(l, targets, m)[0] for l, m in zip(logits_history, seen_classes_masks)]
+
+    return ausuc_scores
 
 
 def compute_acc_for_classes(logits: List[List[float]], targets: List[int], classes: List[int]) -> float:
@@ -234,3 +252,9 @@ def remap_targets(targets: List[int], classes: List[int]) -> List[int]:
     """
     return [(classes.index(t) if t in classes else -1) for t in targets]
 
+
+def construct_mask(num_classes: int, ones_idx: List[int]) -> List[bool]:
+    mask = np.zeros(num_classes).astype(bool)
+    mask[ones_idx] = True
+
+    return mask
