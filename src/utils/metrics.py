@@ -145,27 +145,27 @@ def compute_ausuc_matrix(logits_history: np.ndarray, targets: List[int], class_s
 
     :return: AUCSUC value and a matrix of pairwise AUSUCS
     """
-    num_tasks = len(logits_history) + 1
+    num_tasks = len(logits_history)
     ausuc_matrix = []
 
     for task_from in range(num_tasks):
         ausucs = []
 
         for task_to in range(num_tasks):
-            unseen_classes = list(set(class_splits[task_to]) - set(class_splits[task_from]))
-            classes = set(class_splits[task_to] + class_splits[task_from])
+            unseen_classes = [c for c in class_splits[task_to] if not c in class_splits[task_from]]
+            classes = set(np.hstack([class_splits[task_to], class_splits[task_from]]))
             logits = [l for l, t in zip(logits_history[task_from], targets) if t in classes]
-            targets = [t for t in targets if t in classes]
+            curr_targets = [t for t in targets if t in classes]
 
             classes = list(classes)
-            targets = remap_targets(targets, classes)
+            curr_targets = remap_targets(curr_targets, classes)
             seen_classes_mask = np.array([not c in unseen_classes for c in classes])
-            ausuc, _ = compute_ausuc(np.array(logits)[classes], targets, seen_classes_mask)
+            ausuc, _ = compute_ausuc(np.array(logits)[:, classes], curr_targets, seen_classes_mask)
             ausucs.append(ausuc)
 
         ausuc_matrix.append(ausucs)
 
-    return np.ndarray(ausuc_matrix)
+    return np.array(ausuc_matrix)
 
 
 def compute_individual_zst_accs_matrix(logits_history: np.ndarray, targets: List[int], class_splits: np.ndarray) -> np.ndarray:
