@@ -152,15 +152,14 @@ def compute_ausuc_matrix(logits_history: np.ndarray, targets: List[int], class_s
         ausucs = []
 
         for task_to in range(num_tasks):
-            unseen_classes = [c for c in class_splits[task_to] if not c in class_splits[task_from]]
             classes = set(np.hstack([class_splits[task_to], class_splits[task_from]]))
-            logits = [l for l, t in zip(logits_history[task_from], targets) if t in classes]
+            curr_logits = [l for l, t in zip(logits_history[task_from], targets) if t in classes]
             curr_targets = [t for t in targets if t in classes]
 
             classes = list(classes)
             curr_targets = remap_targets(curr_targets, classes)
-            seen_classes_mask = np.array([not c in unseen_classes for c in classes])
-            ausuc, _ = compute_ausuc(np.array(logits)[:, classes], curr_targets, seen_classes_mask)
+            seen_classes_mask = np.array([c in class_splits[task_from] for c in classes]).astype(bool)
+            ausuc, _ = compute_ausuc(np.array(curr_logits)[:, classes], curr_targets, seen_classes_mask)
             ausucs.append(ausuc)
 
         ausuc_matrix.append(ausucs)
