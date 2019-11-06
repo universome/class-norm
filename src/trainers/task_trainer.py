@@ -33,6 +33,9 @@ class TaskTrainer:
     def _after_init_hook(self):
         pass
 
+    def _after_train_hook(self):
+        pass
+
     def get_previous_trainer(self) -> "TaskTrainer":
         if self.task_idx == 0 or (self.task_idx - 1) >= len(self.main_trainer.task_trainers):
             return None
@@ -63,6 +66,8 @@ class TaskTrainer:
 
                 self.train_on_batch(batch)
                 self.num_iters_done += 1
+
+        self._after_train_hook()
 
     def train_on_batch(self, batch):
         raise NotImplementedError

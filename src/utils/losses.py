@@ -1,6 +1,7 @@
 import torch
 from torch import Tensor, autograd
 
+
 def compute_gradient_penalty(discriminator, x_real, x_fake) -> Tensor:
     """
     Computes gradient penalty according to WGAN-GP paper
@@ -21,3 +22,7 @@ def compute_gradient_penalty(discriminator, x_real, x_fake) -> Tensor:
     )[0]
 
     return ((grads.norm(2, dim=1) - 1) ** 2).mean()
+
+
+def compute_kld_with_standard_gaussian(mean: Tensor, log_var: Tensor) -> Tensor:
+    return -0.5 * torch.sum(1 + log_var - mean.pow(2) - log_var.exp())

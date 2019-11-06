@@ -11,7 +11,7 @@ from .classifier import FeatClassifier
 
 
 class FeatGANClassifier(nn.Module):
-    def __init__(self, attrs: np.ndarray, config: Config):
+    def __init__(self, config: Config, attrs: np.ndarray):
         super(FeatGANClassifier, self).__init__()
 
         self.config = config

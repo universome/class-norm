@@ -10,16 +10,22 @@ from tqdm import tqdm
 
 from src.models.classifier import ZSClassifier, ResnetClassifier
 from src.models.feat_gan_classifier import FeatGANClassifier
+from src.models.vae import FeatVAEClassifier
+
 from src.dataloaders import cub, awa
 from src.utils.data_utils import split_classes_for_tasks, get_train_test_data_splits
+
 from src.trainers.basic_task_trainer import BasicTaskTrainer
 from src.trainers.agem_task_trainer import AgemTaskTrainer
 from src.trainers.ewc_task_trainer import EWCTaskTrainer
 from src.trainers.mas_task_trainer import MASTaskTrainer
 from src.trainers.mergazsl_task_trainer import MeRGAZSLTaskTrainer
 from src.trainers.joint_task_trainer import JointTaskTrainer
+from src.trainers.genmem_task_trainer import GenMemTaskTrainer
+
 from src.utils.data_utils import construct_output_mask
 from src.dataloaders.utils import extract_resnet18_features_for_dataset
+
 from src.utils.metrics import (
     compute_average_accuracy,
     compute_forgetting_measure,
@@ -47,7 +53,9 @@ class LLLTrainer(BaseTrainer):
             if self.config.hp.model_type == 'simple_classifier':
                 self.model = ZSClassifier(self.class_attributes, pretrained=self.config.hp.pretrained)
             elif self.config.hp.model_type == 'feat_gan_classifier':
-                self.model = FeatGANClassifier(self.class_attributes, self.config.hp.model_config)
+                self.model = FeatGANClassifier(self.config.hp.model_config, self.class_attributes)
+            elif self.config.hp.model_type== 'feat_vae_classifier':
+                self.model = FeatVAEClassifier(self.config.hp.model_config, self.class_attributes)
             else:
                 raise NotImplementedError(f'Unknown model type {self.config.hp.model_type}')
         else:
@@ -59,23 +67,20 @@ class LLLTrainer(BaseTrainer):
         self.model = self.model.to(self.device_name)
 
     def init_optimizers(self):
-        if self.config.hp.get('model_type', 'simple_classifier') == 'simple_classifier':
+        if self.config.hp.model_type == 'simple_classifier':
             # TODO: without momentum?!
             self.optim = torch.optim.SGD(self.model.parameters(), **self.config.hp.optim_kwargs.to_dict())
         elif self.config.hp.model_type == 'feat_gan_classifier':
-            # TODO: well, now this does not look like a good code...
-            self.optim = {
-                'gen': torch.optim.SGD(self.model.generator.parameters(), **self.config.hp.model_config.gen_optim_kwargs.to_dict()),
-                'discr': torch.optim.SGD(self.model.discriminator.parameters(), **self.config.hp.model_config.discr_optim_kwargs.to_dict()),
-                'cls': torch.optim.SGD(self.model.classifier.parameters(), **self.config.hp.model_config.cls_optim_kwargs.to_dict()),
-            }
+            self.optim = {} # We'll set this later in task trainer
+        elif self.config.hp.model_type == 'feat_vae_classifier':
+            self.optim = {} # We'll set this later in task trainer
         else:
             raise NotImplementedError(f'Unknown model type {self.config.hp.model_type}')
 
     def init_dataloaders(self):
         if self.config.data.name == 'CUB':
-            self.ds_train = cub.load_dataset(self.config.data.dir, is_train=True, target_shape=self.config.hp.img_target_shape)
-            self.ds_test = cub.load_dataset(self.config.data.dir, is_train=False, target_shape=self.config.hp.img_target_shape)
+            # self.ds_train = cub.load_dataset(self.config.data.dir, is_train=True, target_shape=self.config.hp.img_target_shape)
+            # self.ds_test = cub.load_dataset(self.config.data.dir, is_train=False, target_shape=self.config.hp.img_target_shape)
             self.class_attributes = cub.load_class_attributes(self.config.data.dir)
         elif self.config.data.name == 'AWA':
             self.ds_train = awa.load_dataset(self.config.data.dir, split='train', target_shape=self.config.hp.img_target_shape)
@@ -84,14 +89,14 @@ class LLLTrainer(BaseTrainer):
         else:
             raise NotImplementedError(f'Unkown dataset: {self.config.data.name}')
 
-        if self.config.hp.get('embed_data'):
-            self.ds_train = extract_resnet18_features_for_dataset(self.ds_train)
-            self.ds_test = extract_resnet18_features_for_dataset(self.ds_test)
+        # if self.config.hp.get('embed_data'):
+        #     self.ds_train = extract_resnet18_features_for_dataset(self.ds_train)
+        #     self.ds_test = extract_resnet18_features_for_dataset(self.ds_test)
 
         # np.save('/tmp/ds_train', self.ds_train)
         # np.save('/tmp/ds_test', self.ds_test)
-        # self.ds_train = np.load('/tmp/ds_train.npy', allow_pickle=True)
-        # self.ds_test = np.load('/tmp/ds_test.npy', allow_pickle=True)
+        self.ds_train = np.load('/tmp/ds_train.npy', allow_pickle=True)
+        self.ds_test = np.load('/tmp/ds_test.npy', allow_pickle=True)
 
         self.class_splits = split_classes_for_tasks(
             self.config.data.num_classes, self.config.data.num_tasks,
@@ -201,6 +206,8 @@ class LLLTrainer(BaseTrainer):
             return MeRGAZSLTaskTrainer(self, task_idx)
         elif self.config.task_trainer == 'joint':
             return JointTaskTrainer(self, task_idx)
+        elif self.config.task_trainer == 'genmem':
+            return GenMemTaskTrainer(self, task_idx)
         else:
             raise NotImplementedError(f'Unknown task trainer: {self.config.task_trainer}')
 

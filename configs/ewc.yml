@@ -1,8 +1,5 @@
 task_trainer: "ewc"
 hp:
-  use_class_attrs: true
-  batch_size: 10
-  img_target_shape: [224, 224]
   fisher_keep_prob: 0.5
   optim_kwargs: {lr: 0.03}
 

@@ -115,7 +115,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser('Running LLL trainer')
     parser.add_argument('-d', '--dataset', default='cub', type=str, help='Dataset')
     parser.add_argument('-s', '--random_seed', type=int, default=DEFAULT_RANDOM_SEED, help='Random seed to fix')
-    parser.add_argument('-c', '--config_name', type=str, default='joint', help='Which config to run?')
+    parser.add_argument('-c', '--config_name', type=str, default='genmem', help='Which config to run?')
     parser.add_argument('-n', '--num_runs', type=int, default=1, help='How many times we should run the experiment?')
 
     args, config_args = parser.parse_known_args()
