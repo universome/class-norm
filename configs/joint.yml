@@ -1,0 +1,14 @@
+task_trainer: "joint"
+hp:
+  use_class_attrs: true
+  batch_size: 32
+  img_target_shape: [224, 224]
+  optim_kwargs: {lr: 0.03}
+
+hp_for_datasets:
+  cub:
+    pretrained: true
+    optim_kwargs: {lr: 0.03}
+  awa:
+    pretrained: false
+    synaptic_strength: 100

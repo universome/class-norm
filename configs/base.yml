@@ -8,6 +8,8 @@ base:
   #  ausuc: true
   logging:
     save_logits: true
+  hp:
+    model_type: "simple_classifier"
 
 datasets:
   cub:

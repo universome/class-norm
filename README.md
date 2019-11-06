@@ -29,3 +29,9 @@ TODO:
 - Perceptual loss instead of MSE loss?
 - New metric for LLL: plasticity, which is how much tasks can an agent learn. Because some regularizations can be good, but they are too constraining for acquiring new tasks.
 - Will it be better if we sample random classes from Generator on each trianing step? And not classes from the current batch?
+
+Prototypical Generative Memory:
+- Apply classifier to both real and generated images and match the logits
+- Add additional loss for matching the moments
+- Compute perceptual loss instead of the pixel-wise loss
+- We cannot just use attribute embedding as a prototype (or produce prototype just from attribute embedding) since it does not contain enough information. And to generate good feature prototype for zero-shot recognition, we can generate a lot of fake images with our decoder. Basically, it's just a more advanced way of building a prototype from attribute embedding: instead of just projecting it via an MLP, we generate a dataset, extract features and average them. This is useful since we can bind together two ways of building prototypes: normal one during the classification and this one from attributes. 

@@ -17,6 +17,7 @@ from src.trainers.agem_task_trainer import AgemTaskTrainer
 from src.trainers.ewc_task_trainer import EWCTaskTrainer
 from src.trainers.mas_task_trainer import MASTaskTrainer
 from src.trainers.mergazsl_task_trainer import MeRGAZSLTaskTrainer
+from src.trainers.joint_task_trainer import JointTaskTrainer
 from src.utils.data_utils import construct_output_mask
 from src.dataloaders.utils import extract_resnet18_features_for_dataset
 from src.utils.metrics import (
@@ -43,15 +44,17 @@ class LLLTrainer(BaseTrainer):
 
     def init_models(self):
         if self.config.hp.get('use_class_attrs'):
-            if self.config.hp.get('model_type', 'simple_classifier') == 'simple_classifier':
+            if self.config.hp.model_type == 'simple_classifier':
                 self.model = ZSClassifier(self.class_attributes, pretrained=self.config.hp.pretrained)
             elif self.config.hp.model_type == 'feat_gan_classifier':
                 self.model = FeatGANClassifier(self.class_attributes, self.config.hp.model_config)
             else:
                 raise NotImplementedError(f'Unknown model type {self.config.hp.model_type}')
         else:
-            assert self.config.hp.get('model_type', 'simple_classifier') == 'simple_classifier'
-            self.model = ResnetClassifier(self.config.data.num_classes, pretrained=self.config.hp.pretrained)
+            if self.config.hp.model_type == 'simple_classifier':
+                self.model = ResnetClassifier(self.config.data.num_classes, pretrained=self.config.hp.pretrained)
+            else:
+                raise NotImplementedError(f'Unkown model type to use without attrs: {self.config.hp.model_type}')
 
         self.model = self.model.to(self.device_name)
 
@@ -196,6 +199,8 @@ class LLLTrainer(BaseTrainer):
             return MASTaskTrainer(self, task_idx)
         elif self.config.task_trainer == 'mergazsl':
             return MeRGAZSLTaskTrainer(self, task_idx)
+        elif self.config.task_trainer == 'joint':
+            return JointTaskTrainer(self, task_idx)
         else:
             raise NotImplementedError(f'Unknown task trainer: {self.config.task_trainer}')
 
