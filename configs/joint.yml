@@ -1,7 +1,8 @@
 task_trainer: "joint"
+max_num_epochs: 1
 hp:
   use_class_attrs: true
-  batch_size: 32
+  batch_size: 10
   img_target_shape: [224, 224]
   optim_kwargs: {lr: 0.03}
 
