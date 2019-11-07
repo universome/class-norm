@@ -47,6 +47,7 @@ class LLLTrainer(BaseTrainer):
         self.logits_history = []
         self.ausuc_scores = []
         self.ausuc_accs = []
+        self.lca_accs = []
 
     def init_models(self):
         if self.config.hp.get('use_class_attrs'):
@@ -79,8 +80,8 @@ class LLLTrainer(BaseTrainer):
 
     def init_dataloaders(self):
         if self.config.data.name == 'CUB':
-            # self.ds_train = cub.load_dataset(self.config.data.dir, is_train=True, target_shape=self.config.hp.img_target_shape)
-            # self.ds_test = cub.load_dataset(self.config.data.dir, is_train=False, target_shape=self.config.hp.img_target_shape)
+            self.ds_train = cub.load_dataset(self.config.data.dir, is_train=True, target_shape=self.config.hp.img_target_shape)
+            self.ds_test = cub.load_dataset(self.config.data.dir, is_train=False, target_shape=self.config.hp.img_target_shape)
             self.class_attributes = cub.load_class_attributes(self.config.data.dir)
         elif self.config.data.name == 'AWA':
             self.ds_train = awa.load_dataset(self.config.data.dir, split='train', target_shape=self.config.hp.img_target_shape)
@@ -89,14 +90,14 @@ class LLLTrainer(BaseTrainer):
         else:
             raise NotImplementedError(f'Unkown dataset: {self.config.data.name}')
 
-        # if self.config.hp.get('embed_data'):
-        #     self.ds_train = extract_resnet18_features_for_dataset(self.ds_train)
-        #     self.ds_test = extract_resnet18_features_for_dataset(self.ds_test)
+        if self.config.hp.get('embed_data'):
+            self.ds_train = extract_resnet18_features_for_dataset(self.ds_train)
+            self.ds_test = extract_resnet18_features_for_dataset(self.ds_test)
 
         # np.save('/tmp/ds_train', self.ds_train)
         # np.save('/tmp/ds_test', self.ds_test)
-        self.ds_train = np.load('/tmp/ds_train.npy', allow_pickle=True)
-        self.ds_test = np.load('/tmp/ds_test.npy', allow_pickle=True)
+        # self.ds_train = np.load('/tmp/ds_train.npy', allow_pickle=True)
+        # self.ds_test = np.load('/tmp/ds_test.npy', allow_pickle=True)
 
         self.class_splits = split_classes_for_tasks(
             self.config.data.num_classes, self.config.data.num_tasks,
@@ -105,6 +106,14 @@ class LLLTrainer(BaseTrainer):
 
         for task_idx, split in enumerate(self.class_splits):
             print(f'[Task {task_idx}]:', self.class_splits[task_idx].tolist())
+
+    def measure_task_trainer_lca(self, task_trainer: "TaskTrainer"):
+        if self.config.get('metrics.lca_num_batches', -1) >= task_trainer.num_iters_done:
+            assert len(self.lca_accs) >= task_trainer.task_idx
+
+            if len(self.lca_accs) == task_trainer.task_idx: self.lca_accs.append([])
+
+            self.lca_accs[task_trainer.task_idx].append(task_trainer.compute_test_accuracy())
 
     def start(self):
         self.init()
@@ -121,6 +130,9 @@ class LLLTrainer(BaseTrainer):
 
             if self.config.get('metrics.ausuc'):
                 self.track_ausuc()
+
+            if self.config.get('metrics.lca_num_batches', -1) >= 0:
+                task_trainer.after_iter_done_callbacks.append(self.measure_task_trainer_lca)
 
             self.task_trainers.append(task_trainer)
             self.zst_accs.append(task_trainer.compute_test_accuracy())
@@ -147,9 +159,8 @@ class LLLTrainer(BaseTrainer):
             print('Forgetting Measure:', compute_forgetting_measure(self.accs_history))
 
         if self.config.get('metrics.lca_num_batches', -1) >= 0:
-            lca_accs = [t.test_acc_batch_history for t in self.task_trainers]
-            lca_n_batches = min(self.config.metrics.lca_num_batches, min([len(accs) - 1 for accs in lca_accs]))
-            print(f'Learning Curve Area [beta = {lca_n_batches}]:', compute_learning_curve_area(lca_accs, lca_n_batches))
+            lca_n_batches = min(self.config.metrics.lca_num_batches, min([len(accs) - 1 for accs in self.lca_accs]))
+            print(f'Learning Curve Area [beta = {lca_n_batches}]:', compute_learning_curve_area(self.lca_accs, lca_n_batches))
 
         if self.config.get('metrics.ausuc'):
             self.track_ausuc()

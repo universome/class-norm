@@ -22,6 +22,7 @@ class TaskTrainer:
         self.output_mask = construct_output_mask(main_trainer.class_splits[task_idx], self.config.data.num_classes)
         self.init_dataloaders()
         self.test_acc_batch_history = []
+        self.after_iter_done_callbacks = []
         self.num_iters_done = 0
 
         self._after_init_hook()
@@ -35,6 +36,10 @@ class TaskTrainer:
 
     def _after_train_hook(self):
         pass
+
+    def run_after_iter_done_callbacks(self):
+        for callback in self.after_iter_done_callbacks:
+            callback(self)
 
     def get_previous_trainer(self) -> "TaskTrainer":
         if self.task_idx == 0 or (self.task_idx - 1) >= len(self.main_trainer.task_trainers):
@@ -61,11 +66,9 @@ class TaskTrainer:
                 batches = tqdm(batches, desc=f'Task #{self.task_idx} [epoch {epoch}/{self.config.max_num_epochs}]')
 
             for batch in batches:
-                if self.config.get('metrics.lca_num_batches', -1) >= self.num_iters_done:
-                    self.test_acc_batch_history.append(self.compute_test_accuracy())
-
                 self.train_on_batch(batch)
                 self.num_iters_done += 1
+                self.run_after_iter_done_callbacks()
 
         self._after_train_hook()
 
