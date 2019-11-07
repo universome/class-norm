@@ -9,7 +9,7 @@ from torch import Tensor
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
-from src.utils.losses import compute_kld_with_standard_gaussian
+from src.utils.losses import compute_kld_with_standard_gaussian, compute_kld_between_diagonal_gaussians
 from src.trainers.task_trainer import TaskTrainer
 from src.models.vae import FeatVAEClassifier
 
@@ -48,7 +48,9 @@ class GenMemTaskTrainer(TaskTrainer):
     def train_vae_on_batch(self, x, y):
         x_rec, mean, log_var = self.model.vae(x, y)
         rec_loss = self.mse_criterion(x_rec, x)
-        kld = compute_kld_with_standard_gaussian(mean, log_var)
+        #kld = compute_kld_with_standard_gaussian(mean, log_var)
+        prior_mean, prior_log_var = self.model.vae.get_prior_distribution(y)
+        kld = compute_kld_between_diagonal_gaussians(mean, log_var, prior_mean, prior_log_var)
 
         total_loss = rec_loss + self.config.hp.kl_term_coef * kld
 
@@ -75,7 +77,7 @@ class GenMemTaskTrainer(TaskTrainer):
             x = self.prev_model.vae.generate(y)
             mean_old, log_var_old = self.prev_model.vae.encode(x, y)
             z = self.prev_model.vae.sample(mean_old, log_var_old)
-            x_rec_old = self.model.vae.decode(z, y)
+            x_rec_old = self.prev_model.vae.decode(z, y)
 
         mean_new, log_var_new = self.model.vae.encode(x, y)
         x_rec_new = self.model.vae.decode(z, y)

@@ -45,10 +45,18 @@ class FeatCVAE(nn.Module):
             nn.ReLU(),
             nn.Linear(config.hid_dim, config.feat_dim),
         )
+        self.prior_class_emb = nn.Embedding(self.config.num_classes, self.config.class_emb_dim)
+        self.prior = nn.Sequential(
+            nn.Linear(self.config.class_emb_dim, config.hid_dim),
+            nn.ReLU(),
+            nn.Linear(self.config.hid_dim, config.hid_dim),
+            nn.ReLU(),
+            nn.Linear(self.config.hid_dim, config.z_dim * 2),
+        )
 
     def forward(self, x: Tensor, y: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         mean, log_var = self.encode(x, y)
-        z = self.sample(mean, log_var / 2)
+        z = self.sample(mean, log_var)
         x_rec = self.decode(z, y)
 
         return x_rec, mean, log_var
@@ -70,10 +78,25 @@ class FeatCVAE(nn.Module):
 
     def sample(self, mean: Tensor, log_var: Tensor) -> Tensor:
         """Samples z ~ N(mean, sigma)"""
-        return torch.randn_like(log_var) * log_var.exp() + mean
+        return torch.randn_like(log_var) * (log_var / 2).exp() + mean
+
+    def sample_z_from_prior(self, y: Tensor) -> Tensor:
+        mean, log_var = self.get_prior_distribution(y)
+        eps = torch.randn_like(log_var)
+        z = mean + eps * (log_var / 2).exp()
+
+        return z
+
+    def get_prior_distribution(self, y: Tensor) -> Tuple[Tensor, Tensor]:
+        y_emb = self.prior_class_emb(y)
+        encodings = self.prior(y_emb)
+        mean = encodings[:, :self.config.z_dim]
+        log_var = encodings[:, self.config.z_dim:]
+
+        return mean, log_var
 
     def generate(self, y: Tensor) -> Tensor:
-        z = torch.randn(len(y), self.config.z_dim).to(y.device)
+        z = self.sample_z_from_prior(y)
         x = self.decode(z, y)
 
         return x

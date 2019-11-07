@@ -14,12 +14,12 @@ hp:
     hid_dim: 512
 
   distillation_batch_size: 128
-  kl_term_coef: 0.0001
-  enc_distill_loss_coef: 0.01
-  dec_distill_loss_coef: 0.01
+  kl_term_coef: 0.01
+  enc_distill_loss_coef: 1.
+  dec_distill_loss_coef: 1.
 
   clf_training:
-    num_iters: 100
+    num_iters: 500
     batch_size: 256
 
   reinit_at_each_task: true

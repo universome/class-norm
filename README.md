@@ -35,6 +35,7 @@ TODO:
 - Will it be better if we sample random classes from Generator on each trianing step? And not classes from the current batch?
 - It's strange but initializing models from scratch each time is much better than continuing from the snapshot... Maybe it's the real reason why online generative memory does not work?
 - Having a generative model should help us to train a model which would differentiate between different tasks. This, in turn will help us to increase the scores on 200-c prediction space.
+- Why our test targets are still shuffled?
 
 Prototypical Generative Memory:
 - Apply classifier to both real and generated images and match the logits
