@@ -1,13 +1,14 @@
 base:
-  max_num_epochs: 10
+  max_num_epochs: 1
   inference_batch_size: 512
-  #metrics:
-  #  average_accuracy: true
-  #  forgetting_measure: true
-  #  lca_num_batches: 10
-  #  ausuc: true
+#  metrics:
+#    average_accuracy: true
+#    forgetting_measure: true
+#    lca_num_batches: 10
+#    ausuc: true
   logging:
     save_logits: true
+    save_frequency: "iter"
   hp:
     img_target_shape: [224, 224]
     use_class_attrs: true

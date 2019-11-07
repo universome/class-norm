@@ -19,6 +19,10 @@ Tricks to use:
 - check "Bag of tricks to ..."
 - what if we train class attributes (but initialize from ready ones, ofc)?
 - penalize other logits sometimes to make model be prepared for operating in "distinguish between all-classes" regime. For A-GEM we could use episodic memory for this.
+- Use moment-matching in generative models to improve the generations
+
+MeRGAZSL:
+- Use discriminator with 3 outputs: real, synthetic, fake.
 
 TODO:
 - B in RGB has wrong mean for our images (we should use other mean instead of imagenet-like mean)
@@ -29,9 +33,12 @@ TODO:
 - Perceptual loss instead of MSE loss?
 - New metric for LLL: plasticity, which is how much tasks can an agent learn. Because some regularizations can be good, but they are too constraining for acquiring new tasks.
 - Will it be better if we sample random classes from Generator on each trianing step? And not classes from the current batch?
+- It's strange but initializing models from scratch each time is much better than continuing from the snapshot... Maybe it's the real reason why online generative memory does not work?
+- Having a generative model should help us to train a model which would differentiate between different tasks. This, in turn will help us to increase the scores on 200-c prediction space.
 
 Prototypical Generative Memory:
 - Apply classifier to both real and generated images and match the logits
 - Add additional loss for matching the moments
 - Compute perceptual loss instead of the pixel-wise loss
-- We cannot just use attribute embedding as a prototype (or produce prototype just from attribute embedding) since it does not contain enough information. And to generate good feature prototype for zero-shot recognition, we can generate a lot of fake images with our decoder. Basically, it's just a more advanced way of building a prototype from attribute embedding: instead of just projecting it via an MLP, we generate a dataset, extract features and average them. This is useful since we can bind together two ways of building prototypes: normal one during the classification and this one from attributes. 
+- We cannot just use attribute embedding as a prototype (or produce prototype just from attribute embedding) since it does not contain enough information. And to generate good feature prototype for zero-shot recognition, we can generate a lot of fake images with our decoder. Basically, it's just a more advanced way of building a prototype from attribute embedding: instead of just projecting it via an MLP, we generate a dataset, extract features and average them. This is useful since we can bind together two ways of building prototypes: normal one during the classification and this one from attributes.
+ 

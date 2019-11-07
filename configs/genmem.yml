@@ -1,10 +1,10 @@
 task_trainer: "genmem"
-max_num_epochs: 100
+max_num_epochs: 500
 hp:
   embed_data: true
   batch_size: 128
   img_target_shape: [224, 224]
-  optim_kwargs: {lr: 0.001}
+  optim_kwargs: {lr: 0.001, weight_decay: 0.0001}
 
   model_type: "feat_vae_classifier"
   model_config:
@@ -14,13 +14,15 @@ hp:
     hid_dim: 512
 
   distillation_batch_size: 128
-  kl_term_coef: 0.1
+  kl_term_coef: 0.0001
   enc_distill_loss_coef: 0.01
   dec_distill_loss_coef: 0.01
 
   clf_training:
     num_iters: 100
-    batch_size: 128
+    batch_size: 256
+
+  reinit_at_each_task: true
 
 hp_for_datasets:
   cub:

@@ -240,7 +240,6 @@ def compute_acc_for_classes(logits: List[List[float]], targets: List[int], class
     return acc
 
 
-
 def remap_targets(targets: List[int], classes: List[int]) -> List[int]:
     """
     Takes target classes and remaps them into a smaller range, determined by classes argument

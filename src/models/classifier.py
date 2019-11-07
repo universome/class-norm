@@ -41,6 +41,12 @@ class ResnetClassifier(nn.Module):
         self.embedder = ResnetEmbedder(pretrained=pretrained)
         self.head = nn.Linear(512, num_classes)
 
+    def compute_pruned_predictions(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
+        logits = self.forward(x)
+        pruned_logits = prune_logits(logits, output_mask)
+
+        return pruned_logits
+
     def forward(self, x: Tensor) -> Tensor:
         feats = self.embedder(x)
         logits = self.head(feats)

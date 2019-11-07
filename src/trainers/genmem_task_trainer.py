@@ -11,6 +11,7 @@ from tqdm import tqdm
 
 from src.utils.losses import compute_kld_with_standard_gaussian
 from src.trainers.task_trainer import TaskTrainer
+from src.models.vae import FeatVAEClassifier
 
 
 class GenMemTaskTrainer(TaskTrainer):
@@ -20,6 +21,11 @@ class GenMemTaskTrainer(TaskTrainer):
     def _after_init_hook(self):
         self.mse_criterion = nn.MSELoss()
         self.prev_model = deepcopy(self.model).to(self.device_name).eval()
+
+        if self.config.hp.get('reinit_at_each_task'):
+            self.model = FeatVAEClassifier(self.config.hp.model_config, self.main_trainer.class_attributes).to(self.device_name)
+            self.main_trainer.model = self.model
+
         self.current_classes = self.main_trainer.class_splits[self.task_idx]
         self.previously_seen_classes = np.unique(self.main_trainer.class_splits[:self.task_idx]).tolist()
         self.seen_classes = np.unique(self.main_trainer.class_splits[:self.task_idx + 1]).tolist()
