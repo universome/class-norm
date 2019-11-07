@@ -30,7 +30,8 @@ from src.utils.metrics import (
     compute_average_accuracy,
     compute_forgetting_measure,
     compute_learning_curve_area,
-    compute_ausuc
+    compute_ausuc,
+    compute_acc_for_classes,
 )
 
 class LLLTrainer(BaseTrainer):
@@ -48,6 +49,7 @@ class LLLTrainer(BaseTrainer):
         self.ausuc_scores = []
         self.ausuc_accs = []
         self.lca_accs = []
+        self.iter_accs_history = []
 
     def init_models(self):
         if self.config.hp.get('use_class_attrs'):
@@ -115,6 +117,12 @@ class LLLTrainer(BaseTrainer):
 
             self.lca_accs[task_trainer.task_idx].append(task_trainer.compute_test_accuracy())
 
+    def measure_accuracy_after_iter(self, _):
+        logits = self.run_inference(self.ds_test)
+        targets = [y for _, y in self.ds_test]
+        accs = [compute_acc_for_classes(logits, targets, cs) for cs in self.class_splits]
+        self.iter_accs_history.append(accs)
+
     def start(self):
         self.init()
         self.num_tasks_learnt = 0
@@ -126,13 +134,16 @@ class LLLTrainer(BaseTrainer):
             task_trainer = self.construct_trainer(task_idx)
 
             if self.config.get('logging.save_logits'):
-                self.logits_history.append(self.run_inference(self.ds_test))
+               self.logits_history.append(self.run_inference(self.ds_test))
 
             if self.config.get('metrics.ausuc'):
                 self.track_ausuc()
 
             if self.config.get('metrics.lca_num_batches', -1) >= 0:
                 task_trainer.after_iter_done_callbacks.append(self.measure_task_trainer_lca)
+
+            if self.config.get('logging.log_logits_after_each_iter', False):
+                task_trainer.after_iter_done_callbacks.append(self.measure_accuracy_after_iter)
 
             self.task_trainers.append(task_trainer)
             self.zst_accs.append(task_trainer.compute_test_accuracy())
@@ -202,7 +213,8 @@ class LLLTrainer(BaseTrainer):
         np.save(os.path.join(self.paths.custom_data_path, 'ausuc_accs'), self.ausuc_accs)
         np.save(os.path.join(self.paths.custom_data_path, 'logits_history'), self.logits_history)
         np.save(os.path.join(self.paths.custom_data_path, 'class_splits'), self.class_splits)
-        #np.save(os.path.join(self.paths.custom_data_path, 'labels'), [y for _, y in self.ds_test])
+        np.save(os.path.join(self.paths.custom_data_path, 'targets'), [y for _, y in self.ds_test])
+        np.save(os.path.join(self.paths.custom_data_path, 'iter_acc_history'), self.iter_accs_history)
 
     def construct_trainer(self, task_idx: int) -> "TaskTrainer":
         if self.config.task_trainer == 'basic':
