@@ -1,6 +1,6 @@
 task_trainer: "genmem"
-max_num_epochs: 500
 hp:
+  max_num_epochs: 500
   embed_data: true
   batch_size: 128
   img_target_shape: [224, 224]
@@ -28,3 +28,8 @@ hp_for_datasets:
   cub:
     model_config:
       num_classes: 200
+  awa:
+    model_config:
+      num_classes: 50
+    clf_training:
+      num_iters: 1000

@@ -1,12 +1,10 @@
 task_trainer: "joint"
-max_num_epochs: 1
 hp:
+  max_num_epochs: 1
   optim_kwargs: {lr: 0.03}
 
 hp_for_datasets:
   cub:
     pretrained: true
-    optim_kwargs: {lr: 0.03}
   awa:
     pretrained: false
-    synaptic_strength: 100

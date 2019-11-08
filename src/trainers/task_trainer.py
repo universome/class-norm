@@ -56,14 +56,14 @@ class TaskTrainer:
         assert self.is_trainable, "We do not have enough conditions to train this Task Trainer"\
                                   "(for example, previous trainers was not finished or this trainer was already run)"
 
-        epochs = range(1, self.config.max_num_epochs + 1)
+        epochs = range(1, self.config.hp.max_num_epochs + 1)
         if len(epochs) > 10: epochs = tqdm(epochs, desc=f'Task #{self.task_idx}')
 
         for epoch in epochs:
             batches = self.train_dataloader
 
             if len(epochs) <= 10:
-                batches = tqdm(batches, desc=f'Task #{self.task_idx} [epoch {epoch}/{self.config.max_num_epochs}]')
+                batches = tqdm(batches, desc=f'Task #{self.task_idx} [epoch {epoch}/{self.config.hp.max_num_epochs}]')
 
             for batch in batches:
                 self.train_on_batch(batch)

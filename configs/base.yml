@@ -1,5 +1,4 @@
 base:
-  max_num_epochs: 1
   inference_batch_size: 512
 #  metrics:
 #    average_accuracy: true
@@ -10,6 +9,7 @@ base:
     save_logits: true
     save_frequency: "iter"
   hp:
+    max_num_epochs: 5
     img_target_shape: [224, 224]
     use_class_attrs: true
     batch_size: 10

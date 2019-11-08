@@ -37,6 +37,9 @@ class GenMemTaskTrainer(TaskTrainer):
             'classifier': torch.optim.Adam(self.model.classifier.parameters(), **self.config.hp.optim_kwargs.to_dict()),
         }
 
+    def _after_train_hook(self):
+        self.train_classifier()
+
     def train_on_batch(self, batch):
         self.model.train()
 
@@ -88,9 +91,6 @@ class GenMemTaskTrainer(TaskTrainer):
         dec_distill_loss = self.mse_criterion(x_rec_new, x_rec_old)
 
         return enc_distill_loss, dec_distill_loss
-
-    def _after_train_hook(self):
-        self.train_classifier()
 
     def train_classifier(self):
         for clf_train_iter in tqdm(range(self.config.hp.clf_training.num_iters), desc=f'Task {self.task_idx} [clf]'):

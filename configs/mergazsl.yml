@@ -1,8 +1,8 @@
 task_trainer: "mergazsl"
-max_num_epochs: 100
 batch_size: 64
 
 hp:
+  max_num_epochs: 100
   embed_data: true
   clip_grad_norm: 100
 
