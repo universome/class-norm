@@ -36,7 +36,7 @@ def compute_forgetting_measure(accuracies_history: List[List[float]], after_task
     return forgetting_measure
 
 
-def compute_learning_curve_area(accs:List[List[float]], beta: int=10) -> float:
+def compute_learning_curve_area(accs: List[List[float]], beta: int=10) -> float:
     """
     Comptues learning curve area for a specific value of beta
 

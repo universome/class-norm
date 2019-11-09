@@ -49,7 +49,7 @@ def load_img(img_path: PathLike, target_shape: Tuple[int, int]=None):
 
 def preprocess_imgs(imgs: List[np.ndarray]) -> List[np.ndarray]:
     imgs = [img.transpose(2, 0, 1) for img in tqdm(imgs, desc='[Reshaping]')]
-    imgs = [imagenet_normalization(torch.tensor(img) / 255).numpy() for img in tqdm(imgs, desc='Normalizing')]
+    imgs = [imagenet_normalization(torch.tensor(img) / 255).numpy() for img in tqdm(imgs, desc='[Normalizing]')]
 
     return imgs
 
@@ -68,7 +68,7 @@ def extract_features(imgs: List[np.ndarray], embedder: nn.Module, batch_size: in
 
 
 def extract_resnet18_features_for_dataset(dataset: List[Tuple[np.ndarray, int]], device: str='cpu') -> List[Tuple[np.ndarray, int]]:
-    resnet18 = ResnetEmbedder(pretrained=True).to(device)
+    resnet18 = ResnetEmbedder(pretrained=True).to(device).eval()
     imgs = [x for x, _ in dataset]
     features = extract_features(imgs, resnet18)
 
