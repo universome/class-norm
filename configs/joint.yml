@@ -1,6 +1,6 @@
 task_trainer: "joint"
 hp:
-  max_num_epochs: 1
+  max_num_epochs: 5
   optim_kwargs: {lr: 0.03}
 
 hp_for_datasets:

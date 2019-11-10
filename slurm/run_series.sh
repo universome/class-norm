@@ -1,29 +1,29 @@
 #!/usr/bin/env bash
 
-random_seeds=(42 43 44)
+num_runs=$1
 
 # Running A-GEM
-for random_seed in "${random_seeds[@]}";
+for (( random_seed=1; random_seed<=num_runs; random_seed++ ))
     do sbatch --export=ALL,cli_args="-c agem --random_seed $random_seed --config.hp.optim_kwargs.lr 0.005" slurm/slurm_job.sh; done
 
 # Running MAS
-for random_seed in "${random_seeds[@]}";
+for (( random_seed=1; random_seed<=num_runs; random_seed++ ))
     do sbatch --export=ALL,cli_args="-c mas --random_seed $random_seed --config.hp.synaptic_strength 0.01" slurm/slurm_job.sh; done
 
 # Running EWC
-for random_seed in "${random_seeds[@]}";
+for (( random_seed=1; random_seed<=num_runs; random_seed++ ))
     do sbatch --export=ALL,cli_args="-c ewc --random_seed $random_seed --config.hp.synaptic_strength 0.01" slurm/slurm_job.sh; done
 
 # Running sequential
-for random_seed in "${random_seeds[@]}";
+for (( random_seed=1; random_seed<=num_runs; random_seed++ ))
     do sbatch --export=ALL,cli_args="-c basic --random_seed $random_seed --config.hp.optim_kwargs.lr 0.005" slurm/slurm_job.sh; done
 
 # Running genmem
-for random_seed in "${random_seeds[@]}";
+for (( random_seed=1; random_seed<=num_runs; random_seed++ ))
     do sbatch --export=ALL,cli_args="-c genmem --random_seed $random_seed" slurm/slurm_job.sh; done
 
 # Running joint model
-for random_seed in "${random_seeds[@]}";
+for (( random_seed=1; random_seed<=num_runs; random_seed++ ))
     do sbatch --export=ALL,cli_args="-c joint --random_seed $random_seed" slurm/slurm_job.sh; done
 
 # Running mergazsl

@@ -31,14 +31,16 @@ class GenMemTaskTrainer(TaskTrainer):
         self.seen_classes = np.unique(self.main_trainer.class_splits[:self.task_idx + 1]).tolist()
         self.seen_classes_mask = np.array([c in self.seen_classes for c in range(self.config.data.num_classes)])
         self.writer = SummaryWriter(os.path.join(self.main_trainer.paths.logs_path, f'task_{self.task_idx}'))
-
-        self.optim = {
-            'vae': torch.optim.Adam(self.model.vae.parameters(), **self.config.hp.optim_kwargs.to_dict()),
-            'classifier': torch.optim.Adam(self.model.classifier.parameters(), **self.config.hp.optim_kwargs.to_dict()),
-        }
+        self.optim = self.construct_optimizer()
 
     def _after_train_hook(self):
         self.train_classifier()
+
+    def construct_optimizer(self):
+        return {
+            'vae': torch.optim.Adam(self.model.vae.parameters(), **self.config.hp.optim_kwargs.to_dict()),
+            'classifier': torch.optim.Adam(self.model.classifier.parameters(), **self.config.hp.optim_kwargs.to_dict()),
+        }
 
     def train_on_batch(self, batch):
         self.model.train()

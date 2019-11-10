@@ -47,3 +47,4 @@ Prototypical Generative Memory:
 - We cannot just use attribute embedding as a prototype (or produce prototype just from attribute embedding) since it does not contain enough information. And to generate good feature prototype for zero-shot recognition, we can generate a lot of fake images with our decoder. Basically, it's just a more advanced way of building a prototype from attribute embedding: instead of just projecting it via an MLP, we generate a dataset, extract features and average them. This is useful since we can bind together two ways of building prototypes: normal one during the classification and this one from attributes.
 - Human can learn class by class. We can do that only with generative memory. Just as another good point.
 - It can be adapted to a scenario without task identities and task boundaries.
+- Do we really need to learn prior? Or was it just a bugfix that helped to improve the scores?

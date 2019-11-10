@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch import optim
 from torch.utils.data import DataLoader, Dataset
 import numpy as np
 from tqdm import tqdm
@@ -13,10 +14,10 @@ class TaskTrainer:
         self.main_trainer = main_trainer
         self.config = main_trainer.config
         self.model = main_trainer.model
-        self.optim = main_trainer.optim
         self.device_name = main_trainer.device_name
         self.criterion = nn.CrossEntropyLoss()
         self.writer = main_trainer.writer
+        self.optim = self.construct_optimizer()
 
         self.task_ds_train, self.task_ds_test = main_trainer.data_splits[task_idx]
         self.output_mask = construct_output_mask(main_trainer.class_splits[task_idx], self.config.data.num_classes)
@@ -26,6 +27,10 @@ class TaskTrainer:
         self.num_iters_done = 0
 
         self._after_init_hook()
+
+    def construct_optimizer(self):
+        #return optim.Adam(self.model.parameters(), **self.config.hp.optim_kwargs.to_dict())
+        return optim.SGD(self.model.parameters(), **self.config.hp.optim_kwargs.to_dict())
 
     def init_dataloaders(self):
         self.train_dataloader = DataLoader(self.task_ds_train, batch_size=self.config.hp.batch_size, collate_fn=lambda b: list(zip(*b)))

@@ -72,7 +72,7 @@ class LLLTrainer(BaseTrainer):
     def init_optimizers(self):
         if self.config.hp.model_type == 'simple_classifier':
             # TODO: without momentum?!
-            self.optim = torch.optim.SGD(self.model.parameters(), **self.config.hp.optim_kwargs.to_dict())
+            self.optim = torch.optim.Adam(self.model.parameters(), **self.config.hp.optim_kwargs.to_dict())
         elif self.config.hp.model_type == 'feat_gan_classifier':
             self.optim = {} # We'll set this later in task trainer
         elif self.config.hp.model_type == 'feat_vae_classifier':
@@ -129,15 +129,15 @@ class LLLTrainer(BaseTrainer):
         self.task_trainers = [] # TODO: this is memory-leaky :|
 
         for task_idx in range(self.config.data.num_tasks):
-            print(f'Starting task #{task_idx}', end='')
-
-            task_trainer = self.construct_trainer(task_idx)
+            print(f'Starting task #{task_idx}')
 
             if self.config.get('logging.save_logits'):
                self.logits_history.append(self.run_inference(self.ds_test))
 
             if self.config.get('metrics.ausuc'):
                 self.track_ausuc()
+
+            task_trainer = self.construct_trainer(task_idx)
 
             if self.config.get('metrics.lca_num_batches', -1) >= 0:
                 task_trainer.after_iter_done_callbacks.append(self.measure_task_trainer_lca)
@@ -146,8 +146,6 @@ class LLLTrainer(BaseTrainer):
                 task_trainer.after_iter_done_callbacks.append(self.measure_accuracy_after_iter)
 
             self.task_trainers.append(task_trainer)
-            self.zst_accs.append(task_trainer.compute_test_accuracy())
-            print(f'. ZST accuracy: {self.zst_accs[-1]}')
             task_trainer.start()
             self.num_tasks_learnt += 1
             print(f'Train accuracy: {task_trainer.compute_train_accuracy()}')

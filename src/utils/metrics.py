@@ -184,7 +184,7 @@ def compute_individual_zst_accs_matrix(logits_history: np.ndarray, targets: List
     return np.array([[compute_acc_for_classes(l, targets, cs) for cs in class_splits] for l in logits_history])
 
 
-def compute_joined_zst_acc_history(logits_history: List[List[List[float]]], targets: List[int],
+def compute_unseen_classes_acc_history(logits_history: List[List[List[float]]], targets: List[int],
                                    class_splits: List[List[int]]) -> List[float]:
     """
     Computes zero-shot history on all the remaining tasks before starting each task
@@ -200,6 +200,25 @@ def compute_joined_zst_acc_history(logits_history: List[List[List[float]]], targ
     accs = [compute_acc_for_classes(l, targets, cs) for l, cs in zip(logits_history, unseen_classes)]
 
     return accs
+
+
+def compute_seen_classes_acc_history(logits_history: List[List[List[float]]], targets: List[int],
+                                   class_splits: List[List[int]]) -> List[float]:
+    """
+    Computes zero-shot history on all the remaining tasks before starting each task
+
+    :param logits_history: history of model logits, evaluated AFTER each task,
+                           i.e. matrix of size [NUM_TASKS x DATASET_SIZE x NUM_CLASSES]
+    :param targets: targets for the objects of size [DATASET_SIZE]
+    :param class_splits: list of classes for each task of size [NUM_TASKS x NUM_CLASSES_PER_TASK]
+
+    :return: zero-shot accuracies of size [NUM_TASKS]
+    """
+    seen_classes = [np.unique(class_splits[:i+1]) for i in range(len(class_splits))]
+    accs = [compute_acc_for_classes(l, targets, cs) for l, cs in zip(logits_history, seen_classes)]
+
+    return accs
+
 
 
 def compute_joined_ausuc_history(logits_history: List[List[List[float]]], targets: List[int],
