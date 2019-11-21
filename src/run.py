@@ -7,7 +7,6 @@ from firelab.config import Config
 from firelab.utils.training_utils import fix_random_seed
 
 from src.trainers.lll_trainer import LLLTrainer
-from src.utils.metrics import compute_average_accuracy
 
 
 CONFIG_ARG_PREFIX = '--config.'
@@ -21,22 +20,7 @@ def run_trainer(args: argparse.Namespace, config_cli_args: List[str]):
     for run_idx in range(args.num_runs):
         print(f'\n<======= RUN # {run_idx} =======>\n')
         fix_random_seed(config.random_seed + run_idx)
-
-        if config.has('live_hpo'):
-            avg_accs = []
-
-            for hpo_config in get_hpo_configs(config):
-                hpo_trainer = LLLTrainer(hpo_config)
-                hpo_trainer.start()
-
-                avg_accs.append(compute_average_accuracy(hpo_trainer.accs_history))
-
-            best_optim_kwargs = config.live_hpo.optim_kwargs_list[np.argmax(avg_accs)]
-            normal_config = config.overwrite(Config({'hp': {'optim_kwargs': best_optim_kwargs}}))
-            normal_config.set('num_reserved_classes', config.live_hpo.num_hpo_tasks)
-            LLLTrainer(normal_config).start()
-        else:
-            LLLTrainer(config).start()
+        LLLTrainer(config).start()
 
 
 def load_config(args: argparse.Namespace, config_cli_args: List[str]) -> Config:
