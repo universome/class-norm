@@ -45,14 +45,16 @@ class FeatCVAE(nn.Module):
             nn.ReLU(),
             nn.Linear(config.hid_dim, config.feat_dim),
         )
-        self.prior_class_emb = nn.Embedding(self.config.num_classes, self.config.class_emb_dim)
-        self.prior = nn.Sequential(
-            nn.Linear(self.config.class_emb_dim, config.hid_dim),
-            nn.ReLU(),
-            nn.Linear(self.config.hid_dim, config.hid_dim),
-            nn.ReLU(),
-            nn.Linear(self.config.hid_dim, config.z_dim * 2),
-        )
+
+        if self.config.get('learn_prior_dist'):
+            self.prior_class_emb = nn.Embedding(self.config.num_classes, self.config.class_emb_dim)
+            self.prior = nn.Sequential(
+                nn.Linear(self.config.class_emb_dim, config.hid_dim),
+                nn.ReLU(),
+                nn.Linear(self.config.hid_dim, config.hid_dim),
+                nn.ReLU(),
+                nn.Linear(self.config.hid_dim, config.z_dim * 2),
+            )
 
     def forward(self, x: Tensor, y: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         mean, log_var = self.encode(x, y)
@@ -88,10 +90,14 @@ class FeatCVAE(nn.Module):
         return z
 
     def get_prior_distribution(self, y: Tensor) -> Tuple[Tensor, Tensor]:
-        y_emb = self.prior_class_emb(y)
-        encodings = self.prior(y_emb)
-        mean = encodings[:, :self.config.z_dim]
-        log_var = encodings[:, self.config.z_dim:]
+        if self.config.get('learn_prior_dist'):
+            y_emb = self.prior_class_emb(y)
+            encodings = self.prior(y_emb)
+            mean = encodings[:, :self.config.z_dim]
+            log_var = encodings[:, self.config.z_dim:]
+        else:
+            mean = torch.zeros(y.size(0), self.config.z_dim).to(y.device)
+            log_var = torch.zeros(y.size(0), self.config.z_dim).to(y.device)
 
         return mean, log_var
 
