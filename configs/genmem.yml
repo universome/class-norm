@@ -1,8 +1,5 @@
 task_trainer: "genmem"
 hp:
-  max_num_epochs: 500
-  embed_data: true
-  batch_size: 128
   img_target_shape: [224, 224]
   optim_kwargs: {lr: 0.001, weight_decay: 0.0001}
 
@@ -12,6 +9,9 @@ hp:
     class_emb_dim: 512
     feat_dim: 512
     hid_dim: 512
+
+    # Should we train a prior model?
+    learn_prior_dist: false
 
   distillation_batch_size: 128
   kl_term_coef: 0.01
@@ -26,10 +26,25 @@ hp:
 
 hp_for_datasets:
   cub:
+    max_num_epochs: 500
+    batch_size: 256
+    embed_data: true
+
     model_config:
       num_classes: 200
   awa:
+    max_num_epochs: 500
+    batch_size: 256
+    embed_data: false
+
     model_config:
       num_classes: 50
+
+      feat_extractor:
+        type: "classifier"
+
     clf_training:
       num_iters: 1000
+
+    feat_extractor:
+      num_epochs: 10

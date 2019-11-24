@@ -6,21 +6,36 @@ import torch.nn as nn
 from torch import Tensor
 from firelab.config import Config
 
-from src.models.classifier import FeatClassifier
+from src.models.classifier import FeatClassifier, ResnetClassifier
 
 
 class FeatVAEClassifier(nn.Module):
     def __init__(self, config: Config, attrs: np.ndarray):
         super(FeatVAEClassifier, self).__init__()
 
+        self.config = config
         self.classifier = FeatClassifier(config, attrs)
         self.vae = FeatCVAE(config)
 
-    def forward(self, *input):
-        return self.classifier.forward(*input)
+        if self.config.has('feat_extractor'):
+            self.init_feat_extractor()
 
-    def compute_pruned_predictions(self, *args):
-        return self.classifier.compute_pruned_predictions(*args)
+    def forward(self, x: Tensor):
+        if x.ndim > 2:
+            x = self.feat_extractor.embedder(x)
+
+        return self.classifier.forward(x)
+
+    def compute_pruned_predictions(self, x, output_mask):
+        if x.ndim > 2:
+            x = self.feat_extractor.embedder(x)
+
+        return self.classifier.compute_pruned_predictions(x, output_mask)
+
+    def init_feat_extractor(self):
+        assert self.config.feat_extractor.type == 'classifier', "Other feat extractors are not supported yet"
+
+        self.feat_extractor = ResnetClassifier(self.config.num_classes)
 
 
 class FeatCVAE(nn.Module):
@@ -47,14 +62,7 @@ class FeatCVAE(nn.Module):
         )
 
         if self.config.get('learn_prior_dist'):
-            self.prior_class_emb = nn.Embedding(self.config.num_classes, self.config.class_emb_dim)
-            self.prior = nn.Sequential(
-                nn.Linear(self.config.class_emb_dim, config.hid_dim),
-                nn.ReLU(),
-                nn.Linear(self.config.hid_dim, config.hid_dim),
-                nn.ReLU(),
-                nn.Linear(self.config.hid_dim, config.z_dim * 2),
-            )
+            self.init_prior_model()
 
     def forward(self, x: Tensor, y: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         mean, log_var = self.encode(x, y)
@@ -62,6 +70,16 @@ class FeatCVAE(nn.Module):
         x_rec = self.decode(z, y)
 
         return x_rec, mean, log_var
+
+    def init_prior_model(self):
+        self.prior_class_emb = nn.Embedding(self.config.num_classes, self.config.class_emb_dim)
+        self.prior = nn.Sequential(
+            nn.Linear(self.config.class_emb_dim, self.config.hid_dim),
+            nn.ReLU(),
+            nn.Linear(self.config.hid_dim, self.config.hid_dim),
+            nn.ReLU(),
+            nn.Linear(self.config.hid_dim, self.config.z_dim * 2),
+        )
 
     def encode(self, x: Tensor, y: Tensor) -> Tuple[Tensor, Tensor]:
         y_emb = self.enc_class_emb(y)

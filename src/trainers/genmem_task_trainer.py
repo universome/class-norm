@@ -1,6 +1,6 @@
 import os
 from copy import deepcopy
-from typing import Tuple
+from typing import Tuple, Dict
 
 import numpy as np
 import torch
@@ -12,6 +12,7 @@ from tqdm import tqdm
 from src.utils.losses import compute_kld_with_standard_gaussian, compute_kld_between_diagonal_gaussians
 from src.trainers.task_trainer import TaskTrainer
 from src.models.vae import FeatVAEClassifier
+from src.dataloaders.utils import extract_features
 
 
 class GenMemTaskTrainer(TaskTrainer):
@@ -33,14 +34,26 @@ class GenMemTaskTrainer(TaskTrainer):
         self.writer = SummaryWriter(os.path.join(self.main_trainer.paths.logs_path, f'task_{self.task_idx}'))
         self.optim = self.construct_optimizer()
 
+    def _before_train_hook(self):
+        if self.config.hp.model_config.has('feat_extractor'):
+            self.train_feat_extractor()
+            self.extract_features()
+
     def _after_train_hook(self):
         self.train_classifier()
 
-    def construct_optimizer(self):
-        return {
+    def construct_optimizer(self) -> Dict[str, nn.Module]:
+        optims = {
             'vae': torch.optim.Adam(self.model.vae.parameters(), **self.config.hp.optim_kwargs.to_dict()),
             'classifier': torch.optim.Adam(self.model.classifier.parameters(), **self.config.hp.optim_kwargs.to_dict()),
         }
+
+        if self.config.hp.model_config.has('feat_extractor'):
+            optims['feat_extractor'] = torch.optim.Adam(
+                self.model.feat_extractor.parameters(),
+                **self.config.hp.optim_kwargs.to_dict())
+
+        return optims
 
     def train_on_batch(self, batch):
         self.model.train()
@@ -112,4 +125,35 @@ class GenMemTaskTrainer(TaskTrainer):
             self.writer.add_scalar('clf/loss', loss.item(), clf_train_iter)
             self.writer.add_scalar('clf/acc', acc.item(), clf_train_iter)
 
+    def train_feat_extractor(self):
+        self.model.train()
+        self.num_feat_ext_iters_done = 0
 
+        for epoch in range(1, self.config.hp.feat_extractor.num_epochs + 1):
+            for batch in tqdm(self.train_dataloader, desc=f'[task #{self.task_idx}/feat_ext epoch #{epoch}]'):
+                x = torch.tensor(batch[0]).to(self.device_name)
+                y = torch.tensor(batch[1]).to(self.device_name)
+                self.train_feat_extractor_on_batch(x, y)
+                self.num_feat_ext_iters_done += 1
+
+    def train_feat_extractor_on_batch(self, x, y):
+        pruned_logits = self.model.feat_extractor.compute_pruned_predictions(x, self.output_mask)
+        loss = self.criterion(pruned_logits, y)
+        acc = (pruned_logits.argmax(dim=1) == y).float().mean()
+
+        self.optim['feat_extractor'].zero_grad()
+        loss.backward()
+        self.optim['feat_extractor'].step()
+
+        self.writer.add_scalar('feat_ext/loss', loss.item(), self.num_feat_ext_iters_done)
+        self.writer.add_scalar('feat_ext/acc', acc.item(), self.num_feat_ext_iters_done)
+
+    def extract_features(self):
+        self.model.eval()
+
+        imgs_train = extract_features([x for x, _ in self.task_ds_train], self.model.feat_extractor.embedder)
+        imgs_test = extract_features([x for x, _ in self.task_ds_test], self.model.feat_extractor.embedder)
+
+        self.task_ds_train = [(x, y) for x, (_, y) in zip(imgs_train, self.task_ds_train)]
+        self.task_ds_test = [(x, y) for x, (_, y) in zip(imgs_test, self.task_ds_test)]
+        self.init_dataloaders()

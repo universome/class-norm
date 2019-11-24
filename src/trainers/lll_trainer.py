@@ -96,10 +96,10 @@ class LLLTrainer(BaseTrainer):
             self.ds_train = extract_resnet18_features_for_dataset(self.ds_train)
             self.ds_test = extract_resnet18_features_for_dataset(self.ds_test)
 
-        # np.save('/tmp/ds_train', self.ds_train)
-        # np.save('/tmp/ds_test', self.ds_test)
-        # self.ds_train = np.load('/tmp/ds_train.npy', allow_pickle=True)
-        # self.ds_test = np.load('/tmp/ds_test.npy', allow_pickle=True)
+        # np.save(f'/tmp/{self.config.data.name}_train', self.ds_train)
+        # np.save(f'/tmp/{self.config.data.name}_test', self.ds_test)
+        # self.ds_train = np.load(f'/tmp/{self.config.data.name}_train.npy', allow_pickle=True)
+        # self.ds_test = np.load(f'/tmp/{self.config.data.name}_test.npy', allow_pickle=True)
 
         self.class_splits = split_classes_for_tasks(
             self.config.data.num_classes, self.config.data.num_tasks,

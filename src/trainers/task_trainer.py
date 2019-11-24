@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch import optim
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 import numpy as np
 from tqdm import tqdm
 
@@ -39,6 +39,9 @@ class TaskTrainer:
     def _after_init_hook(self):
         pass
 
+    def _before_train_hook(self):
+        pass
+
     def _after_train_hook(self):
         pass
 
@@ -58,6 +61,8 @@ class TaskTrainer:
 
     def start(self):
         """Runs training"""
+        self._before_train_hook()
+
         assert self.is_trainable, "We do not have enough conditions to train this Task Trainer"\
                                   "(for example, previous trainers was not finished or this trainer was already run)"
 
