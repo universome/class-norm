@@ -72,7 +72,7 @@ class LLLTrainer(BaseTrainer):
     def init_optimizers(self):
         if self.config.hp.model_type == 'simple_classifier':
             # TODO: without momentum?!
-            self.optim = torch.optim.Adam(self.model.parameters(), **self.config.hp.optim_kwargs.to_dict())
+            self.optim = torch.optim.Adam(self.model.parameters(), **self.config.hp.optim.kwargs.to_dict())
         elif self.config.hp.model_type == 'feat_gan_classifier':
             self.optim = {} # We'll set this later in task trainer
         elif self.config.hp.model_type == 'feat_vae_classifier':

@@ -29,8 +29,8 @@ class TaskTrainer:
         self._after_init_hook()
 
     def construct_optimizer(self):
-        #return optim.Adam(self.model.parameters(), **self.config.hp.optim_kwargs.to_dict())
-        return optim.SGD(self.model.parameters(), **self.config.hp.optim_kwargs.to_dict())
+        return optim.Adam(self.model.parameters(), **self.config.hp.optim.kwargs.to_dict())
+        # return optim.SGD(self.model.parameters(), **self.config.hp.optim.kwargs.to_dict())
 
     def init_dataloaders(self):
         self.train_dataloader = DataLoader(self.task_ds_train, batch_size=self.config.hp.batch_size, collate_fn=lambda b: list(zip(*b)))

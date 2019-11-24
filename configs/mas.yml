@@ -1,7 +1,6 @@
 task_trainer: "mas"
 
-hp:
-  optim_kwargs: {lr: 0.03}
+hp: {}
 
 hp_for_datasets:
   cub:

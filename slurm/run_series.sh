@@ -4,7 +4,7 @@ num_runs=$1
 
 # Running A-GEM
 for (( random_seed=1; random_seed<=num_runs; random_seed++ ))
-    do sbatch --export=ALL,cli_args="-c agem --random_seed $random_seed --config.hp.optim_kwargs.lr 0.005" slurm/slurm_job.sh; done
+    do sbatch --export=ALL,cli_args="-c agem --random_seed $random_seed --config.hp.optim.kwargs.lr 0.005" slurm/slurm_job.sh; done
 
 # Running MAS
 for (( random_seed=1; random_seed<=num_runs; random_seed++ ))
@@ -16,11 +16,11 @@ for (( random_seed=1; random_seed<=num_runs; random_seed++ ))
 
 # Running sequential
 for (( random_seed=1; random_seed<=num_runs; random_seed++ ))
-    do sbatch --export=ALL,cli_args="-c basic --random_seed $random_seed --config.hp.optim_kwargs.lr 0.005" slurm/slurm_job.sh; done
+    do sbatch --export=ALL,cli_args="-c basic --random_seed $random_seed --config.hp.optim.kwargs.lr 0.005" slurm/slurm_job.sh; done
 
 # Running genmem
-for (( random_seed=1; random_seed<=num_runs; random_seed++ ))
-    do sbatch --export=ALL,cli_args="-c genmem --random_seed $random_seed" slurm/slurm_job.sh; done
+#for (( random_seed=1; random_seed<=num_runs; random_seed++ ))
+#    do sbatch --export=ALL,cli_args="-c genmem --random_seed $random_seed" slurm/slurm_job.sh; done
 
 # Running joint model
 for (( random_seed=1; random_seed<=num_runs; random_seed++ ))
