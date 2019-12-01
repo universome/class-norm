@@ -6,7 +6,7 @@ from firelab.config import Config
 
 from src.utils.constants import POS_INF
 from src.utils.lll import prune_logits
-from .gan import FeatGenerator, FeatDiscriminator
+from .feat_gan import FeatGenerator, FeatDiscriminator
 from .classifier import FeatClassifier
 
 

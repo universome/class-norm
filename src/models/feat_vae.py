@@ -6,7 +6,7 @@ import torch.nn as nn
 from torch import Tensor
 from firelab.config import Config
 
-from src.models.classifier import FeatClassifier, ResnetClassifier
+from src.models.classifier import FeatClassifier, ResnetEmbedder
 
 
 class FeatVAEClassifier(nn.Module):
@@ -16,26 +16,19 @@ class FeatVAEClassifier(nn.Module):
         self.config = config
         self.classifier = FeatClassifier(config, attrs)
         self.vae = FeatCVAE(config)
-
-        if self.config.has('feat_extractor'):
-            self.init_feat_extractor()
+        self.feat_extractor = ResnetEmbedder(pretrained=False)
 
     def forward(self, x: Tensor):
-        if x.ndim > 2:
-            x = self.feat_extractor.embedder(x)
+        f = self.feat_extractor(x)
+        logits = self.classifier(f)
 
-        return self.classifier.forward(x)
+        return logits
 
     def compute_pruned_predictions(self, x, output_mask):
-        if x.ndim > 2:
-            x = self.feat_extractor.embedder(x)
+        f = self.feat_extractor(x)
+        logits = self.classifier.compute_pruned_predictions(f, output_mask)
 
-        return self.classifier.compute_pruned_predictions(x, output_mask)
-
-    def init_feat_extractor(self):
-        assert self.config.feat_extractor.type == 'classifier', "Other feat extractors are not supported yet"
-
-        self.feat_extractor = ResnetClassifier(self.config.num_classes)
+        return logits
 
 
 class FeatCVAE(nn.Module):

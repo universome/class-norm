@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 from src.models.classifier import ZSClassifier, ResnetClassifier
 from src.models.feat_gan_classifier import FeatGANClassifier
-from src.models.vae import FeatVAEClassifier
+from src.models.feat_vae import FeatVAEClassifier
 
 from src.dataloaders import cub, awa
 from src.utils.data_utils import split_classes_for_tasks, get_train_test_data_splits
