@@ -185,7 +185,7 @@ def compute_individual_zst_accs_matrix(logits_history: np.ndarray, targets: List
 
 
 def compute_unseen_classes_acc_history(logits_history: List[List[List[float]]], targets: List[int],
-                                   class_splits: List[List[int]]) -> List[float]:
+                                   class_splits: List[List[int]], restrict_space:bool=True) -> List[float]:
     """
     Computes zero-shot history on all the remaining tasks before starting each task
 
@@ -193,17 +193,18 @@ def compute_unseen_classes_acc_history(logits_history: List[List[List[float]]], 
                            i.e. matrix of size [NUM_TASKS x DATASET_SIZE x NUM_CLASSES]
     :param targets: targets for the objects of size [DATASET_SIZE]
     :param class_splits: list of classes for each task of size [NUM_TASKS x NUM_CLASSES_PER_TASK]
+    :param restrict_space: should we restrict prediction space to specified classes or not
 
     :return: zero-shot accuracies of size [NUM_TASKS]
     """
     unseen_classes = [np.unique(class_splits[i:]) for i in range(len(class_splits))]
-    accs = [compute_acc_for_classes(l, targets, cs) for l, cs in zip(logits_history, unseen_classes)]
+    accs = [compute_acc_for_classes(l, targets, cs, restrict_space) for l, cs in zip(logits_history, unseen_classes)]
 
     return accs
 
 
 def compute_seen_classes_acc_history(logits_history: List[List[List[float]]], targets: List[int],
-                                   class_splits: List[List[int]]) -> List[float]:
+                                     class_splits: List[List[int]], restrict_space:bool=True) -> List[float]:
     """
     Computes zero-shot history on all the remaining tasks before starting each task
 
@@ -211,15 +212,14 @@ def compute_seen_classes_acc_history(logits_history: List[List[List[float]]], ta
                            i.e. matrix of size [NUM_TASKS x DATASET_SIZE x NUM_CLASSES]
     :param targets: targets for the objects of size [DATASET_SIZE]
     :param class_splits: list of classes for each task of size [NUM_TASKS x NUM_CLASSES_PER_TASK]
+    :param restrict_space: should we restrict prediction space to specified classes or not
 
     :return: zero-shot accuracies of size [NUM_TASKS]
     """
     seen_classes = [np.unique(class_splits[:i+1]) for i in range(len(class_splits))]
-    accs = [compute_acc_for_classes(l, targets, cs) for l, cs in zip(logits_history, seen_classes)]
+    accs = [compute_acc_for_classes(l, targets, cs, restrict_space) for l, cs in zip(logits_history, seen_classes)]
 
     return accs
-
-
 
 def compute_joined_ausuc_history(logits_history: List[List[List[float]]], targets: List[int],
                                  class_splits: List[List[int]]) -> List[float]:
@@ -241,20 +241,27 @@ def compute_joined_ausuc_history(logits_history: List[List[List[float]]], target
     return ausuc_scores
 
 
-def compute_acc_for_classes(logits: List[List[float]], targets: List[int], classes: List[int]) -> float:
+def compute_acc_for_classes(logits: List[List[float]], targets: List[int],
+                            classes: List[int], restrict_space:bool=True) -> float:
     """
     Computes accuracy for a given classes, i.e. we prune out all the other classes
 
     :param logits: matrix of size [DATASET_SIZE x NUM_CLASSES]
     :param targets: targets for the objects of size [DATASET_SIZE]
     :param classes: list of classes to consider
+    :param restrict_space: should we restrict prediction space to specified classes or not
 
     :return: accuracy
     """
     data_idx = [i for i, t in enumerate(targets) if t in classes]
-    targets = remap_targets(np.array(targets)[data_idx], list(classes))
-    logits = np.array(logits)[data_idx][:, classes]
-    acc = (logits.argmax(axis=1) == np.array(targets)).mean()
+    targets = np.array(targets)[data_idx]
+    logits = np.array(logits)[data_idx]
+
+    if restrict_space:
+        targets = np.array(remap_targets(targets, list(classes)))
+        logits = logits[:, classes]
+
+    acc = (logits.argmax(axis=1) == targets).mean()
 
     return acc
 

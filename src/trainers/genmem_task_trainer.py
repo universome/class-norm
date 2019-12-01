@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 from src.utils.losses import compute_kld_with_standard_gaussian, compute_kld_between_diagonal_gaussians
 from src.trainers.task_trainer import TaskTrainer
-from src.models.vae import FeatVAEClassifier
+from src.models.feat_vae import FeatVAEClassifier
 from src.dataloaders.utils import extract_features
 
 
@@ -42,18 +42,16 @@ class GenMemTaskTrainer(TaskTrainer):
     def _after_train_hook(self):
         self.train_classifier()
 
-    def construct_optimizer(self) -> Dict[str, nn.Module]:
+    def construct_optimizer(self) -> Dict:
         optims = {
-            'vae': torch.optim.Adam(self.model.vae.parameters(), **self.config.hp.optim_kwargs.to_dict()),
-            'classifier': torch.optim.Adam(self.model.classifier.parameters(), **self.config.hp.optim_kwargs.to_dict()),
+            'vae': torch.optim.Adam(self.model.vae.parameters(), **self.config.hp.optim.kwargs.to_dict()),
+            'classifier': torch.optim.Adam(self.model.classifier.parameters(), **self.config.hp.optim.kwargs.to_dict()),
         }
 
         if self.config.hp.model_config.has('feat_extractor'):
             optims['feat_extractor'] = torch.optim.Adam(
-                self.model.feat_extractor.parameters(),
-                **self.config.hp.optim_kwargs.to_dict())
+                self.model.feat_extractor.parameters(), **self.config.hp.optim.kwargs.to_dict())
 
-        return optims
 
     def train_on_batch(self, batch):
         self.model.train()

@@ -28,11 +28,11 @@ class MeRGAZSLTaskTrainer(TaskTrainer):
 
         self.optim = {
             'gen': torch.optim.Adam(self.model.generator.parameters(),
-                                   **self.config.hp.model_config.gen_optim_kwargs.to_dict()),
+                                   **self.config.hp.model_config.gen_optim.kwargs.to_dict()),
             'discr': torch.optim.Adam(self.model.discriminator.parameters(),
-                                     **self.config.hp.model_config.discr_optim_kwargs.to_dict()),
+                                     **self.config.hp.model_config.discr_optim.kwargs.to_dict()),
             'cls': torch.optim.Adam(self.model.classifier.parameters(),
-                                   **self.config.hp.model_config.cls_optim_kwargs.to_dict()),
+                                   **self.config.hp.model_config.cls_optim.kwargs.to_dict()),
         }
 
     def train_on_batch(self, batch: Tuple[np.ndarray, np.ndarray]):
