@@ -21,7 +21,7 @@ from src.trainers.ewc_task_trainer import EWCTaskTrainer
 from src.trainers.mas_task_trainer import MASTaskTrainer
 from src.trainers.mergazsl_task_trainer import MeRGAZSLTaskTrainer
 from src.trainers.joint_task_trainer import JointTaskTrainer
-from src.trainers.genmem_task_trainer import GenMemTaskTrainer
+from src.trainers.genmem_vae_task_trainer import GenMemVAETaskTrainer
 
 from src.utils.data_utils import construct_output_mask
 from src.dataloaders.utils import extract_resnet18_features_for_dataset
@@ -227,8 +227,8 @@ class LLLTrainer(BaseTrainer):
             return MeRGAZSLTaskTrainer(self, task_idx)
         elif self.config.task_trainer == 'joint':
             return JointTaskTrainer(self, task_idx)
-        elif self.config.task_trainer == 'genmem':
-            return GenMemTaskTrainer(self, task_idx)
+        elif self.config.task_trainer == 'genmem_vae':
+            return GenMemVAETaskTrainer(self, task_idx)
         else:
             raise NotImplementedError(f'Unknown task trainer: {self.config.task_trainer}')
 
