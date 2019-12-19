@@ -13,7 +13,10 @@ from firelab.utils.training_utils import get_module_device
 
 from src.models.classifier import ResnetEmbedder
 
-imagenet_normalization = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+IMAGENET_MEAN = [0.485, 0.456, 0.406]
+IMAGENET_STD = [0.229, 0.224, 0.225]
+imagenet_normalization = transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD )
+imagenet_denormalization = lambda x: x * torch.tensor(IMAGENET_STD)[:, None, None] + torch.tensor(IMAGENET_MEAN)[:, None, None]
 
 
 def read_column(filename:PathLike, column_idx:int) -> List[str]:

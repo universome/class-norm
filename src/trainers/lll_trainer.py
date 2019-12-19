@@ -100,8 +100,8 @@ class LLLTrainer(BaseTrainer):
             ds_train = SVHN(self.config.data.dir, split='train', transform=imagenet_normalization)
             ds_test = SVHN(self.config.data.dir, split='test', transform=imagenet_normalization)
 
-            ds_train_imgs = [imagenet_normalization(torch.Tensor(x) / 255).numpy() for x in ds_train.data]
-            ds_test_imgs = [imagenet_normalization(torch.Tensor(x) / 255).numpy() for x in ds_test.data]
+            ds_train_imgs = [(x / 127.5 - 1).astype(np.float32) for x in ds_train.data]
+            ds_test_imgs = [(x / 127.5 - 1).astype(np.float32) for x in ds_test.data]
 
             self.ds_train = list(zip(*shuffle_dataset(ds_train_imgs, ds_train.labels)))
             self.ds_test = list(zip(*shuffle_dataset(ds_test_imgs, ds_test.labels)))

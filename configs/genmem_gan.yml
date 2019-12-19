@@ -3,6 +3,10 @@ hp:
   model_type: "genmem_gan"
   use_class_attrs: false
 
+plotting:
+  samples_freq: 1000
+  num_samples_per_class: 5
+
 hp_for_datasets:
   svhn:
     num_iters_per_class: 40000
@@ -26,7 +30,7 @@ hp_for_datasets:
     num_discr_steps_per_gen_step: 5
     gp_coef: 10
     distill_loss_coef: 0.01
-    batch_size: 53
+    batch_size: 64
     cls_loss_coef_discr: 1.
     cls_loss_coef_gen: 1.
     distill_batch_size: 100

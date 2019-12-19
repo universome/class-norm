@@ -1,4 +1,5 @@
 import os
+import random
 from typing import Tuple
 from copy import deepcopy
 
@@ -7,10 +8,12 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor
 from torch.utils.tensorboard import SummaryWriter
-from torch.nn.utils import clip_grad_norm_
+from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 from src.utils.losses import compute_gradient_penalty
 from src.utils.lll import prune_logits
+from src.dataloaders.utils import imagenet_denormalization
 from .task_trainer import TaskTrainer
 
 
@@ -22,7 +25,12 @@ class GenMemGANTaskTrainer(TaskTrainer):
         self.current_classes = self.main_trainer.class_splits[self.task_idx]
         self.previously_seen_classes = np.unique(self.main_trainer.class_splits[:self.task_idx]).tolist()
         self.seen_classes = np.unique(self.main_trainer.class_splits[:self.task_idx + 1]).tolist()
-        self.writer = SummaryWriter(os.path.join(self.main_trainer.paths.logs_path, f'task_{self.task_idx}'))
+        self.writer = SummaryWriter(os.path.join(self.main_trainer.paths.logs_path, f'task_{self.task_idx}'), flush_secs=5)
+
+        if self.task_idx > 0:
+            self.fixed_noise = self.main_trainer.task_trainers[self.task_idx - 1].fixed_noise
+        else:
+            self.fixed_noise = np.random.randn(1000, self.config.hp.model_config.z_dim).astype(np.float32)
 
     def construct_optimizer(self):
         return {
@@ -100,3 +108,43 @@ class GenMemGANTaskTrainer(TaskTrainer):
         loss = self.config.hp.distill_loss_coef * (x_fake_teacher - x_fake_student).norm()
 
         return loss
+
+    def start(self):
+        self._before_train_hook()
+
+        assert self.is_trainable, "We do not have enough conditions to train this Task Trainer" \
+                                  "(for example, previous trainers was not finished or this trainer was already run)"
+
+        for i in tqdm(range(self.config.hp.num_iters_per_class), desc=f'Task #{self.task_idx} iteration'):
+            batch = self.sample_train_batch()
+            self.train_on_batch(batch)
+            self.num_iters_done += 1
+            self.run_after_iter_done_callbacks()
+
+            if i % self.config.get('plotting.samples_freq', ) == 0:
+                self.plot_samples()
+
+        self._after_train_hook()
+
+    def sample_train_batch(self) -> Tuple[np.ndarray, np.ndarray]:
+        idx = random.sample(range(len(self.task_ds_train)), self.config.hp.batch_size)
+        x, y = zip(*[self.task_ds_train[i] for i in idx])
+
+        return x, y
+
+    def plot_samples(self):
+        y = np.arange(self.config.data.num_classes).repeat(self.config.plotting.num_samples_per_class)
+        z = torch.tensor(self.fixed_noise[:self.config.plotting.num_samples_per_class]).to(self.device_name)
+        z = z.repeat(self.config.data.num_classes, 1)
+
+        with torch.no_grad():
+            x = self.model.generator(z, torch.tensor(y).to(self.device_name))
+            x = x.cpu()
+
+        for i, (img, cls) in enumerate(zip(x, y)):
+            #img = ((img.permute(1, 2, 0).numpy() + 1) * (255 / 2)).astype(np.int32)
+            img = ((img.permute(1, 2, 0) + 1).numpy() * 255 / 2).astype(np.int32)
+            fig = plt.figure(figsize=(5, 5))
+            plt.imshow(img)
+            sample_idx = i % self.config.plotting.num_samples_per_class
+            self.writer.add_figure(f'Class_{cls}/sample_{sample_idx}', fig, self.num_iters_done)
