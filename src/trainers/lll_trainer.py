@@ -2,7 +2,8 @@ import os
 from typing import List, Tuple
 
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
+from torchvision.datasets import SVHN
 import numpy as np
 from firelab.base_trainer import BaseTrainer
 from firelab.config import Config
@@ -11,8 +12,10 @@ from tqdm import tqdm
 from src.models.classifier import ZSClassifier, ResnetClassifier
 from src.models.feat_gan_classifier import FeatGANClassifier
 from src.models.feat_vae import FeatVAEClassifier
+from src.models.gan import GAN
 
 from src.dataloaders import cub, awa
+from src.dataloaders.utils import imagenet_normalization
 from src.utils.data_utils import split_classes_for_tasks, get_train_test_data_splits
 
 from src.trainers.basic_task_trainer import BasicTaskTrainer
@@ -22,9 +25,10 @@ from src.trainers.mas_task_trainer import MASTaskTrainer
 from src.trainers.mergazsl_task_trainer import MeRGAZSLTaskTrainer
 from src.trainers.joint_task_trainer import JointTaskTrainer
 from src.trainers.genmem_vae_task_trainer import GenMemVAETaskTrainer
+from src.trainers.genmem_gan_task_trainer import GenMemGANTaskTrainer
 
 from src.utils.data_utils import construct_output_mask
-from src.dataloaders.utils import extract_resnet18_features_for_dataset
+from src.dataloaders.utils import extract_resnet18_features_for_dataset, shuffle_dataset
 
 from src.utils.metrics import (
     compute_average_accuracy,
@@ -64,6 +68,8 @@ class LLLTrainer(BaseTrainer):
         else:
             if self.config.hp.model_type == 'simple_classifier':
                 self.model = ResnetClassifier(self.config.data.num_classes, pretrained=self.config.hp.pretrained)
+            elif self.config.hp.model_type == 'genmem_gan':
+                self.model = GAN(self.config.hp.model_config)
             else:
                 raise NotImplementedError(f'Unkown model type to use without attrs: {self.config.hp.model_type}')
 
@@ -73,9 +79,10 @@ class LLLTrainer(BaseTrainer):
         if self.config.hp.model_type == 'simple_classifier':
             # TODO: without momentum?!
             self.optim = torch.optim.Adam(self.model.parameters(), **self.config.hp.optim.kwargs.to_dict())
-        elif self.config.hp.model_type == 'feat_gan_classifier':
-            self.optim = {} # We'll set this later in task trainer
-        elif self.config.hp.model_type == 'feat_vae_classifier':
+        elif self.config.hp.model_type in (
+                'feat_gan_classifier',
+                'feat_vae_classifier',
+                'genmem_gan'):
             self.optim = {} # We'll set this later in task trainer
         else:
             raise NotImplementedError(f'Unknown model type {self.config.hp.model_type}')
@@ -89,6 +96,15 @@ class LLLTrainer(BaseTrainer):
             self.ds_train = awa.load_dataset(self.config.data.dir, split='train', target_shape=self.config.hp.img_target_shape)
             self.ds_test = awa.load_dataset(self.config.data.dir, split='test', target_shape=self.config.hp.img_target_shape)
             self.class_attributes = awa.load_class_attributes(self.config.data.dir)
+        elif self.config.data.name == 'SVHN':
+            ds_train = SVHN(self.config.data.dir, split='train', transform=imagenet_normalization)
+            ds_test = SVHN(self.config.data.dir, split='test', transform=imagenet_normalization)
+
+            ds_train_imgs = [imagenet_normalization(torch.Tensor(x) / 255).numpy() for x in ds_train.data]
+            ds_test_imgs = [imagenet_normalization(torch.Tensor(x) / 255).numpy() for x in ds_test.data]
+
+            self.ds_train = list(zip(*shuffle_dataset(ds_train_imgs, ds_train.labels)))
+            self.ds_test = list(zip(*shuffle_dataset(ds_test_imgs, ds_test.labels)))
         else:
             raise NotImplementedError(f'Unkown dataset: {self.config.data.name}')
 
@@ -229,6 +245,8 @@ class LLLTrainer(BaseTrainer):
             return JointTaskTrainer(self, task_idx)
         elif self.config.task_trainer == 'genmem_vae':
             return GenMemVAETaskTrainer(self, task_idx)
+        elif self.config.task_trainer == 'genmem_gan':
+            return GenMemGANTaskTrainer(self, task_idx)
         else:
             raise NotImplementedError(f'Unknown task trainer: {self.config.task_trainer}')
 

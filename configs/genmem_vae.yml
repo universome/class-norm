@@ -1,4 +1,4 @@
-task_trainer: "genmem"
+task_trainer: "genmem_vae"
 hp:
   img_target_shape: [224, 224]
   optim:

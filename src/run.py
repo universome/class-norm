@@ -35,6 +35,7 @@ def load_config(args: argparse.Namespace, config_cli_args: List[str]) -> Config:
     # Setting properties from the base config
     config.set('data', base_config.datasets.get(args.dataset))
     config = base_config.base.overwrite(config)
+    assert config.hp_for_datasets.has(args.dataset)
     hp = config.hp.overwrite(config.hp_for_datasets.get(args.dataset))
     config = config.overwrite(Config({'hp': hp.to_dict()}))
 
@@ -93,9 +94,9 @@ def is_float(value:Any) -> bool:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Running LLL trainer')
-    parser.add_argument('-d', '--dataset', default='cub', type=str, help='Dataset')
+    parser.add_argument('-d', '--dataset', default='svhn', type=str, help='Dataset')
     parser.add_argument('-s', '--random_seed', type=int, default=DEFAULT_RANDOM_SEED, help='Random seed to fix')
-    parser.add_argument('-c', '--config_name', type=str, default='genmem_vae', help='Which config to run?')
+    parser.add_argument('-c', '--config_name', type=str, default='genmem_gan', help='Which config to run?')
     parser.add_argument('-n', '--num_runs', type=int, default=1, help='How many times we should run the experiment?')
 
     args, config_args = parser.parse_known_args()

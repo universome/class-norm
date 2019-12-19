@@ -24,6 +24,8 @@ def read_column(filename:PathLike, column_idx:int) -> List[str]:
 
 
 def shuffle_dataset(imgs: List[Any], labels: List[int]) -> Tuple[List[Any], List[int]]:
+    assert len(imgs) == len(labels)
+
     shuffling = np.random.permutation(len(imgs))
     imgs = [imgs[i] for i in shuffling]
     labels = [labels[i] for i in shuffling]

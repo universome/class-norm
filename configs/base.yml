@@ -35,3 +35,12 @@ datasets:
     num_tasks: 5
     num_classes_per_task: 10
     num_reserved_classes: 0
+
+  svhn:
+    name: "SVHN"
+    dir: "data/SVHN"
+    num_classes: 10
+
+    num_tasks: 10
+    num_classes_per_task: 1
+    num_reserved_classes: 0

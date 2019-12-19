@@ -6,10 +6,10 @@ def compute_gradient_penalty(discriminator, x_real, x_fake) -> Tensor:
     """
     Computes gradient penalty according to WGAN-GP paper
     """
-    assert x_real.ndim == 2, "If you want to use other input sizes, implement interpolations for them first."
     assert x_real.size() == x_fake.size()
 
-    eps = torch.rand(x_real.size(0), 1).to(x_real.device)
+    eps = torch.rand(x_real.size(0)).to(x_real.device)
+    eps = eps.view(-1, *([1] * len(x_real.shape[1:]))) # Expanding dimensions
     interpolations = eps * x_real + (1 - eps) * x_fake
     interpolations.requires_grad_(True)
     outputs = discriminator(interpolations)
