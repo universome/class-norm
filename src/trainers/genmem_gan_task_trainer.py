@@ -133,18 +133,31 @@ class GenMemGANTaskTrainer(TaskTrainer):
         return x, y
 
     def plot_samples(self):
-        y = np.arange(self.config.data.num_classes).repeat(self.config.plotting.num_samples_per_class)
-        z = torch.tensor(self.fixed_noise[:self.config.plotting.num_samples_per_class]).to(self.device_name)
+        classes = np.arange(self.config.data.num_classes).repeat(self.config.plotting.n_samples_per_class)
+        z = torch.tensor(self.fixed_noise[:self.config.plotting.n_samples_per_class]).to(self.device_name)
         z = z.repeat(self.config.data.num_classes, 1)
 
         with torch.no_grad():
-            x = self.model.generator(z, torch.tensor(y).to(self.device_name))
+            x = self.model.generator(z, torch.tensor(classes).to(self.device_name))
             x = x.cpu()
 
-        for i, (img, cls) in enumerate(zip(x, y)):
-            #img = ((img.permute(1, 2, 0).numpy() + 1) * (255 / 2)).astype(np.int32)
-            img = ((img.permute(1, 2, 0) + 1).numpy() * 255 / 2).astype(np.int32)
-            fig = plt.figure(figsize=(5, 5))
-            plt.imshow(img)
-            sample_idx = i % self.config.plotting.num_samples_per_class
-            self.writer.add_figure(f'Class_{cls}/sample_{sample_idx}', fig, self.num_iters_done)
+        for y in np.arange(self.config.data.num_classes):
+            imgs = x[y * self.config.plotting.n_samples_per_class: (y+1) * self.config.plotting.n_samples_per_class]
+            imgs = ((imgs.permute(0, 2, 3, 1).numpy() + 1) * 127.5).astype(int)
+            img_h, img_w = imgs.shape[1], imgs.shape[2]
+
+            n_rows = int(np.sqrt(self.config.plotting.n_samples_per_class))
+            n_cols = n_rows
+
+            assert n_rows * n_cols == self.config.plotting.n_samples_per_class
+
+            result = np.zeros((n_rows * img_h, n_cols * img_w, 3)).astype(int)
+
+            for i, img in enumerate(imgs):
+                h = img_h * (i // n_rows)
+                w = img_w * (i % n_cols)
+                result[h:h + img_h, w:w + img_w] = img
+
+            fig = plt.figure(figsize=(25, 25))
+            plt.imshow(result)
+            self.writer.add_figure(f'Class_{y}', fig, self.num_iters_done)

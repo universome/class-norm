@@ -5,7 +5,7 @@ hp:
 
 plotting:
   samples_freq: 1000
-  num_samples_per_class: 5
+  n_samples_per_class: 100
 
 hp_for_datasets:
   svhn:

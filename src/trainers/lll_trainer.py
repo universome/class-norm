@@ -97,8 +97,8 @@ class LLLTrainer(BaseTrainer):
             self.ds_test = awa.load_dataset(self.config.data.dir, split='test', target_shape=self.config.hp.img_target_shape)
             self.class_attributes = awa.load_class_attributes(self.config.data.dir)
         elif self.config.data.name == 'SVHN':
-            ds_train = SVHN(self.config.data.dir, split='train', transform=imagenet_normalization)
-            ds_test = SVHN(self.config.data.dir, split='test', transform=imagenet_normalization)
+            ds_train = SVHN(self.config.data.dir, split='train')
+            ds_test = SVHN(self.config.data.dir, split='test')
 
             ds_train_imgs = [(x / 127.5 - 1).astype(np.float32) for x in ds_train.data]
             ds_test_imgs = [(x / 127.5 - 1).astype(np.float32) for x in ds_test.data]
