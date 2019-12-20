@@ -13,7 +13,6 @@ import matplotlib.pyplot as plt
 
 from src.utils.losses import compute_gradient_penalty
 from src.utils.lll import prune_logits
-from src.dataloaders.utils import imagenet_denormalization
 from .task_trainer import TaskTrainer
 
 
@@ -95,7 +94,7 @@ class GenMemGANTaskTrainer(TaskTrainer):
         self.writer.add_scalar(f'gen/cls_loss', cls_loss.item(), self.num_iters_done)
         self.writer.add_scalar(f'gen/distillation_loss', distillation_loss.item(), self.num_iters_done)
 
-    def knowledge_distillation_loss(self):
+    def knowledge_distillation_loss(self) -> Tensor:
         if len(self.previously_seen_classes) == 0: return torch.tensor(0.)
 
         num_prev_samples = self.config.hp.distill_batch_size // len(self.previously_seen_classes)
@@ -103,9 +102,9 @@ class GenMemGANTaskTrainer(TaskTrainer):
         y = torch.tensor(y).to(self.device_name)
         #y = np.random.choice(self.previously_seen_classes, size=self.config.hp.distill_batch_size)
         z = self.model.generator.sample_noise(len(y)).to(self.device_name)
-        x_fake_teacher = self.prev_model.generator(z, y)
-        x_fake_student = self.model.generator(z, y)
-        loss = self.config.hp.distill_loss_coef * (x_fake_teacher - x_fake_student).norm()
+        outputs_teacher = self.prev_model.generator(z, y).view(len(y), -1)
+        outputs_student = self.model.generator(z, y).view(len(y), -1)
+        loss = (outputs_teacher - outputs_student).pow(2).sum(dim=1).mean() * 0.5
 
         return loss
 
