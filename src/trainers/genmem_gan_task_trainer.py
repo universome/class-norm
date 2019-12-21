@@ -97,16 +97,18 @@ class GenMemGANTaskTrainer(TaskTrainer):
     def knowledge_distillation_loss(self) -> Tensor:
         if len(self.previously_seen_classes) == 0: return torch.tensor(0.)
 
-        num_prev_samples = self.config.hp.distill_batch_size // len(self.previously_seen_classes)
-        y = np.tile(self.previously_seen_classes, num_prev_samples)
-        y = torch.tensor(y).to(self.device_name)
-        #y = np.random.choice(self.previously_seen_classes, size=self.config.hp.distill_batch_size)
-        z = self.model.generator.sample_noise(len(y)).to(self.device_name)
-        outputs_teacher = self.prev_model.generator(z, y).view(len(y), -1)
-        outputs_student = self.model.generator(z, y).view(len(y), -1)
-        loss = (outputs_teacher - outputs_student).pow(2).sum(dim=1).mean() * 0.5
+        loss = 0.
 
-        return loss
+        for c in self.previously_seen_classes:
+            # TODO: maybe it's ok to use all the classes in the same forward pass in knowledge distillation
+            n_samples = self.config.hp.distill_batch_size // len(self.previously_seen_classes)
+            y = torch.tensor([c] * n_samples).to(self.device_name)
+            z = self.model.generator.sample_noise(n_samples).to(self.device_name)
+            outputs_teacher = self.prev_model.generator(z, y).view(n_samples, -1)
+            outputs_student = self.model.generator(z, y).view(n_samples, -1)
+            loss += (outputs_teacher - outputs_student).pow(2).sum(dim=1).mean() * 0.5
+
+        return loss / len(self.previously_seen_classes)
 
     def start(self):
         self._before_train_hook()
@@ -132,17 +134,15 @@ class GenMemGANTaskTrainer(TaskTrainer):
         return x, y
 
     def plot_samples(self):
-        classes = np.arange(self.config.data.num_classes).repeat(self.config.plotting.n_samples_per_class)
         z = torch.tensor(self.fixed_noise[:self.config.plotting.n_samples_per_class]).to(self.device_name)
-        z = z.repeat(self.config.data.num_classes, 1)
-
-        with torch.no_grad():
-            x = self.model.generator(z, torch.tensor(classes).to(self.device_name))
-            x = x.cpu()
 
         for y in np.arange(self.config.data.num_classes):
-            imgs = x[y * self.config.plotting.n_samples_per_class: (y+1) * self.config.plotting.n_samples_per_class]
-            imgs = ((imgs.permute(0, 2, 3, 1).numpy() + 1) * 127.5).astype(int)
+            # TODO: separate classes in conditional batchnorm layer instead
+            with torch.no_grad():
+                classes = torch.tensor(np.ones(len(z)) * y).to(self.device_name).long()
+                x = self.model.generator(z, classes).cpu()
+
+            imgs = ((x.permute(0, 2, 3, 1).numpy() + 1) * 127.5).astype(int)
             img_h, img_w = imgs.shape[1], imgs.shape[2]
 
             n_rows = int(np.sqrt(self.config.plotting.n_samples_per_class))

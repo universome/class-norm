@@ -173,6 +173,8 @@ class LLLTrainer(BaseTrainer):
             if self.config.get('metrics.average_accuracy') or self.config.get('metrics.forgetting_measure'):
                 self.validate()
 
+            self.checkpoint(task_idx)
+
         self.compute_metrics()
         self.save_experiment_data()
 
@@ -268,3 +270,7 @@ class LLLTrainer(BaseTrainer):
             self.writer.add_scalar('Task_test_acc/{}', acc, self.num_tasks_learnt)
 
         self.accs_history.append(accs)
+
+    def checkpoint(self, curr_task_idx: int):
+        path = os.path.join(self.paths.checkpoints_path, f'model-task-{curr_task_idx}.pt')
+        torch.save(self.model.state_dict(), path)
