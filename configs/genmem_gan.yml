@@ -4,7 +4,7 @@ hp:
   use_class_attrs: false
 
 plotting:
-  samples_freq: 1000
+  samples_freq: 2000
   n_samples_per_class: 100
 
 hp_for_datasets:
@@ -29,7 +29,7 @@ hp_for_datasets:
 
     num_discr_steps_per_gen_step: 5
     gp_coef: 10
-    distill_loss_coef: 0.01
+    distill_loss_coef: 1.
     batch_size: 64
     cls_loss_coef_discr: 1.
     cls_loss_coef_gen: 1.

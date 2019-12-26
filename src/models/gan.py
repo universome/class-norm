@@ -59,6 +59,11 @@ class Generator(nn.Module):
     def sample_noise(self, batch_size: int) -> Tensor:
         return torch.randn(batch_size, self.config.z_dim)
 
+    def sample(self, y: Tensor) -> Tensor:
+        z = self.generator.sample_noise(len(y)).to(y.device)
+
+        return self.forward(z, y)
+
     def forward(self, z: Tensor, y: Tensor):
         x = self.linear1(z)
         x = self.reshape1(x)
