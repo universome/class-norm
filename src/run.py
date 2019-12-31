@@ -10,7 +10,7 @@ from src.trainers.lll_trainer import LLLTrainer
 
 
 CONFIG_ARG_PREFIX = '--config.'
-DEFAULT_RANDOM_SEED = np.random.randint(np.iinfo(np.int32).max)
+DEFAULT_RANDOM_SEED = 42 # np.random.randint(np.iinfo(np.int32).max)
 
 
 def run_trainer(args: argparse.Namespace, config_cli_args: List[str]):
@@ -25,19 +25,22 @@ def run_trainer(args: argparse.Namespace, config_cli_args: List[str]):
 
 def load_config(args: argparse.Namespace, config_cli_args: List[str]) -> Config:
     base_config = Config.load('configs/base.yml')
-    config = Config.load(f'configs/{args.config_name}.yml')
+    curr_config = Config.load(f'configs/{args.config_name}.yml')
+
+    assert curr_config.has(args.dataset)
+
+    # Setting properties from the base config
+    config = base_config.base.clone()
+    config.set('data', base_config.datasets.get(args.dataset))
+
+    # Setting properties from the current config
+    config = config.overwrite(curr_config.all)
+    config = config.overwrite(curr_config.get(args.dataset))
 
     # Setting experiment-specific properties
     config.set('experiments_dir', 'experiments')
     config.set('random_seed', args.random_seed)
     config.set('exp_name', f'{args.config_name}-{config.random_seed}')
-
-    # Setting properties from the base config
-    config.set('data', base_config.datasets.get(args.dataset))
-    config = base_config.base.overwrite(config)
-    assert config.hp_for_datasets.has(args.dataset)
-    hp = config.hp.overwrite(config.hp_for_datasets.get(args.dataset))
-    config = config.overwrite(Config({'hp': hp.to_dict()}))
 
     # Overwriting with CLI arguments
     config_cli_args: Dict = process_cli_config_args(config_cli_args)
@@ -94,7 +97,7 @@ def is_float(value:Any) -> bool:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Running LLL trainer')
-    parser.add_argument('-d', '--dataset', default='svhn', type=str, help='Dataset')
+    parser.add_argument('-d', '--dataset', default='cub', type=str, help='Dataset')
     parser.add_argument('-s', '--random_seed', type=int, default=DEFAULT_RANDOM_SEED, help='Random seed to fix')
     parser.add_argument('-c', '--config_name', type=str, default='genmem_gan', help='Which config to run?')
     parser.add_argument('-n', '--num_runs', type=int, default=1, help='How many times we should run the experiment?')

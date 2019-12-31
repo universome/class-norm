@@ -12,8 +12,9 @@ Ideas:
 - Recent LTH works ([1](https://arxiv.org/abs/1905.07785), [2](https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=8852405&tag=1)) imply that winning tickets are quite the same for similar tasks. In our LLL setup we use very similar tasks (subsets of the same dataset). This means that EWC/MAS/similar methods shouldn't work well, because they restrict changing the winning ticket, and those weights which these methods allow to change — we do not need to, because they are not a part of the winning ticket.
 - What if we'll hallucinate future classes?
 - Can we have a scheduled learning, i.e. a task sequence, that is made up in such a way that it's easier for us to learn? Just like in school
-- We can generalize AUSUC to multi-task settings. Imagine we have not just Seen/Unseen groups, but Task 1, Task 2, ..., Task N groups. For each group we have a specified threshold t_i that we vary from -\infty to +\infty. As a result we get the surface in N-dimensional space, that should reflect the interconnection between all the tasks. The main problem is that we cannot compute it. And maybe this surface is diverging: imagine 3 tasks with 2 thresholds t_2 and t_3 to control the influence of Task 2 and Task 3. Then for t_3 = -\infty we have a normal AUSUC between Task 1 and Task 2. 
+- We can generalize AUSUC to multi-task settings. Imagine we have not just Seen/Unseen groups, but Task 1, Task 2, ..., Task N groups. For each group we have a specified threshold t_i that we vary from -\infty to +\infty. As a result we get the surface in N-dimensional space, that should reflect the interconnection between all the tasks. The main problem is that we cannot compute it. And maybe this surface is diverging: imagine 3 tasks with 2 thresholds t_2 and t_3 to control the influence of Task 2 and Task 3. Then for t_3 = -\infty we have a normal AUSUC between Task 1 and Task 2.
 - Can we measure "inherent" zero-shot performance of the model? I.e. train it on all tasks except the final one. Than take the data of the final one and compute the logits for it. Is is possible to assign class labels to output neurons in such a way that accuracy is higher than random? We can drop a lot of weights like in some continuation of the LTH paper to increase the inherent performance.
+- Interpolate between using logits and using class attributes? This should show if it really helps to improve future transfer.
 
 Tricks to use:
 - label smoothing
@@ -21,6 +22,7 @@ Tricks to use:
 - what if we train class attributes (but initialize from ready ones, ofc)?
 - penalize other logits sometimes to make model be prepared for operating in "distinguish between all-classes" regime. For A-GEM we could use episodic memory for this.
 - Use moment-matching in generative models to improve the generations
+- LR warmup
 
 MeRGAZSL:
 - Use discriminator with 3 outputs: real, synthetic, fake.

@@ -1,15 +1,8 @@
-task_trainer: "genmem_gan"
-hp:
-  model_type: "genmem_gan"
-  use_class_attrs: false
-
-plotting:
-  samples_freq: 2000
-  n_samples_per_class: 100
-
-hp_for_datasets:
-  svhn:
-    num_iters_per_class: 40000
+all:
+  task_trainer: "genmem_gan"
+  hp:
+    model_type: "genmem_gan"
+    use_class_attrs: false
 
     model_config:
       z_dim: 128
@@ -17,7 +10,6 @@ hp_for_datasets:
       discr_dim: 32
       num_img_channels: 3
       img_size: 32
-      num_classes: 10
 
     gen_optim:
       type: "adam"
@@ -34,3 +26,22 @@ hp_for_datasets:
     cls_loss_coef_discr: 1.
     cls_loss_coef_gen: 1.
     distill_batch_size: 100
+
+svhn:
+  plotting:
+    samples_freq: 2000
+    num_samples_per_class: 100
+  hp:
+    img_target_shape: [32, 32]
+    num_iters_per_task: 40000
+    model_config:
+      num_classes: 10
+
+cub:
+  plotting:
+    samples_freq: 10000
+    num_samples_per_class: 5
+  hp:
+    num_iters_per_task: 120000
+    model_config:
+      num_classes: 200

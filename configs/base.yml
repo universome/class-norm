@@ -20,7 +20,7 @@ base:
 datasets:
   cub:
     name: "CUB"
-    dir: "data/CUB2011"
+    dir: "data/CUB_200_2011"
     num_classes: 200
 
     num_tasks: 10
