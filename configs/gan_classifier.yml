@@ -1,0 +1,18 @@
+trainer: "GANClassifierTrainer"
+max_num_iters: 10
+num_classes: 10
+hp:
+    batch_size: 64
+    gan_checkpoint_path: "experiments/genmem_gan-42-00123/checkpoints/model-task-9.pt"
+    gan_config:
+        z_dim: 128
+        gen_dim: 32
+        discr_dim: 32
+        num_img_channels: 3
+        img_size: 32
+        num_classes: 10
+data:
+    name: "SVHN"
+    dir: "data/SVHN"
+    num_classes: 10
+    source: "gan_model"
