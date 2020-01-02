@@ -16,7 +16,7 @@ class FeatGANClassifier(nn.Module):
 
         self.config = config
         self.register_buffer('attrs', torch.tensor(attrs).float())
-        self.generator = FeatGenerator(config)
+        self.generator = FeatGenerator(config, attrs)
         self.discriminator = FeatDiscriminator(config)
         self.classifier = FeatClassifier(config, attrs)
 

@@ -1,0 +1,44 @@
+all:
+    task_trainer: "lat_gm"
+    hp:
+        model_type: "lat_gm"
+        use_class_attrs: true
+
+        model_config:
+            z_dim: 128
+            hid_dim: 1024
+            feat_dim: 512
+            num_img_channels: 3
+            attr_output_dim: 512
+
+        gen_optim:
+            type: "adam"
+            kwargs: {lr: 0.0001, betas: [0.0, 0.9]}
+
+        discr_optim:
+            type: "adam"
+            kwargs: {lr: 0.0001, betas: [0.0, 0.9]}
+
+        classifier_optim:
+            type: "adam"
+            kwargs: {lr: 0.0001, betas: [0.0, 0.9]}
+
+        num_discr_steps_per_gen_step: 5
+        gp_coef: 10
+        distill_loss_coef: 1.
+        batch_size: 64
+        cls_loss_coef_discr: 1.
+        cls_loss_coef_gen: 1.
+        distill_batch_size: 100
+
+cub:
+    hp:
+        num_iters_per_task: 10000
+        model_config:
+            num_classes: 200
+
+awa:
+    hp:
+        num_iters_per_task: 120000
+        model_config:
+            num_classes: 50

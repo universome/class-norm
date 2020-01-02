@@ -7,14 +7,15 @@ from torch import Tensor
 from firelab.config import Config
 
 
+
 class FeatGenerator(nn.Module):
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, attrs: np.ndarray):
         super(FeatGenerator, self).__init__()
 
         self.config = config
-        self.attr_emb = nn.Linear(config.attr_input_dim, config.attr_output_dim)
+        self.attr_emb = nn.Linear(attrs.shape[0], self.config.attr_output_dim)
         self.model = nn.Sequential(
-            nn.Linear(config.z_dim + config.attr_output_dim, config.hid_dim),
+            nn.Linear(config.z_dim + attrs.shape[0], config.hid_dim),
             nn.LeakyReLU(),
             nn.Linear(config.hid_dim, config.feat_dim),
         )
