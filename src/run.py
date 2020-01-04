@@ -40,7 +40,7 @@ def load_config(args: argparse.Namespace, config_cli_args: List[str]) -> Config:
     # Setting experiment-specific properties
     config.set('experiments_dir', 'experiments')
     config.set('random_seed', args.random_seed)
-    config.set('exp_name', f'{args.config_name}-{config.random_seed}')
+    config.set('exp_name', f'{args.config_name}-{args.exp_name}-{config.random_seed}')
 
     # Overwriting with CLI arguments
     config_cli_args: Dict = process_cli_config_args(config_cli_args)
@@ -97,10 +97,11 @@ def is_float(value:Any) -> bool:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Running LLL trainer')
-    parser.add_argument('-d', '--dataset', default='cub', type=str, help='Dataset')
+    parser.add_argument('-d', '--dataset', default='awa', type=str, help='Dataset')
     parser.add_argument('-s', '--random_seed', type=int, default=DEFAULT_RANDOM_SEED, help='Random seed to fix')
     parser.add_argument('-c', '--config_name', type=str, default='lat_gm', help='Which config to run?')
     parser.add_argument('-n', '--num_runs', type=int, default=1, help='How many times we should run the experiment?')
+    parser.add_argument('-e', '--exp_name', type=str, default='', help='Postfix to add to experiment name.')
 
     args, config_args = parser.parse_known_args()
 
