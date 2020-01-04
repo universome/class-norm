@@ -29,7 +29,7 @@ datasets:
 
   awa:
     name: "AWA"
-    dir: "data/AWA"
+    dir: "data/Animals_with_Attributes2"
     num_classes: 50
 
     num_tasks: 5
