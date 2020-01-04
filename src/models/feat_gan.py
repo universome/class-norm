@@ -9,18 +9,39 @@ from firelab.config import Config
 
 
 class FeatGenerator(nn.Module):
-    def __init__(self, config: Config, attrs: np.ndarray):
+    def __init__(self, config: Config, attrs: np.ndarray=None):
         super(FeatGenerator, self).__init__()
 
+        if config.get('use_attrs_in_gen'):
+            assert not attrs is None
+
+            self.register_buffer('attrs', attrs)
+            self.attr_emb = nn.Linear(attrs.shape[0], config.emb_dim)
+        else:
+            self.cls_emb = nn.Embedding(config.num_classes, config.emb_dim)
+
+
         self.config = config
-        self.attr_emb = nn.Linear(attrs.shape[0], self.config.attr_output_dim)
         self.model = nn.Sequential(
-            nn.Linear(config.z_dim + attrs.shape[0], config.hid_dim),
+            nn.Linear(config.z_dim + config.emb_dim, config.hid_dim),
             nn.LeakyReLU(),
             nn.Linear(config.hid_dim, config.feat_dim),
         )
 
-    def forward(self, z: Tensor, attr: Tensor) -> Tensor:
+    def forward(self, z: Tensor, y: Tensor) -> Tensor:
+        assert z.size(0) == y.size(0), "You should specify necessary y label for each z"
+
+        if self.config.use_attrs_in_gen:
+            embs = self.attr_emb(self.attrs[y])
+        else:
+            embs = self.cls_emb(y)
+
+        x = torch.cat([z, embs], dim=1)
+        x = self.model(x)
+
+        return x
+
+    def forward_with_attr(self, z: Tensor, attr: Tensor) -> Tensor:
         assert z.size(0) == attr.size(0), "You should specify necessary attr for each z yourself"
 
         attr_feats = self.attr_emb(attr)

@@ -1,15 +1,19 @@
 all:
     task_trainer: "lat_gm"
     hp:
+        synaptic_strength: 0.01
         model_type: "lat_gm"
         use_class_attrs: true
+        use_cizsl_losses: false
 
         model_config:
             z_dim: 128
             hid_dim: 1024
             feat_dim: 512
+            emb_dim: 512
             num_img_channels: 3
             attr_output_dim: 512
+            use_class_attrs_in_gen: true
 
         gen_optim:
             type: "adam"
@@ -33,12 +37,14 @@ all:
 
 cub:
     hp:
-        num_iters_per_task: 10000
+        num_iters_per_task: 100
         model_config:
             num_classes: 200
+            pretrained: true
 
 awa:
     hp:
-        num_iters_per_task: 120000
+        num_iters_per_task: 1000
         model_config:
             num_classes: 50
+            pretrained: false

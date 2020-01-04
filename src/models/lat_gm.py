@@ -19,7 +19,11 @@ class LatGM(nn.Module):
         else:
             self.classifier = ZSClassifier(attrs, pretrained=config.get('pretrained'))
 
-        self.generator = FeatGenerator(config, attrs)
+        if config.use_class_attrs_in_gen:
+            self.generator = FeatGenerator(config, attrs)
+        else:
+            self.generator = FeatGenerator(config)
+
         self.discriminator = FeatDiscriminator(config)
 
     def forward(self, *inputs) -> Tensor:
