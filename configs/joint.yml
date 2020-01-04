@@ -1,8 +1,10 @@
-task_trainer: "joint"
-hp: {}
+all:
+  task_trainer: "joint"
+  hp: {}
 
-hp_for_datasets:
-  cub:
+cub:
+  hp:
     pretrained: true
-  awa:
+awa:
+  hp:
     pretrained: false

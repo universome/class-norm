@@ -1,12 +1,13 @@
-task_trainer: "agem"
+all:
+  task_trainer: "agem"
+  hp:
+    mem_batch_size: 128
 
-hp:
-  mem_batch_size: 128
-
-hp_for_datasets:
-  awa:
+awa:
+  hp:
     num_mem_samples_per_class: 20
     pretrained: false
-  cub:
+cub:
+  hp:
     num_mem_samples_per_class: 5
     pretrained: true

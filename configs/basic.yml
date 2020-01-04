@@ -1,8 +1,9 @@
-task_trainer: "basic"
-hp: {}
-
-hp_for_datasets:
-  cub:
+all:
+  task_trainer: "basic"
+  hp: {}
+cub:
+  hp:
     pretrained: true
-  awa:
+awa:
+  hp:
     pretrained: false

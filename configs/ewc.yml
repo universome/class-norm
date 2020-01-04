@@ -1,14 +1,16 @@
-task_trainer: "ewc"
-hp:
-  fisher_keep_prob: 0.5
+all:
+  task_trainer: "ewc"
+  hp:
+    fisher_keep_prob: 0.5
 
-hp_for_datasets:
-  cub:
+cub:
+  hp:
     pretrained: true
     synaptic_strength: 10
     fisher_keep_prob: 0.5
     optim:
       kwargs: {lr: 0.03}
-  awa:
+awa:
+  hp:
     pretrained: false
     synaptic_strength: 100

@@ -1,11 +1,12 @@
-task_trainer: "mas"
+all:
+  task_trainer: "mas"
+  hp: {}
 
-hp: {}
-
-hp_for_datasets:
-  cub:
+cub:
+  hp:
     pretrained: true
     synaptic_strength: 0.1
-  awa:
+awa:
+  hp:
     pretrained: false
     synaptic_strength: 0.1
