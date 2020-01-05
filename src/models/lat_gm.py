@@ -12,14 +12,14 @@ class LatGM(nn.Module):
         super(LatGM, self).__init__()
 
         self.config = config
-        self.register_buffer('attrs', torch.tensor(attrs.tolist()))
+        self.register_buffer('attrs', torch.tensor(attrs).clone().detach())
 
         if attrs is None:
             self.classifier = ResnetClassifier(pretrained=config.get('pretrained'))
         else:
             self.classifier = ZSClassifier(attrs, pretrained=config.get('pretrained'))
 
-        if config.use_class_attrs_in_gen:
+        if config.use_attrs_in_gen:
             self.generator = FeatGenerator(config, attrs)
         else:
             self.generator = FeatGenerator(config)

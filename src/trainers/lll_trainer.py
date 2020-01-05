@@ -25,9 +25,9 @@ from src.trainers.ewc_task_trainer import EWCTaskTrainer
 from src.trainers.mas_task_trainer import MASTaskTrainer
 from src.trainers.mergazsl_task_trainer import MeRGAZSLTaskTrainer
 from src.trainers.joint_task_trainer import JointTaskTrainer
-from src.trainers.genmem_vae_task_trainer import GenMemVAETaskTrainer
 from src.trainers.genmem_gan_task_trainer import GenMemGANTaskTrainer
 from src.trainers.lat_gm_task_trainer import LatGMTaskTrainer
+from src.trainers.lat_gm_vae_task_trainer import LatGMVAETaskTrainer
 
 from src.utils.data_utils import construct_output_mask
 
@@ -73,6 +73,8 @@ class LLLTrainer(BaseTrainer):
                 self.model = FeatVAEClassifier(self.config.hp.model_config, self.class_attributes)
             elif self.config.hp.model_type == 'lat_gm':
                 self.model = LatGM(self.config.hp.model_config, self.class_attributes)
+            elif self.config.hp.model_type == 'lat_gm_vae':
+                self.model = LatGMVAE(self.config.hp.model_config, self.class_attributes)
             else:
                 raise NotImplementedError(f'Unknown model type {self.config.hp.model_type}')
         else:
@@ -80,8 +82,6 @@ class LLLTrainer(BaseTrainer):
                 self.model = ResnetClassifier(self.config.data.num_classes, pretrained=self.config.hp.pretrained)
             elif self.config.hp.model_type == 'genmem_gan':
                 self.model = GAN(self.config.hp.model_config)
-            elif self.config.hp.model_type == 'lat_gm':
-                self.model = LatGM(self.config.hp.model_config)
             else:
                 raise NotImplementedError(f'Unkown model type to use without attrs: {self.config.hp.model_type}')
 
@@ -95,7 +95,8 @@ class LLLTrainer(BaseTrainer):
                 'feat_gan_classifier',
                 'feat_vae_classifier',
                 'genmem_gan',
-                'lat_gm'):
+                'lat_gm',
+                'lat_gm_vae'):
             self.optim = {} # We'll set this later in task trainer
         else:
             raise NotImplementedError(f'Unknown model type {self.config.hp.model_type}')
@@ -232,7 +233,7 @@ class LLLTrainer(BaseTrainer):
         elif self.config.task_trainer == 'joint':
             return JointTaskTrainer(self, task_idx)
         elif self.config.task_trainer == 'genmem_vae':
-            return GenMemVAETaskTrainer(self, task_idx)
+            return LatGMVAETaskTrainer(self, task_idx)
         elif self.config.task_trainer == 'genmem_gan':
             return GenMemGANTaskTrainer(self, task_idx)
         elif self.config.task_trainer == 'lat_gm':

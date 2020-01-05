@@ -97,7 +97,7 @@ def is_float(value:Any) -> bool:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Running LLL trainer')
-    parser.add_argument('-d', '--dataset', default='awa', type=str, help='Dataset')
+    parser.add_argument('-d', '--dataset', default='cub', type=str, help='Dataset')
     parser.add_argument('-s', '--random_seed', type=int, default=DEFAULT_RANDOM_SEED, help='Random seed to fix')
     parser.add_argument('-c', '--config_name', type=str, default='lat_gm', help='Which config to run?')
     parser.add_argument('-n', '--num_runs', type=int, default=1, help='How many times we should run the experiment?')

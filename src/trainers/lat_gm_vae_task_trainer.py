@@ -15,7 +15,7 @@ from src.models.feat_vae import FeatVAEClassifier
 from src.dataloaders.utils import extract_features
 
 
-class GenMemVAETaskTrainer(TaskTrainer):
+class LatGMVAETaskTrainer(TaskTrainer):
     """
     Training generative memory until it overfits completely on each task
     """

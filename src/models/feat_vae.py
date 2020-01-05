@@ -6,7 +6,7 @@ import torch.nn as nn
 from torch import Tensor
 from firelab.config import Config
 
-from src.models.classifier import FeatClassifier, ResnetEmbedder
+from src.models.classifier import ZSClassifier
 
 
 class FeatVAEClassifier(nn.Module):
@@ -14,9 +14,8 @@ class FeatVAEClassifier(nn.Module):
         super(FeatVAEClassifier, self).__init__()
 
         self.config = config
-        self.classifier = FeatClassifier(config, attrs)
-        self.vae = FeatCVAE(config)
-        self.feat_extractor = ResnetEmbedder(pretrained=False)
+        self.vae = FeatCVAE(config, attrs)
+        self.classifier = ZSClassifier(pretrained=self.config.hp.model_config.get('pretrained'))
 
     def forward(self, x: Tensor):
         f = self.feat_extractor(x)

@@ -19,6 +19,11 @@ class ZSClassifier(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         img_feats = self.embedder(x)
+        logits = self.run_head(self.embedder(x))
+
+        return logits
+
+    def run_head(self, img_feats: Tensor) -> Tensor:
         attrs_feats = self.attr_emb(self.attrs)
         logits = torch.mm(img_feats, attrs_feats.t()) + self.biases
 

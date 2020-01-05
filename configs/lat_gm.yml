@@ -12,7 +12,7 @@ all:
             emb_dim: 512
             num_img_channels: 3
             attr_output_dim: 512
-            use_class_attrs_in_gen: true
+            use_attrs_in_gen: true
 
         gen_optim:
             type: "adam"
@@ -32,12 +32,21 @@ all:
         batch_size: 64
         cls_loss_coef_discr: 1.
         cls_loss_coef_gen: 1.
-        distill_batch_size: 100
+        distill_batch_size: 400
 
         # Regularizing feature extractor
         synaptic_strength: 0.01
         fisher_keep_prob: 0.5
         reg_strategy: "ewc"
+
+        # Creativity losses
+        creativity:
+            enabled: true
+            start_iter: -1
+            hall_batch_size: 300
+            adv_coef: 0.01
+            entropy_coef: 0.01
+
 
 cub:
     hp:
