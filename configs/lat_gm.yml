@@ -1,7 +1,6 @@
 all:
     task_trainer: "lat_gm"
     hp:
-        synaptic_strength: 0.01
         model_type: "lat_gm"
         use_class_attrs: true
         use_cizsl_losses: false
@@ -35,16 +34,21 @@ all:
         cls_loss_coef_gen: 1.
         distill_batch_size: 100
 
+        # Regularizing feature extractor
+        synaptic_strength: 0.01
+        fisher_keep_prob: 0.5
+        reg_strategy: "ewc"
+
 cub:
     hp:
-        num_iters_per_task: 100
+        num_iters_per_task: 10
         model_config:
             num_classes: 200
             pretrained: true
 
 awa:
     hp:
-        num_iters_per_task: 1000
+        num_iters_per_task: 5000
         model_config:
             num_classes: 50
             pretrained: false

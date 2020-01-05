@@ -12,7 +12,7 @@ class LatGM(nn.Module):
         super(LatGM, self).__init__()
 
         self.config = config
-        self.register_buffer('attrs', torch.tensor(attrs))
+        self.register_buffer('attrs', torch.tensor(attrs.tolist()))
 
         if attrs is None:
             self.classifier = ResnetClassifier(pretrained=config.get('pretrained'))

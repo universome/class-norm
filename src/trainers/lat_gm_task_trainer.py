@@ -14,7 +14,7 @@ from src.utils.losses import compute_gradient_penalty
 from src.utils.lll import prune_logits
 from src.models.lat_gm import LatGM
 from src.trainers.task_trainer import TaskTrainer
-from src.utils.weights_importance import compute_mse_grad
+from src.utils.weights_importance import compute_mse_grad, compute_diagonal_fisher
 
 
 class LatGMTaskTrainer(TaskTrainer):
@@ -27,8 +27,15 @@ class LatGMTaskTrainer(TaskTrainer):
         self.writer = SummaryWriter(os.path.join(self.main_trainer.paths.logs_path, f'task_{self.task_idx}'), flush_secs=5)
 
         if not prev_trainer is None:
-            self.weights_prev = torch.cat([p.data.view(-1) for p in self.model.parameters()])
-            self.mse_grad = compute_mse_grad(self.model.classifier, self.train_dataloader, prev_trainer.output_mask)
+            self.weights_prev = torch.cat([p.data.view(-1) for p in self.model.classifier.parameters()])
+
+            if self.config.hp.reg_strategy == 'mas':
+                self.mse_grad = compute_mse_grad(self.model.classifier, self.train_dataloader, prev_trainer.output_mask)
+            elif self.config.hp.reg_strategy == 'ewc':
+                self.fisher = compute_diagonal_fisher(self.model.classifier, self.train_dataloader, prev_trainer.output_mask)
+            else:
+                raise NotImplementedError(f'Unknown regularization strategy: {self.config.hp.reg_strategy}')
+
 
     def construct_optimizer(self):
         return {
@@ -72,7 +79,7 @@ class LatGMTaskTrainer(TaskTrainer):
 
     def generator_step(self, y: Tensor):
         z = self.model.generator.sample_noise(y.size(0)).to(self.device_name)
-        x_fake = self.model.generator(z, self.model.attrs[y])
+        x_fake = self.model.generator(z, y)
         discr_logits_on_fake, cls_logits_on_fake = self.model.discriminator(x_fake)
 
         adv_loss = -discr_logits_on_fake.mean()
@@ -98,8 +105,8 @@ class LatGMTaskTrainer(TaskTrainer):
         y = np.array(self.previously_seen_classes).tile(num_samples_per_class)
         y = torch.tensor(y).to(self.device_name)
         z = self.model.generator.sample_noise(len(y)).to(self.device_name)
-        outputs_teacher = self.prev_model.generator(z, self.model[y]).view(len(y), -1)
-        outputs_student = self.model.generator(z, self.model[y]).view(len(y), -1)
+        outputs_teacher = self.prev_model.generator(z, y).view(len(y), -1)
+        outputs_student = self.model.generator(z, y).view(len(y), -1)
         loss = torch.norm(outputs_teacher - outputs_student, dim=1).pow(2).mean()
 
         return loss / len(self.seen_classes)
@@ -143,7 +150,38 @@ class LatGMTaskTrainer(TaskTrainer):
         self.optim['classifier'].step()
 
     def compute_classifier_reg(self) -> Tensor:
+        if self.config.hp.reg_strategy == 'mas':
+            return self.compute_classifier_mas_reg()
+        elif self.config.hp.reg_strategy == 'ewc':
+            return self.compute_classifier_ewc_reg()
+        else:
+            raise NotImplementedError(f'Unknown regularization strategy: {self.config.hp.reg_strategy}')
+
+    def compute_classifier_mas_reg(self) -> Tensor:
         weights_curr = torch.cat([p.view(-1) for p in self.model.classifier.embedder.parameters()])
         reg = torch.dot((weights_curr - self.weights_prev).pow(2), self.mse_grad)
 
         return reg
+
+    def compute_classifier_ewc_reg(self) -> Tensor:
+        head_size = self.model.classifier.get_head_size()
+        keep_prob = self.config.hp.get('fisher_keep_prob', 1.)
+        weights_curr = torch.cat([p.view(-1) for p in self.model.classifier.parameters()])
+
+        body_fisher = self.fisher[:-head_size]
+        body_weights_curr = weights_curr[:-head_size]
+        body_weights_prev = self.weights_prev[:-head_size]
+
+        if keep_prob < 1:
+            body_fisher = F.dropout(body_fisher, keep_prob)
+
+        reg = torch.dot((body_weights_curr - body_weights_prev).pow(2), body_fisher)
+
+        return reg
+
+    def creativity_loss(self) -> Tensor:
+        # Creativity loss is about making Classifier unsure about samples, generated from unseen attributes
+        # But these samples should seem real to Discriminator
+        alpha = torch.rand(self.config.hp.creativity.hall_batch_size).to(self.device_name)
+        alpha = 0.6 * alpha + 0.2 # Now it's random uniform on [0.2, 0.8]
+        y = random.choices(self.seen_classes)
