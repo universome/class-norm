@@ -135,4 +135,5 @@ dmypy.json
 data/
 experiments/
 .vscode/
+logs/
 
