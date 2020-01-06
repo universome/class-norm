@@ -19,12 +19,15 @@ class LatGM(nn.Module):
         else:
             self.classifier = ZSClassifier(attrs, pretrained=config.get('pretrained'))
 
-        if config.use_attrs_in_gen:
-            self.generator = FeatGenerator(config, attrs)
-        else:
-            self.generator = FeatGenerator(config)
+        self.init_gm()
 
-        self.discriminator = FeatDiscriminator(config)
+    def init_gm(self):
+        if self.config.use_attrs_in_gen:
+            self.generator = FeatGenerator(self.config, self.attrs.cpu().numpy())
+        else:
+            self.generator = FeatGenerator(self.config)
+
+        self.discriminator = FeatDiscriminator(self.config)
 
     def forward(self, *inputs) -> Tensor:
         return self.classifier(*inputs)

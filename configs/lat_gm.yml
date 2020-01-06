@@ -3,10 +3,9 @@ all:
     hp:
         model_type: "lat_gm"
         use_class_attrs: true
-        use_cizsl_losses: false
 
         model_config:
-            z_dim: 128
+            z_dim: 256
             hid_dim: 1024
             feat_dim: 512
             emb_dim: 512
@@ -32,7 +31,7 @@ all:
         batch_size: 64
         cls_loss_coef_discr: 1.
         cls_loss_coef_gen: 1.
-        distill_batch_size: 400
+        distill_batch_size: 500
 
         # Regularizing feature extractor
         synaptic_strength: 0.01

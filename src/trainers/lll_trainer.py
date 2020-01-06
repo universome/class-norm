@@ -14,6 +14,7 @@ from src.models.feat_gan_classifier import FeatGANClassifier
 from src.models.feat_vae import FeatVAEClassifier
 from src.models.gan import GAN
 from src.models.lat_gm import LatGM
+from src.models.lat_gm_vae import LatGMVAE
 
 from src.dataloaders.load_data import load_data
 from src.dataloaders.utils import imagenet_normalization
@@ -64,28 +65,31 @@ class LLLTrainer(BaseTrainer):
         self.writer.add_text('Config', config_yml, self.num_iters_done)
 
     def init_models(self):
+        self.model = self.create_model()
+
+    def create_model(self):
         if self.config.hp.get('use_class_attrs'):
             if self.config.hp.model_type == 'simple_classifier':
-                self.model = ZSClassifier(self.class_attributes, pretrained=self.config.hp.pretrained)
+                model = ZSClassifier(self.class_attributes, pretrained=self.config.hp.pretrained)
             elif self.config.hp.model_type == 'feat_gan_classifier':
-                self.model = FeatGANClassifier(self.config.hp.model_config, self.class_attributes)
+                model = FeatGANClassifier(self.config.hp.model_config, self.class_attributes)
             elif self.config.hp.model_type== 'feat_vae_classifier':
-                self.model = FeatVAEClassifier(self.config.hp.model_config, self.class_attributes)
+                model = FeatVAEClassifier(self.config.hp.model_config, self.class_attributes)
             elif self.config.hp.model_type == 'lat_gm':
-                self.model = LatGM(self.config.hp.model_config, self.class_attributes)
+                model = LatGM(self.config.hp.model_config, self.class_attributes)
             elif self.config.hp.model_type == 'lat_gm_vae':
-                self.model = LatGMVAE(self.config.hp.model_config, self.class_attributes)
+                model = LatGMVAE(self.config.hp.model_config, self.class_attributes)
             else:
                 raise NotImplementedError(f'Unknown model type {self.config.hp.model_type}')
         else:
             if self.config.hp.model_type == 'simple_classifier':
-                self.model = ResnetClassifier(self.config.data.num_classes, pretrained=self.config.hp.pretrained)
+                model = ResnetClassifier(self.config.data.num_classes, pretrained=self.config.hp.pretrained)
             elif self.config.hp.model_type == 'genmem_gan':
-                self.model = GAN(self.config.hp.model_config)
+                model = GAN(self.config.hp.model_config)
             else:
                 raise NotImplementedError(f'Unkown model type to use without attrs: {self.config.hp.model_type}')
 
-        self.model = self.model.to(self.device_name)
+        return model.to(self.device_name)
 
     def init_optimizers(self):
         if self.config.hp.model_type == 'simple_classifier':
@@ -232,12 +236,12 @@ class LLLTrainer(BaseTrainer):
             return MeRGAZSLTaskTrainer(self, task_idx)
         elif self.config.task_trainer == 'joint':
             return JointTaskTrainer(self, task_idx)
-        elif self.config.task_trainer == 'genmem_vae':
-            return LatGMVAETaskTrainer(self, task_idx)
         elif self.config.task_trainer == 'genmem_gan':
             return GenMemGANTaskTrainer(self, task_idx)
         elif self.config.task_trainer == 'lat_gm':
             return LatGMTaskTrainer(self, task_idx)
+        elif self.config.task_trainer == 'lat_gm_vae':
+            return LatGMVAETaskTrainer(self, task_idx)
         else:
             raise NotImplementedError(f'Unknown task trainer: {self.config.task_trainer}')
 

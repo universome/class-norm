@@ -18,10 +18,12 @@ from src.utils.weights_importance import compute_mse_grad, compute_diagonal_fish
 
 
 class LatGMTaskTrainer(TaskTrainer):
+    BaseModel = LatGM
+
     def _after_init_hook(self):
         prev_trainer = self.get_previous_trainer()
 
-        self.prev_model = LatGM(self.config.hp.model_config, self.model.attrs).to(self.device_name)
+        self.prev_model = self.BaseModel(self.config.hp.model_config, self.model.attrs).to(self.device_name)
         self.prev_model.load_state_dict(deepcopy(self.model.state_dict()))
         self.learned_classes = np.unique(self.main_trainer.class_splits[:self.task_idx]).tolist()
         self.seen_classes = np.unique(self.main_trainer.class_splits[:self.task_idx + 1]).tolist()
