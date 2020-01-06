@@ -40,11 +40,14 @@ def load_config(args: argparse.Namespace, config_cli_args: List[str]) -> Config:
     # Setting experiment-specific properties
     config.set('experiments_dir', 'experiments')
     config.set('random_seed', args.random_seed)
-    config.set('exp_name', f'{args.config_name}-{args.exp_name}-{config.random_seed}')
 
     # Overwriting with CLI arguments
     config_cli_args: Dict = process_cli_config_args(config_cli_args)
     config = config.overwrite(Config(config_cli_args))
+
+    config_cli_args_prefix = cli_config_args_to_exp_name(config_cli_args)
+    exp_name = f'{args.config_name}-{args.exp_name}-{args.dataset}-{config_cli_args_prefix}-{config.random_seed}'
+    config.set('exp_name', exp_name)
 
     return config
 
@@ -93,6 +96,10 @@ def is_float(value:Any) -> bool:
         return True
     except ValueError:
         return False
+
+
+def cli_config_args_to_exp_name(cli_config_args: Dict) -> str:
+    return '_'.join([f'{key}={value}' for key, value in cli_config_args.items()])
 
 
 if __name__ == '__main__':
