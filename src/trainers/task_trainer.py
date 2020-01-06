@@ -13,7 +13,12 @@ class TaskTrainer:
         self.task_idx = task_idx
         self.main_trainer = main_trainer
         self.config = main_trainer.config
-        self.model = main_trainer.model
+
+        if self.config.hp.get('reinit_after_each_task'):
+            self.model = main_trainer.create_model()
+        else:
+            self.model = main_trainer.model
+
         self.device_name = main_trainer.device_name
         self.criterion = nn.CrossEntropyLoss()
         self.writer = main_trainer.writer
@@ -29,8 +34,10 @@ class TaskTrainer:
         self._after_init_hook()
 
     def construct_optimizer(self):
-        return optim.Adam(self.model.parameters(), **self.config.hp.optim.kwargs.to_dict())
-        # return optim.SGD(self.model.parameters(), **self.config.hp.optim.kwargs.to_dict())
+        if self.config.hp.get('optim.type') == 'sgd':
+            return optim.SGD(self.model.parameters(), **self.config.hp.optim.kwargs.to_dict())
+        else:
+            return optim.Adam(self.model.parameters(), **self.config.hp.optim.kwargs.to_dict())
 
     def init_dataloaders(self):
         self.train_dataloader = DataLoader(self.task_ds_train, batch_size=self.config.hp.batch_size, collate_fn=lambda b: list(zip(*b)))

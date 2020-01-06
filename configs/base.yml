@@ -15,6 +15,7 @@ base:
     batch_size: 10
     model_type: "simple_classifier"
     optim:
+      type: "sgd"
       kwargs: {lr: 0.001}
 
 datasets:

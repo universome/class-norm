@@ -1,10 +1,16 @@
 all:
   task_trainer: "joint"
-  hp: {}
+  hp:
+    optim:
+      type: "adam"
+      kwargs: {lr: 0.001}
+    reinit_after_each_task: true
 
 cub:
   hp:
+    max_num_epochs: 20
     pretrained: true
 awa:
   hp:
+    max_num_epochs: 20
     pretrained: false
