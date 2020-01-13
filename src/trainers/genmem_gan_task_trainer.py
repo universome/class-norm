@@ -14,16 +14,21 @@ from tqdm import tqdm
 from src.utils.losses import compute_gradient_penalty
 from src.utils.lll import prune_logits
 from src.models.gan import GAN
-from .task_trainer import TaskTrainer
+from src.models.gan_64x64 import GAN64x64
+from src.trainers.task_trainer import TaskTrainer
+from src.utils.plotting import plot_samples
 
 
 class GenMemGANTaskTrainer(TaskTrainer):
     def _after_init_hook(self):
-        assert self.config.hp.model_type == 'genmem_gan'
+        assert self.config.hp.model_type in ['genmem_gan', 'genmem_gan_64x64']
 
-        self.prev_model = GAN(self.config.hp.model_config).to(self.device_name)
+        ModelClass = GAN if self.config.hp.model_type == 'genmem_gan' else GAN64x64
+
+        self.prev_model = ModelClass(self.config.hp.model_config).to(self.device_name)
         self.prev_model.load_state_dict(deepcopy(self.model.state_dict()))
-        self.seen_classes = np.unique(self.main_trainer.class_splits[:self.task_idx]).tolist()
+        self.learnt_classes = np.unique(self.main_trainer.class_splits[:self.task_idx]).tolist()
+        self.seen_classes = np.unique(self.main_trainer.class_splits[:self.task_idx + 1]).tolist()
         self.writer = SummaryWriter(os.path.join(self.main_trainer.paths.logs_path, f'task_{self.task_idx}'), flush_secs=5)
 
         if self.task_idx > 0:
@@ -61,7 +66,7 @@ class GenMemGANTaskTrainer(TaskTrainer):
         logits_on_fake, _ = self.model.discriminator(x_fake)
 
         adv_loss = -logits_on_real.mean() + logits_on_fake.mean()
-        grad_penalty = compute_gradient_penalty(self.model.discriminator.run_discr_head, x, x_fake)
+        grad_penalty = compute_gradient_penalty(self.model.discriminator.run_adv_head, x, x_fake)
         cls_loss = F.cross_entropy(cls_logits_on_real, y)
         discr_loss_total = adv_loss \
                            + self.config.hp.gp_coef * grad_penalty \
@@ -99,17 +104,17 @@ class GenMemGANTaskTrainer(TaskTrainer):
         self.writer.add_scalar(f'gen/distillation_loss', distillation_loss.item(), self.num_iters_done)
 
     def knowledge_distillation_loss(self) -> Tensor:
-        if len(self.seen_classes) == 0: return torch.tensor(0.)
+        if len(self.learnt_classes) == 0: return torch.tensor(0.)
 
-        num_samples_per_class = self.config.hp.distill_batch_size // len(self.seen_classes)
-        y = np.array(self.previously_seen_classes).tile(num_samples_per_class)
+        num_samples_per_class = self.config.hp.distill_batch_size // len(self.learnt_classes)
+        y = np.tile(self.learnt_classes, num_samples_per_class)
         y = torch.tensor(y).to(self.device_name)
         z = self.model.generator.sample_noise(len(y)).to(self.device_name)
         outputs_teacher = self.prev_model.generator(z, y).view(len(y), -1)
         outputs_student = self.model.generator(z, y).view(len(y), -1)
         loss = torch.norm(outputs_teacher - outputs_student, dim=1).pow(2).mean()
 
-        return loss / len(self.seen_classes)
+        return loss / len(self.learnt_classes)
 
     def start(self):
         self._before_train_hook()
@@ -117,19 +122,20 @@ class GenMemGANTaskTrainer(TaskTrainer):
         assert self.is_trainable, "We do not have enough conditions to train this Task Trainer" \
                                   "(for example, previous trainers was not finished or this trainer was already run)"
 
-        for i in tqdm(range(self.config.hp.num_iters_per_class), desc=f'Task #{self.task_idx} iteration'):
+        for i in tqdm(range(self.config.hp.num_iters_per_task), desc=f'Task #{self.task_idx} iteration'):
             batch = self.sample_train_batch()
             self.train_on_batch(batch)
             self.num_iters_done += 1
             self.run_after_iter_done_callbacks()
 
             if self.config.has('plotting') and i % self.config.plotting.samples_freq == 0:
-                plot_samples()
+                plot_samples(self)
 
         self._after_train_hook()
 
     def sample_train_batch(self) -> Tuple[np.ndarray, np.ndarray]:
-        idx = random.sample(range(len(self.task_ds_train)), self.config.hp.batch_size)
+        batch_size = min(self.config.hp.batch_size, len(self.task_ds_train))
+        idx = random.sample(range(len(self.task_ds_train)), batch_size)
         x, y = zip(*[self.task_ds_train[i] for i in idx])
 
         return x, y

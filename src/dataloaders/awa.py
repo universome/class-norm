@@ -21,6 +21,8 @@ def load_dataset(data_dir: PathLike, split: str='train', target_shape=(224, 224)
     # chosen_idx = random.sample(chosen_idx, 500)
     # img_paths = [img_paths[i] for i in chosen_idx]
     # labels = [labels[i] for i in chosen_idx]
+    # img_paths = img_paths[:8]
+    # labels = [0, 1, 2, 3] * 2
 
     imgs = load_imgs(data_dir, img_paths, target_shape)
     imgs = preprocess_imgs(imgs)

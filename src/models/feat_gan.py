@@ -94,7 +94,7 @@ class FeatDiscriminatorWithClfHead(nn.Module):
 
         return discr_logits, cls_logits
 
-    def run_discr_head(self, x: Tensor) -> Tensor:
+    def run_adv_head(self, x: Tensor) -> Tensor:
         return self.discr_head(self.body(x))
 
     def run_cls_head(self, x: Tensor) -> Tensor:

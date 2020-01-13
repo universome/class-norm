@@ -13,6 +13,7 @@ from src.models.classifier import ZSClassifier, ResnetClassifier
 from src.models.feat_gan_classifier import FeatGANClassifier
 from src.models.feat_vae import FeatVAEClassifier
 from src.models.gan import GAN
+from src.models.gan_64x64 import GAN64x64
 from src.models.lat_gm import LatGM
 from src.models.lat_gm_vae import LatGMVAE
 
@@ -30,7 +31,7 @@ from src.trainers.genmem_gan_task_trainer import GenMemGANTaskTrainer
 from src.trainers.lat_gm_task_trainer import LatGMTaskTrainer
 from src.trainers.lat_gm_vae_task_trainer import LatGMVAETaskTrainer
 
-from src.utils.data_utils import construct_output_mask
+from src.utils.data_utils import construct_output_mask, filter_out_classes
 
 from src.utils.metrics import (
     compute_average_accuracy,
@@ -86,6 +87,8 @@ class LLLTrainer(BaseTrainer):
                 model = ResnetClassifier(self.config.data.num_classes, pretrained=self.config.hp.pretrained)
             elif self.config.hp.model_type == 'genmem_gan':
                 model = GAN(self.config.hp.model_config)
+            elif self.config.hp.model_type == 'genmem_gan_64x64':
+                model = GAN64x64(self.config.hp.model_config)
             else:
                 raise NotImplementedError(f'Unkown model type to use without attrs: {self.config.hp.model_type}')
 
@@ -99,6 +102,7 @@ class LLLTrainer(BaseTrainer):
                 'feat_gan_classifier',
                 'feat_vae_classifier',
                 'genmem_gan',
+                'genmem_gan_64x64',
                 'lat_gm',
                 'lat_gm_vae'):
             self.optim = {} # We'll set this later in task trainer
@@ -108,13 +112,18 @@ class LLLTrainer(BaseTrainer):
     def init_dataloaders(self):
         self.ds_train, self.ds_test, self.class_attributes = load_data(
             self.config.data, self.config.hp.get('img_target_shape'), self.config.hp.get('embed_data', False))
+
+        if self.config.data.has('classes_to_use'):
+            self.ds_train = filter_out_classes(self.ds_train, self.config.data.classes_to_use)
+            self.ds_test = filter_out_classes(self.ds_test, self.config.data.classes_to_use)
+
         self.class_splits = split_classes_for_tasks(
             self.config.data.num_classes, self.config.data.num_tasks,
             self.config.data.num_classes_per_task, self.config.data.get('num_reserved_classes', 0))
         self.data_splits = get_train_test_data_splits(self.class_splits, self.ds_train, self.ds_test)
 
-        for task_idx, split in enumerate(self.class_splits):
-            print(f'[Task {task_idx}]:', self.class_splits[task_idx].tolist())
+        for task_idx, task_classes in enumerate(self.class_splits):
+            print(f'[Task {task_idx}]:', task_classes.tolist())
 
     def measure_task_trainer_lca(self, task_trainer: "TaskTrainer"):
         if self.config.get('metrics.lca_num_batches', -1) >= task_trainer.num_iters_done:

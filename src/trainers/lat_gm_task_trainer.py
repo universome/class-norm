@@ -9,6 +9,7 @@ import torch.nn.functional as F
 from torch import Tensor
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
+from firelab.config import Config
 
 from src.utils.losses import compute_gradient_penalty
 from src.utils.lll import prune_logits
@@ -39,12 +40,11 @@ class LatGMTaskTrainer(TaskTrainer):
             else:
                 raise NotImplementedError(f'Unknown regularization strategy: {self.config.hp.reg_strategy}')
 
-
     def construct_optimizer(self):
         return {
-            'generator': torch.optim.Adam(self.model.generator.parameters(), **self.config.hp.gen_optim.kwargs.to_dict()),
-            'discriminator': torch.optim.Adam(self.model.discriminator.parameters(), **self.config.hp.discr_optim.kwargs.to_dict()),
-            'classifier': torch.optim.Adam(self.model.classifier.parameters(), **self.config.hp.discr_optim.kwargs.to_dict())
+            'generator': self.construct_optimizer_from_config(self.model.generator.parameters(), self.config.hp.gen_optim),
+            'discriminator': self.construct_optimizer_from_config(self.model.discriminator.parameters(), self.config.hp.discr_optim),
+            'classifier': self.construct_optimizer_from_config(self.model.classifier.parameters(), self.config.hp.clf_optim),
         }
 
     def train_on_batch(self, batch: Tuple[np.ndarray, np.ndarray]):

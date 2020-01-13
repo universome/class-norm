@@ -45,3 +45,26 @@ cub:
     num_iters_per_task: 120000
     model_config:
       num_classes: 200
+
+awa:
+  data:
+    classes_to_use: [0, 1, 2, 3]
+    num_classes: 4
+    num_classes_per_task: 1
+    num_tasks: 4
+
+  plotting:
+    # samples_freq: 5
+    samples_freq: 10000
+    num_samples_per_class: 5
+
+  hp:
+    img_target_shape: [64, 64]
+    # num_iters_per_task: 10
+    num_iters_per_task: 120000
+
+    model_type: "genmem_gan_64x64"
+    model_config:
+      num_classes: 4
+      emb_dim: 256
+      z_dim: 128

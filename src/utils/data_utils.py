@@ -77,3 +77,8 @@ def compute_class_centroids(dataset: List[Tuple[np.ndarray, int]], total_num_cla
     centroids[unique_labels] = [np.mean([x for x, y in dataset if y == l], axis=0) for l in unique_labels] # TODO: this can be done much faster
 
     return centroids
+
+
+def filter_out_classes(ds: List[Tuple[np.ndarray, int]], classes_to_keep: List[int]) -> List[Tuple[np.ndarray, int]]:
+    """Removes datapoints with classes that are not in `classes_to_keep` list"""
+    return [(x, y) for x, y in ds if y in classes_to_keep]

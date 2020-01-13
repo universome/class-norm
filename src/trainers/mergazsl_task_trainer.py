@@ -22,7 +22,7 @@ class MeRGAZSLTaskTrainer(TaskTrainer):
         self.class_centroids = compute_class_centroids(self.task_ds_train, self.config.data.num_classes)
         self.prev_model = deepcopy(self.model).to(self.device_name).eval()
         self.current_classes = self.main_trainer.class_splits[self.task_idx]
-        self.previously_seen_classes = np.unique(self.main_trainer.class_splits[:self.task_idx]).tolist()
+        self.learnt_classes = np.unique(self.main_trainer.class_splits[:self.task_idx]).tolist()
         self.seen_classes = np.unique(self.main_trainer.class_splits[:self.task_idx + 1]).tolist()
         self.writer = SummaryWriter(os.path.join(self.main_trainer.paths.logs_path, f'task_{self.task_idx}'))
 
@@ -117,7 +117,7 @@ class MeRGAZSLTaskTrainer(TaskTrainer):
 
     def knowledge_distillation_step(self):
         z = self.model.generator.sample_noise(self.config.hp.model_config.distill_batch_size).to(self.device_name)
-        y = np.random.choice(self.previously_seen_classes, size=self.config.hp.model_config.distill_batch_size)
+        y = np.random.choice(self.learnt_classes, size=self.config.hp.model_config.distill_batch_size)
         x_fake_teacher = self.prev_model.generator(z, self.model.attrs[y])
         x_fake_student = self.model.generator(z, self.model.attrs[y])
         loss = self.config.hp.model_config.model_distill_coef * (x_fake_teacher - x_fake_student).norm()

@@ -112,5 +112,5 @@ class Discriminator(nn.Module):
 
         return discr_out, cls_out
 
-    def run_discr_head(self, x: Tensor) -> Tensor:
+    def run_adv_head(self, x: Tensor) -> Tensor:
         return self.discr_head(self.feat_extractor(x))
