@@ -4,6 +4,7 @@ from torch import optim
 from torch.utils.data import DataLoader
 import numpy as np
 from tqdm import tqdm
+from firelab.config import Config
 
 from src.utils.data_utils import construct_output_mask
 
@@ -34,10 +35,15 @@ class TaskTrainer:
         self._after_init_hook()
 
     def construct_optimizer(self):
-        if self.config.hp.get('optim.type') == 'sgd':
-            return optim.SGD(self.model.parameters(), **self.config.hp.optim.kwargs.to_dict())
+        return self.construct_optimizer_from_config(self.model.parameters(), self.config.hp.optim)
+
+    def construct_optimizer_from_config(self, parameters, optim_config: Config):
+        if optim_config.type == 'sgd':
+            return torch.optim.SGD(parameters, **optim_config.kwargs.to_dict())
+        elif optim_config.type == 'adam':
+            return torch.optim.Adam(parameters, **optim_config.kwargs.to_dict())
         else:
-            return optim.Adam(self.model.parameters(), **self.config.hp.optim.kwargs.to_dict())
+            raise NotImplementedError(f'Unkown optimizer: {optim_config.type}')
 
     def init_dataloaders(self):
         self.train_dataloader = DataLoader(self.task_ds_train, batch_size=self.config.hp.batch_size, collate_fn=lambda b: list(zip(*b)))

@@ -14,16 +14,16 @@ all:
             use_attrs_in_gen: true
 
         gen_optim:
-            type: "adam"
+            type: "sgd"
             kwargs: {lr: 0.0001, betas: [0.0, 0.9]}
 
         discr_optim:
-            type: "adam"
+            type: "sgd"
             kwargs: {lr: 0.0001, betas: [0.0, 0.9]}
 
-        classifier_optim:
-            type: "adam"
-            kwargs: {lr: 0.0001, betas: [0.0, 0.9]}
+        clf_optim:
+            type: "sgd"
+            kwargs: {lr: 0.001}
 
         num_discr_steps_per_gen_step: 5
         gp_coef: 10
