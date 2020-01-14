@@ -167,9 +167,9 @@ def compute_ausuc_matrix(logits_history: np.ndarray, targets: List[int], class_s
     return np.array(ausuc_matrix)
 
 
-def compute_individual_zst_accs_matrix(logits_history: np.ndarray, targets: List[int], class_splits: np.ndarray) -> np.ndarray:
+def compute_individual_accs_matrix(logits_history: np.ndarray, targets: List[int], class_splits: np.ndarray) -> np.ndarray:
     """
-    Computes accuracy matrix for each task before each task.
+    Computes accuracy for each task for each timestep.
     You would like to use np.triu or np.triu_indices to get zero-shot accuracies
 
     :param logits_history: history of model logits, evaluated BEFORE each task,
@@ -182,6 +182,24 @@ def compute_individual_zst_accs_matrix(logits_history: np.ndarray, targets: List
 
     # TODO: actually, we do a lot of computations that can be cached here :|
     return np.array([[compute_acc_for_classes(l, targets, cs) for cs in class_splits] for l in logits_history])
+
+
+def compute_task_transfer_matrix(logits_history: np.ndarray, targets: List[int], class_splits: np.ndarray) -> np.ndarray:
+    """
+    Task transfer matrix is a matrix of accuracy differences in each task.
+    It depicts changes in performance for each task at each timestep.
+
+    :param logits_history: history of model logits, evaluated at moments 0, 1, ..., T,
+                           i.e. matrix of size [(NUM_TASKS + 1) x DATASET_SIZE x NUM_CLASSES]
+    :param targets: targets for the objects of size [DATASET_SIZE]
+    :param class_splits: list of classes for each task of size [NUM_TASKS x NUM_CLASSES_PER_TASK]
+
+    :return: task transfer matrix of size NUM_TASKS x NUM_TASKS
+    """
+    accs_before = compute_individual_accs_matrix(logits_history[:-1], targets, class_splits)
+    accs_after = compute_individual_accs_matrix(logits_history[1:], targets, class_splits)
+
+    return accs_after - accs_before
 
 
 def compute_unseen_classes_acc_history(logits_history: List[List[List[float]]], targets: List[int],
@@ -220,6 +238,7 @@ def compute_seen_classes_acc_history(logits_history: List[List[List[float]]], ta
     accs = [compute_acc_for_classes(l, targets, cs, restrict_space) for l, cs in zip(logits_history, seen_classes)]
 
     return accs
+
 
 def compute_joined_ausuc_history(logits_history: List[List[List[float]]], targets: List[int],
                                  class_splits: List[List[int]]) -> List[float]:
