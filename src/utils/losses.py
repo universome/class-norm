@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 from torch import Tensor, autograd
 
 
@@ -39,3 +40,27 @@ def compute_kld_between_diagonal_gaussians(mean_a: Tensor, log_var_a: Tensor, me
     kld = 0.5 * (var_term + quadr_term - k + log_var_term)
 
     return kld.mean()
+
+
+class LabelSmoothingLoss(nn.Module):
+    """
+    Label smoothing by @PistonY
+    https://github.com/pytorch/pytorch/issues/7455#issuecomment-513062631
+    """
+    def __init__(self, num_classes: int, smoothing_coef=0.0, dim=-1):
+        super(LabelSmoothingLoss, self).__init__()
+
+        self.confidence = 1.0 - smoothing_coef
+        self.smoothing_coef = smoothing_coef
+        self.num_classes = num_classes
+        self.dim = dim
+
+    def forward(self, logits, target):
+        logits = logits.log_softmax(dim=self.dim)
+
+        with torch.no_grad():
+            true_dist = torch.zeros_like(logits)
+            true_dist.fill_(self.smoothing_coef / (self.num_classes - 1))
+            true_dist.scatter_(1, target.data.unsqueeze(1), self.confidence)
+
+        return torch.mean(torch.sum(-true_dist * logits, dim=self.dim))
