@@ -45,7 +45,7 @@ class LatGMTaskTrainer(TaskTrainer):
         return {
             'generator': self.construct_optimizer_from_config(self.model.generator.parameters(), self.config.hp.gen_optim),
             'discriminator': self.construct_optimizer_from_config(self.model.discriminator.parameters(), self.config.hp.discr_optim),
-            'classifier': self.construct_optimizer_from_config(self.model.embedder.parameters(), self.config.hp.clf_optim),
+            'embedder': self.construct_optimizer_from_config(self.model.embedder.parameters(), self.config.hp.clf_optim),
         }
 
     def start(self):
@@ -54,7 +54,7 @@ class LatGMTaskTrainer(TaskTrainer):
         assert self.is_trainable, "We do not have enough conditions to train this Task Trainer" \
                                   "(for example, previous trainers was not finished or this trainer was already run)"
 
-        for i in tqdm(range(self.config.hp.num_iters_per_task), desc=f'Task #{self.task_idx} iteration'):
+        for _ in tqdm(range(self.config.hp.num_iters_per_task), desc=f'Task #{self.task_idx} iteration'):
             batch = self.sample_train_batch()
             self.train_on_batch(batch)
             self.num_iters_done += 1
@@ -62,17 +62,24 @@ class LatGMTaskTrainer(TaskTrainer):
 
         self._after_train_hook()
 
+    def sample_train_batch(self) -> Tuple[np.ndarray, np.ndarray]:
+        batch_size = min(len(self.task_ds_train), self.config.hp.batch_size)
+        idx = random.sample(range(len(self.task_ds_train)), batch_size)
+        x, y = zip(*[self.task_ds_train[i] for i in idx])
+
+        return x, y
+
     def train_on_batch(self, batch: Tuple[np.ndarray, np.ndarray]):
         self.model.train()
 
         x = torch.tensor(batch[0]).to(self.device_name)
         y = torch.tensor(batch[1]).to(self.device_name)
 
-        if self.num_iters_done % self.config.hp.num_discr_steps_per_gen_step == 0:
-            self.generator_step(y)
+        # if self.num_iters_done % self.config.hp.num_discr_steps_per_gen_step == 0:
+        #     self.generator_step(y)
 
-        if self.config.hp.get('creativity.enabled') and self.num_iters_done > self.config.hp.creativity.start_iter:
-            self.creativity_step()
+        # if self.config.hp.get('creativity.enabled') and self.num_iters_done > self.config.hp.creativity.start_iter:
+        #     self.creativity_step()
 
         self.discriminator_step(x, y)
         self.classifier_step(x, y)
@@ -83,12 +90,16 @@ class LatGMTaskTrainer(TaskTrainer):
             z = self.model.generator.sample_noise(imgs.size(0)).to(self.device_name)
             x_fake = self.model.generator(z, y) # TODO: try picking y randomly
 
-        adv_logits_on_real = self.model.discriminator.run_adv_head(x)
+        adv_logits_on_real, cls_logits_on_real = self.model.discriminator(x)
         adv_logits_on_fake = self.model.discriminator.run_adv_head(x_fake)
 
         adv_loss = -adv_logits_on_real.mean() + adv_logits_on_fake.mean()
+        cls_loss = F.cross_entropy(prune_logits(cls_logits_on_real, self.output_mask), y)
         grad_penalty = compute_gradient_penalty(self.model.discriminator.run_adv_head, x, x_fake)
-        discr_loss_total = adv_loss + self.config.hp.gp_coef * grad_penalty
+
+        discr_loss_total = adv_loss \
+            + self.config.hp.loss_coefs.gp * grad_penalty \
+            + self.config.hp.loss_coefs.discr_cls * cls_loss
 
         self.optim['discriminator'].zero_grad()
         discr_loss_total.backward()
@@ -111,8 +122,8 @@ class LatGMTaskTrainer(TaskTrainer):
         cls_acc = (pruned_logits_on_fake.argmax(dim=1) == y).float().mean().detach().cpu()
 
         total_loss = adv_loss \
-            + self.config.hp.distill_loss_coef * distillation_loss \
-            + self.config.hp.cls_loss_coef_gen * cls_loss
+            + self.config.hp.loss_coefs.distill * distillation_loss \
+            + self.config.hp.loss_coefs.gen_cls * cls_loss
 
         self.optim['generator'].zero_grad()
         total_loss.backward()
@@ -137,13 +148,6 @@ class LatGMTaskTrainer(TaskTrainer):
 
         return loss / len(self.learned_classes)
 
-    def sample_train_batch(self) -> Tuple[np.ndarray, np.ndarray]:
-        batch_size = min(len(self.task_ds_train), self.config.hp.batch_size)
-        idx = random.sample(range(len(self.task_ds_train)), batch_size)
-        x, y = zip(*[self.task_ds_train[i] for i in idx])
-
-        return x, y
-
     def classifier_step(self, x: Tensor, y: Tensor):
         pruned = self.model.compute_pruned_predictions(x, self.output_mask)
         loss = self.criterion(pruned, y)
@@ -153,9 +157,9 @@ class LatGMTaskTrainer(TaskTrainer):
             reg = self.compute_classifier_reg()
             loss += self.config.hp.synaptic_strength * reg
 
-        self.optim['classifier'].zero_grad()
+        self.optim['embedder'].zero_grad()
         loss.backward()
-        self.optim['classifier'].step()
+        self.optim['embedder'].step()
 
         self.writer.add_scalar('clf/loss', loss.item(), self.num_iters_done)
         self.writer.add_scalar('clf/acc', acc.item(), self.num_iters_done)

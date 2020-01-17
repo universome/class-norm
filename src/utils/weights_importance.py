@@ -64,7 +64,7 @@ def compute_grad(model: nn.Module, criterion: nn.Module, dataloader: DataLoader,
 
         model.zero_grad()
         loss.backward()
-        curr_grad = torch.cat([p.grad.data.view(-1) for p in model.parameters()])
+        curr_grad = torch.cat([get_grad(p).view(-1) for p in model.parameters()])
 
         if elementwise_grad_norm == 'square':
             curr_grad = curr_grad.pow(2)
@@ -77,3 +77,9 @@ def compute_grad(model: nn.Module, criterion: nn.Module, dataloader: DataLoader,
         num_samples += len(x)
 
     return grad / num_samples
+
+
+def get_grad(p: nn.Parameter) -> Tensor:
+    if p.grad is None: return torch.zeros_like(p)
+
+    return p.grad.data
