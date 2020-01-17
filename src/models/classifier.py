@@ -68,20 +68,7 @@ class ResnetEmbedder(nn.Module):
         del self.resnet.fc # So it's not included in parameters
 
     def forward(self, x):
-        x = self.resnet.conv1(x)
-        x = self.resnet.bn1(x)
-        x = self.resnet.relu(x)
-        x = self.resnet.maxpool(x)
-
-        x = self.resnet.layer1(x)
-        x = self.resnet.layer2(x)
-        x = self.resnet.layer3(x)
-        x = self.resnet.layer4(x)
-
-        x = self.resnet.avgpool(x)
-        x = torch.flatten(x, 1)
-
-        return x
+        return resnet_embedder_forward(self.resnet, x)
 
 
 class FeatClassifier(nn.Module):
@@ -109,10 +96,7 @@ class FeatClassifier(nn.Module):
         return logits
 
     def compute_pruned_predictions(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
-        logits = self.forward(x)
-        pruned_logits = prune_logits(logits, output_mask)
-
-        return pruned_logits
+        return prune_logits(self.forward(x), output_mask)
 
 # class FeatClassifier(nn.Module):
 #     def __init__(self, config: Config, attrs: np.ndarray):
@@ -132,3 +116,22 @@ class FeatClassifier(nn.Module):
 #         pruned = prune_logits(logits, output_mask)
 #
 #         return pruned
+
+def resnet_embedder_forward(resnet: nn.Module, x: Tensor) -> Tensor:
+    """
+    Runs embedder part of a resnet model
+    """
+    x = resnet.conv1(x)
+    x = resnet.bn1(x)
+    x = resnet.relu(x)
+    x = resnet.maxpool(x)
+
+    x = resnet.layer1(x)
+    x = resnet.layer2(x)
+    x = resnet.layer3(x)
+    x = resnet.layer4(x)
+
+    x = resnet.avgpool(x)
+    x = torch.flatten(x, 1)
+
+    return x
