@@ -15,7 +15,7 @@ class FeatVAEClassifier(nn.Module):
 
         self.config = config
         self.vae = FeatVAE(config, attrs)
-        self.classifier = ZSClassifier(pretrained=self.config.hp.model_config.get('pretrained'))
+        self.classifier = ZSClassifier(pretrained=self.config.hp.model.get('pretrained'))
 
     def forward(self, x: Tensor):
         f = self.feat_extractor(x)

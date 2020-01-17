@@ -1,2 +1,5 @@
 POS_INF = float('inf')
 NEG_INF = float('-inf')
+
+RESNET_FEAT_DIM = {18: 512, 34: 512, 50: 2056}
+RESNET_CONV_FEAT_DIM = {18: 256, 34: 256, 50: 1024}

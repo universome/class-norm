@@ -70,35 +70,35 @@ class LLLTrainer(BaseTrainer):
 
     def create_model(self):
         if self.config.hp.get('use_class_attrs'):
-            if self.config.hp.model_type == 'simple_classifier':
+            if self.config.hp.model.type == 'simple_classifier':
                 model = ZSClassifier(self.class_attributes, pretrained=self.config.hp.pretrained)
-            elif self.config.hp.model_type == 'feat_gan_classifier':
-                model = FeatGANClassifier(self.config.hp.model_config, self.class_attributes)
-            elif self.config.hp.model_type== 'feat_vae_classifier':
-                model = FeatVAEClassifier(self.config.hp.model_config, self.class_attributes)
-            elif self.config.hp.model_type == 'lat_gm':
-                model = LatGM(self.config.hp.model_config, self.class_attributes)
-            elif self.config.hp.model_type == 'lat_gm_vae':
-                model = LatGMVAE(self.config.hp.model_config, self.class_attributes)
+            elif self.config.hp.model.type == 'feat_gan_classifier':
+                model = FeatGANClassifier(self.config.hp.model, self.class_attributes)
+            elif self.config.hp.model.type== 'feat_vae_classifier':
+                model = FeatVAEClassifier(self.config.hp.model, self.class_attributes)
+            elif self.config.hp.model.type == 'lat_gm':
+                model = LatGM(self.config.hp.model, self.class_attributes)
+            elif self.config.hp.model.type == 'lat_gm_vae':
+                model = LatGMVAE(self.config.hp.model, self.class_attributes)
             else:
-                raise NotImplementedError(f'Unknown model type {self.config.hp.model_type}')
+                raise NotImplementedError(f'Unknown model type {self.config.hp.model.type}')
         else:
-            if self.config.hp.model_type == 'simple_classifier':
+            if self.config.hp.model.type == 'simple_classifier':
                 model = ResnetClassifier(self.config.data.num_classes, pretrained=self.config.hp.pretrained)
-            elif self.config.hp.model_type == 'genmem_gan':
-                model = GAN(self.config.hp.model_config)
-            elif self.config.hp.model_type == 'genmem_gan_64x64':
-                model = GAN64x64(self.config.hp.model_config)
+            elif self.config.hp.model.type == 'genmem_gan':
+                model = GAN(self.config.hp.model)
+            elif self.config.hp.model.type == 'genmem_gan_64x64':
+                model = GAN64x64(self.config.hp.model)
             else:
-                raise NotImplementedError(f'Unkown model type to use without attrs: {self.config.hp.model_type}')
+                raise NotImplementedError(f'Unkown model type to use without attrs: {self.config.hp.model.type}')
 
         return model.to(self.device_name)
 
     def init_optimizers(self):
-        if self.config.hp.model_type == 'simple_classifier':
+        if self.config.hp.model.type == 'simple_classifier':
             # TODO: without momentum?!
             self.optim = torch.optim.Adam(self.model.parameters(), **self.config.hp.optim.kwargs.to_dict())
-        elif self.config.hp.model_type in (
+        elif self.config.hp.model.type in (
                 'feat_gan_classifier',
                 'feat_vae_classifier',
                 'genmem_gan',
@@ -107,7 +107,7 @@ class LLLTrainer(BaseTrainer):
                 'lat_gm_vae'):
             self.optim = {} # We'll set this later in task trainer
         else:
-            raise NotImplementedError(f'Unknown model type {self.config.hp.model_type}')
+            raise NotImplementedError(f'Unknown model type {self.config.hp.model.type}')
 
     def init_dataloaders(self):
         self.ds_train, self.ds_test, self.class_attributes = load_data(

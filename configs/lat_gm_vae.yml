@@ -6,8 +6,8 @@ all:
     vae_optim: {kwargs: {lr: 0.001, betas: [0.0, 0.9]}}
     clf_optim: {kwargs: {lr: 0.001, betas: [0.0, 0.9]}}
 
-    model_type: "lat_gm_vae"
-    model_config:
+    model:
+      type: "lat_gm_vae"
       use_attrs_in_vae: true
       z_dim: 512
       emb_dim: 512
@@ -29,10 +29,10 @@ all:
 cub:
   hp:
     num_iters_per_task: 10
-    model_config:
+    model:
       num_classes: 200
 awa:
   hp:
     num_iters_per_task: 5000
-    model_config:
+    model:
       num_classes: 50

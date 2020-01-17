@@ -13,6 +13,7 @@ from firelab.config import Config
 
 from src.utils.losses import compute_gradient_penalty
 from src.utils.lll import prune_logits
+from src.utils.model_utils import get_number_of_parameters
 from src.models.lat_gm import LatGM
 from src.trainers.task_trainer import TaskTrainer
 from src.utils.weights_importance import compute_mse_grad, compute_diagonal_fisher
@@ -24,19 +25,19 @@ class LatGMTaskTrainer(TaskTrainer):
     def _after_init_hook(self):
         prev_trainer = self.get_previous_trainer()
 
-        self.prev_model = self.BaseModel(self.config.hp.model_config, self.model.attrs).to(self.device_name)
+        self.prev_model = self.BaseModel(self.config.hp.model, self.model.attrs).to(self.device_name)
         self.prev_model.load_state_dict(deepcopy(self.model.state_dict()))
         self.learned_classes = np.unique(self.main_trainer.class_splits[:self.task_idx]).tolist()
         self.seen_classes = np.unique(self.main_trainer.class_splits[:self.task_idx + 1]).tolist()
         self.writer = SummaryWriter(os.path.join(self.main_trainer.paths.logs_path, f'task_{self.task_idx}'), flush_secs=5)
 
         if not prev_trainer is None:
-            self.weights_prev = torch.cat([p.data.view(-1) for p in self.model.classifier.parameters()])
+            self.weights_prev = torch.cat([p.data.view(-1) for p in self.model.embedder.parameters()])
 
             if self.config.hp.reg_strategy == 'mas':
-                self.mse_grad = compute_mse_grad(self.model.classifier, self.train_dataloader, prev_trainer.output_mask)
+                self.mse_grad = compute_mse_grad(self.model, self.train_dataloader, prev_trainer.output_mask)
             elif self.config.hp.reg_strategy == 'ewc':
-                self.fisher = compute_diagonal_fisher(self.model.classifier, self.train_dataloader, prev_trainer.output_mask)
+                self.fisher = compute_diagonal_fisher(self.model, self.train_dataloader, prev_trainer.output_mask)
             else:
                 raise NotImplementedError(f'Unknown regularization strategy: {self.config.hp.reg_strategy}')
 
@@ -44,8 +45,22 @@ class LatGMTaskTrainer(TaskTrainer):
         return {
             'generator': self.construct_optimizer_from_config(self.model.generator.parameters(), self.config.hp.gen_optim),
             'discriminator': self.construct_optimizer_from_config(self.model.discriminator.parameters(), self.config.hp.discr_optim),
-            'classifier': self.construct_optimizer_from_config(self.model.classifier.parameters(), self.config.hp.clf_optim),
+            'classifier': self.construct_optimizer_from_config(self.model.embedder.parameters(), self.config.hp.clf_optim),
         }
+
+    def start(self):
+        self._before_train_hook()
+
+        assert self.is_trainable, "We do not have enough conditions to train this Task Trainer" \
+                                  "(for example, previous trainers was not finished or this trainer was already run)"
+
+        for i in tqdm(range(self.config.hp.num_iters_per_task), desc=f'Task #{self.task_idx} iteration'):
+            batch = self.sample_train_batch()
+            self.train_on_batch(batch)
+            self.num_iters_done += 1
+            self.run_after_iter_done_callbacks()
+
+        self._after_train_hook()
 
     def train_on_batch(self, batch: Tuple[np.ndarray, np.ndarray]):
         self.model.train()
@@ -64,15 +79,15 @@ class LatGMTaskTrainer(TaskTrainer):
 
     def discriminator_step(self, imgs: Tensor, y: Tensor):
         with torch.no_grad():
+            x = self.model.embedder(imgs)
             z = self.model.generator.sample_noise(imgs.size(0)).to(self.device_name)
             x_fake = self.model.generator(z, y) # TODO: try picking y randomly
-            x = self.model.embed(imgs)
 
-        adv_logits_on_real = self.model.discriminator(x)
-        adv_logits_on_fake = self.model.discriminator(x_fake)
+        adv_logits_on_real = self.model.discriminator.run_adv_head(x)
+        adv_logits_on_fake = self.model.discriminator.run_adv_head(x_fake)
 
         adv_loss = -adv_logits_on_real.mean() + adv_logits_on_fake.mean()
-        grad_penalty = compute_gradient_penalty(self.model.discriminator, x, x_fake)
+        grad_penalty = compute_gradient_penalty(self.model.discriminator.run_adv_head, x, x_fake)
         discr_loss_total = adv_loss + self.config.hp.gp_coef * grad_penalty
 
         self.optim['discriminator'].zero_grad()
@@ -87,18 +102,17 @@ class LatGMTaskTrainer(TaskTrainer):
     def generator_step(self, y: Tensor):
         z = self.model.generator.sample_noise(y.size(0)).to(self.device_name)
         x_fake = self.model.generator(z, y)
-        discr_logits_on_fake = self.model.discriminator(x_fake)
-        cls_logits_on_fake = self.model.classifier.run_head(x_fake)
+        adv_logits_on_fake, cls_logits_on_fake = self.model.discriminator(x_fake)
         pruned_logits_on_fake = prune_logits(cls_logits_on_fake, self.output_mask)
 
-        adv_loss = -discr_logits_on_fake.mean()
+        adv_loss = -adv_logits_on_fake.mean()
         distillation_loss = self.knowledge_distillation_loss()
         cls_loss = F.cross_entropy(pruned_logits_on_fake, y)
         cls_acc = (pruned_logits_on_fake.argmax(dim=1) == y).float().mean().detach().cpu()
 
         total_loss = adv_loss \
-                        + self.config.hp.distill_loss_coef * distillation_loss \
-                        + self.config.hp.cls_loss_coef_gen * cls_loss
+            + self.config.hp.distill_loss_coef * distillation_loss \
+            + self.config.hp.cls_loss_coef_gen * cls_loss
 
         self.optim['generator'].zero_grad()
         total_loss.backward()
@@ -122,20 +136,6 @@ class LatGMTaskTrainer(TaskTrainer):
         loss = torch.norm(outputs_teacher - outputs_student, dim=1).pow(2).mean()
 
         return loss / len(self.learned_classes)
-
-    def start(self):
-        self._before_train_hook()
-
-        assert self.is_trainable, "We do not have enough conditions to train this Task Trainer" \
-                                  "(for example, previous trainers was not finished or this trainer was already run)"
-
-        for i in tqdm(range(self.config.hp.num_iters_per_task), desc=f'Task #{self.task_idx} iteration'):
-            batch = self.sample_train_batch()
-            self.train_on_batch(batch)
-            self.num_iters_done += 1
-            self.run_after_iter_done_callbacks()
-
-        self._after_train_hook()
 
     def sample_train_batch(self) -> Tuple[np.ndarray, np.ndarray]:
         batch_size = min(len(self.task_ds_train), self.config.hp.batch_size)
@@ -169,19 +169,19 @@ class LatGMTaskTrainer(TaskTrainer):
             raise NotImplementedError(f'Unknown regularization strategy: {self.config.hp.reg_strategy}')
 
     def compute_classifier_mas_reg(self) -> Tensor:
-        weights_curr = torch.cat([p.view(-1) for p in self.model.classifier.embedder.parameters()])
+        weights_curr = torch.cat([p.view(-1) for p in self.model.embedder.parameters()])
         reg = torch.dot((weights_curr - self.weights_prev).pow(2), self.mse_grad)
 
         return reg
 
     def compute_classifier_ewc_reg(self) -> Tensor:
-        head_size = self.model.classifier.get_head_size()
+        embedder_size = get_number_of_parameters(self.model.embedder)
         keep_prob = self.config.hp.get('fisher_keep_prob', 1.)
-        weights_curr = torch.cat([p.view(-1) for p in self.model.classifier.parameters()])
+        weights_curr = torch.cat([p.view(-1) for p in self.model.embedder.parameters()])
 
-        body_fisher = self.fisher[:-head_size]
-        body_weights_curr = weights_curr[:-head_size]
-        body_weights_prev = self.weights_prev[:-head_size]
+        body_fisher = self.fisher[:embedder_size]
+        body_weights_curr = weights_curr[:embedder_size]
+        body_weights_prev = self.weights_prev[:embedder_size]
 
         if keep_prob < 1:
             body_fisher = F.dropout(body_fisher, keep_prob)
@@ -216,11 +216,10 @@ class LatGMTaskTrainer(TaskTrainer):
 
         z = self.model.generator.sample_noise(len(hall_attrs)).to(self.device_name)
         hall_samples = self.model.generator.forward_with_attr(z, hall_attrs)
-        discr_logits = self.model.discriminator(hall_samples)
-        cls_logits = self.model.classifier.run_head(hall_samples)
-        cls_log_probs = F.log_softmax(cls_logits)
+        adv_logits, cls_logits = self.model.discriminator(hall_samples)
+        cls_log_probs = F.log_softmax(cls_logits, dim=1)
 
-        adv_loss = -discr_logits.mean()
+        adv_loss = -adv_logits.mean()
         entropy = (cls_log_probs.exp() @ cls_log_probs.t()).sum(dim=1).mean()
 
         loss = self.config.hp.creativity.adv_coef * adv_loss + self.config.hp.creativity.entropy_coef * entropy

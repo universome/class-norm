@@ -6,7 +6,7 @@ from firelab.config import Config
 
 from src.utils.constants import POS_INF
 from src.utils.lll import prune_logits
-from .feat_gan import FeatGenerator, FeatDiscriminator
+from .feat_gan import FeatGenerator, FeatDiscriminatorWithoutClsHead
 from .classifier import FeatClassifier
 
 
@@ -17,7 +17,7 @@ class FeatGANClassifier(nn.Module):
         self.config = config
         self.register_buffer('attrs', torch.tensor(attrs).float())
         self.generator = FeatGenerator(config, attrs)
-        self.discriminator = FeatDiscriminator(config)
+        self.discriminator = FeatDiscriminatorWithoutClsHead(config)
         self.classifier = FeatClassifier(config, attrs)
 
     def forward(self, x: Tensor) -> Tensor:

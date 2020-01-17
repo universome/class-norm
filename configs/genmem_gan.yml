@@ -1,10 +1,10 @@
 all:
   task_trainer: "genmem_gan"
   hp:
-    model_type: "genmem_gan"
     use_class_attrs: false
 
-    model_config:
+    model:
+      type: "genmem_gan"
       z_dim: 128
       gen_dim: 32
       discr_dim: 32
@@ -34,7 +34,7 @@ svhn:
   hp:
     img_target_shape: [32, 32]
     num_iters_per_task: 40000
-    model_config:
+    model:
       num_classes: 10
 
 cub:
@@ -42,8 +42,8 @@ cub:
     samples_freq: 10000
     num_samples_per_class: 5
   hp:
-    num_iters_per_task: 120000
-    model_config:
+    num_iters_per_task: 100000
+    model:
       num_classes: 200
 
 awa:
@@ -61,10 +61,10 @@ awa:
   hp:
     img_target_shape: [64, 64]
     # num_iters_per_task: 10
-    num_iters_per_task: 120000
+    num_iters_per_task: 100000
 
-    model_type: "genmem_gan_64x64"
-    model_config:
+    model:
+      type: "genmem_gan_64x64"
       num_classes: 4
       emb_dim: 256
       z_dim: 128

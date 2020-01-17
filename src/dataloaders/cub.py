@@ -1,25 +1,31 @@
 import os
 import pickle
 from os import PathLike
-from typing import List, Tuple
+from typing import List, Tuple, Callable
 
 import numpy as np
+from torch.utils.data import Dataset
 
 from .utils import read_column, shuffle_dataset, load_imgs, preprocess_imgs
 
 
-def load_dataset(data_dir: PathLike, is_train:bool=True, target_shape=(224, 224)) -> List[Tuple[np.ndarray, int]]:
+def load_dataset(
+        data_dir: PathLike,
+        is_train:bool=True,
+        target_shape: Tuple[int, int]=None,
+        preprocess: bool=True) -> List[Tuple[np.ndarray, int]]:
+
     filename = os.path.join(data_dir, 'images.txt')
     img_paths = read_column(filename, 1)
     train_test_split = load_train_test_split(data_dir)
     img_paths = [p for (p, train) in zip(img_paths, train_test_split) if train == is_train]
 
-    # import random
-    # img_paths = random.sample(img_paths, 100)
+    import random
+    img_paths = random.sample(img_paths, 100)
 
     imgs = load_imgs(os.path.join(data_dir, 'images'), img_paths, target_shape)
     labels = load_labels(img_paths)
-    imgs = preprocess_imgs(imgs)
+    if preprocess: imgs = preprocess_imgs(imgs)
     if is_train: imgs, labels = shuffle_dataset(imgs, labels)
 
     return list(zip(imgs, labels))
@@ -55,3 +61,21 @@ def load_class_attributes(data_dir: PathLike) -> np.ndarray:
         attrs = pickle.load(f, encoding='latin1')
 
     return attrs
+
+
+class CUB(Dataset):
+    def __init__(self, data_dir: str, train: bool=True, transform: Callable=None):
+        self.dataset = load_dataset(data_dir, is_train=train, preprocess=False)
+        self.transform = transform
+
+    def __getitem__(self, index):
+        x, y = self.dataset[index]
+        x = x.astype(np.uint8)
+
+        if not self.transform is None:
+            x = self.transform(x)
+
+        return x, y
+
+    def __len__(self) -> int:
+        return len(self.dataset)

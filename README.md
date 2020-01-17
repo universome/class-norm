@@ -15,6 +15,7 @@ Ideas:
 - We can generalize AUSUC to multi-task settings. Imagine we have not just Seen/Unseen groups, but Task 1, Task 2, ..., Task N groups. For each group we have a specified threshold t_i that we vary from -\infty to +\infty. As a result we get the surface in N-dimensional space, that should reflect the interconnection between all the tasks. The main problem is that we cannot compute it. And maybe this surface is diverging: imagine 3 tasks with 2 thresholds t_2 and t_3 to control the influence of Task 2 and Task 3. Then for t_3 = -\infty we have a normal AUSUC between Task 1 and Task 2.
 - Can we measure "inherent" zero-shot performance of the model? I.e. train it on all tasks except the final one. Than take the data of the final one and compute the logits for it. Is is possible to assign class labels to output neurons in such a way that accuracy is higher than random? We can drop a lot of weights like in some continuation of the LTH paper to increase the inherent performance.
 - Interpolate between using logits and using class attributes? This should show if it really helps to improve future transfer.
+- Gradual freezing: gradually freeze layers along training. Earlier layers are more universal and are faster to train, so it will be fine for later layers to use them freezed
 
 Tricks to use:
 - label smoothing

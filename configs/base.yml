@@ -13,7 +13,8 @@ base:
     img_target_shape: [224, 224]
     use_class_attrs: true
     batch_size: 10
-    model_type: "simple_classifier"
+    model:
+      type: "simple_classifier"
     optim:
       type: "sgd"
       kwargs: {lr: 0.001}

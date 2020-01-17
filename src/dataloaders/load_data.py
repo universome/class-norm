@@ -6,10 +6,11 @@ from src.dataloaders import cub, awa, svhn
 from src.dataloaders.utils import extract_resnet18_features_for_dataset
 
 
-def load_data(config: Config, img_target_shape: Tuple[int, int], embed_data: bool=False) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def load_data(config: Config, img_target_shape: Tuple[int, int]=None,
+              embed_data: bool=False, preprocess: bool=True) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     if config.name == 'CUB':
-        ds_train = cub.load_dataset(config.dir, is_train=True, target_shape=img_target_shape)
-        ds_test = cub.load_dataset(config.dir, is_train=False, target_shape=img_target_shape)
+        ds_train = cub.load_dataset(config.dir, is_train=True, target_shape=img_target_shape, preprocess=preprocess)
+        ds_test = cub.load_dataset(config.dir, is_train=False, target_shape=img_target_shape, preprocess=preprocess)
         class_attributes = cub.load_class_attributes(config.dir).astype(np.float32)
     elif config.name == 'AWA':
         ds_train = awa.load_dataset(config.dir, split='train', target_shape=img_target_shape)

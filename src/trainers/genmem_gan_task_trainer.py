@@ -25,7 +25,7 @@ class GenMemGANTaskTrainer(TaskTrainer):
 
         ModelClass = GAN if self.config.hp.model_type == 'genmem_gan' else GAN64x64
 
-        self.prev_model = ModelClass(self.config.hp.model_config).to(self.device_name)
+        self.prev_model = ModelClass(self.config.hp.model).to(self.device_name)
         self.prev_model.load_state_dict(deepcopy(self.model.state_dict()))
         self.learnt_classes = np.unique(self.main_trainer.class_splits[:self.task_idx]).tolist()
         self.seen_classes = np.unique(self.main_trainer.class_splits[:self.task_idx + 1]).tolist()
@@ -34,7 +34,7 @@ class GenMemGANTaskTrainer(TaskTrainer):
         if self.task_idx > 0:
             self.fixed_noise = self.main_trainer.task_trainers[self.task_idx - 1].fixed_noise
         else:
-            self.fixed_noise = np.random.randn(1000, self.config.hp.model_config.z_dim).astype(np.float32)
+            self.fixed_noise = np.random.randn(1000, self.config.hp.model.z_dim).astype(np.float32)
 
     def construct_optimizer(self):
         return {

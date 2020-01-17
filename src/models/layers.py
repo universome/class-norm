@@ -1,5 +1,12 @@
 from typing import Tuple
+
+import torch
 import torch.nn as nn
+from torch import Tensor
+from torchvision.models.resnet import resnet18, resnet34, resnet50
+
+
+RESNET_TYPE_TO_CLS = {18: resnet18, 34: resnet34, 50: resnet50}
 
 
 class ConditionalBatchNorm2d(nn.Module):
@@ -39,3 +46,49 @@ class Flatten(nn.Module):
 
     def forward(self, x):
         return x.view(x.size(0), -1)
+
+
+class ResNetLastBlock(nn.Module):
+    def __init__(self, resnet_type: int, pretrained: bool):
+        super(ResNetLastBlock, self).__init__()
+
+        self.resnet = RESNET_TYPE_TO_CLS[resnet_type](pretrained=pretrained)
+
+        del self.resnet.conv1
+        del self.resnet.bn1
+        del self.resnet.relu
+        del self.resnet.maxpool
+        del self.resnet.layer1
+        del self.resnet.layer2
+        del self.resnet.layer3
+        del self.resnet.fc
+
+    def forward(self, x: Tensor) -> Tensor:
+        x = self.resnet.layer4(x)
+        x = self.resnet.avgpool(x)
+        x = torch.flatten(x, 1)
+
+        return x
+
+
+class ResNetConvEmbedder(nn.Module):
+    def __init__(self, resnet_type: int, pretrained: bool):
+        super(ResNetConvEmbedder, self).__init__()
+
+        self.resnet = RESNET_TYPE_TO_CLS[resnet_type](pretrained=pretrained)
+
+        del self.resnet.layer4
+        del self.resnet.avgpool
+        del self.resnet.fc
+
+    def forward(self, x: Tensor) -> Tensor:
+        x = self.resnet.conv1(x)
+        x = self.resnet.bn1(x)
+        x = self.resnet.relu(x)
+        x = self.resnet.maxpool(x)
+
+        x = self.resnet.layer1(x)
+        x = self.resnet.layer2(x)
+        x = self.resnet.layer3(x)
+
+        return x

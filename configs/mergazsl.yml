@@ -6,8 +6,8 @@ hp:
   embed_data: true
   clip_grad_norm: 100
 
-  model_type: "feat_gan_classifier"
-  model_config:
+  model:
+    type: "feat_gan_classifier"
     z_dim: 100
     # prediction_strategy: "nearest_neighbor"
     # num_hallicinated_samples_per_class: 100
@@ -31,5 +31,5 @@ hp:
 hp_for_datasets:
   cub:
     pretrained: true
-    model_config:
+    model:
       num_classes: 200

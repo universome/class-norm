@@ -102,15 +102,15 @@ class Discriminator(nn.Module):
             Flatten(),
         )
 
-        self.discr_head = nn.Linear(4 * 4 * 4 * config.discr_dim, 1)
+        self.adv_head = nn.Linear(4 * 4 * 4 * config.discr_dim, 1)
         self.cls_head = nn.Linear(4 * 4 * 4 * config.discr_dim, config.num_classes)
 
     def forward(self, x: Tensor) -> Tuple[Tensor, Tensor]:
         feats = self.feat_extractor(x)
-        discr_out = self.discr_head(feats)
+        discr_out = self.adv_head(feats)
         cls_out = self.cls_head(feats)
 
         return discr_out, cls_out
 
     def run_adv_head(self, x: Tensor) -> Tensor:
-        return self.discr_head(self.feat_extractor(x))
+        return self.adv_head(self.feat_extractor(x))

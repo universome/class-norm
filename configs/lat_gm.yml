@@ -1,10 +1,10 @@
 all:
     task_trainer: "lat_gm"
     hp:
-        model_type: "lat_gm"
         use_class_attrs: true
 
-        model_config:
+        model:
+            type: "lat_gm"
             z_dim: 256
             hid_dim: 1024
             feat_dim: 512
@@ -12,13 +12,15 @@ all:
             num_img_channels: 3
             attr_output_dim: 512
             use_attrs_in_gen: true
+            resnet_type: 18
+            feat_level: "conv"
 
         gen_optim:
-            type: "sgd"
+            type: "adam"
             kwargs: {lr: 0.0001, betas: [0.0, 0.9]}
 
         discr_optim:
-            type: "sgd"
+            type: "adam"
             kwargs: {lr: 0.0001, betas: [0.0, 0.9]}
 
         clf_optim:
@@ -50,13 +52,13 @@ all:
 cub:
     hp:
         num_iters_per_task: 10
-        model_config:
+        model:
             num_classes: 200
             pretrained: true
 
 awa:
     hp:
         num_iters_per_task: 5000
-        model_config:
+        model:
             num_classes: 50
             pretrained: false

@@ -16,7 +16,7 @@ from src.utils.data_utils import compute_class_centroids
 
 class MeRGAZSLTaskTrainer(TaskTrainer):
     def _after_init_hook(self):
-        assert self.config.hp.model_type == 'feat_gan_classifier'
+        assert self.config.hp.model.type == 'feat_gan_classifier'
 
         # TODO: replace with running centroids if you want more fair LLL setup (seeing one example only once)
         self.class_centroids = compute_class_centroids(self.task_ds_train, self.config.data.num_classes)
@@ -28,11 +28,11 @@ class MeRGAZSLTaskTrainer(TaskTrainer):
 
         self.optim = {
             'gen': torch.optim.Adam(self.model.generator.parameters(),
-                                   **self.config.hp.model_config.gen_optim.kwargs.to_dict()),
+                                   **self.config.hp.model.gen_optim.kwargs.to_dict()),
             'discr': torch.optim.Adam(self.model.discriminator.parameters(),
-                                     **self.config.hp.model_config.discr_optim.kwargs.to_dict()),
+                                     **self.config.hp.model.discr_optim.kwargs.to_dict()),
             'cls': torch.optim.Adam(self.model.classifier.parameters(),
-                                   **self.config.hp.model_config.cls_optim.kwargs.to_dict()),
+                                   **self.config.hp.model.cls_optim.kwargs.to_dict()),
         }
 
     def train_on_batch(self, batch: Tuple[np.ndarray, np.ndarray]):
@@ -44,7 +44,7 @@ class MeRGAZSLTaskTrainer(TaskTrainer):
         self.discriminator_step(x, y)
         self.classifier_step(x, y)
 
-        if self.num_iters_done % self.config.hp.model_config.num_discr_steps_per_gen_step == 0:
+        if self.num_iters_done % self.config.hp.model.num_discr_steps_per_gen_step == 0:
             self.generator_step(y)
 
         if self.task_idx > 0:
@@ -97,7 +97,7 @@ class MeRGAZSLTaskTrainer(TaskTrainer):
         # TODO: CIZSL for some reason additionally uses C_real here. Why?
         cls_loss = self.criterion(prune_logits(cls_logits_on_fake, self.output_mask), y)
 
-        if self.config.hp.model_config.centroid_reg_coef > 0:
+        if self.config.hp.model.centroid_reg_coef > 0:
             centroid_loss = self.compute_centroid_loss(x_fake, y)
         else:
             centroid_loss = 0
@@ -105,7 +105,7 @@ class MeRGAZSLTaskTrainer(TaskTrainer):
         # TODO: CIZSL uses L2 reg manually (it's wrong to do it manually for Adam)
         # TODO: CIZSL uses additional L2 reg for generator attr embeddings
 
-        total_loss = discr_loss + cls_loss + self.config.hp.model_config.centroid_reg_coef * centroid_loss
+        total_loss = discr_loss + cls_loss + self.config.hp.model.centroid_reg_coef * centroid_loss
 
         self.optim['gen'].zero_grad()
         total_loss.backward()
@@ -116,11 +116,11 @@ class MeRGAZSLTaskTrainer(TaskTrainer):
         self.writer.add_scalar(f'gen/centroid_loss', centroid_loss.item(), self.num_iters_done)
 
     def knowledge_distillation_step(self):
-        z = self.model.generator.sample_noise(self.config.hp.model_config.distill_batch_size).to(self.device_name)
-        y = np.random.choice(self.learnt_classes, size=self.config.hp.model_config.distill_batch_size)
+        z = self.model.generator.sample_noise(self.config.hp.model.distill_batch_size).to(self.device_name)
+        y = np.random.choice(self.learnt_classes, size=self.config.hp.model.distill_batch_size)
         x_fake_teacher = self.prev_model.generator(z, self.model.attrs[y])
         x_fake_student = self.model.generator(z, self.model.attrs[y])
-        loss = self.config.hp.model_config.model_distill_coef * (x_fake_teacher - x_fake_student).norm()
+        loss = self.config.hp.model.model_distill_coef * (x_fake_teacher - x_fake_student).norm()
 
         self.optim['gen'].zero_grad()
         loss.backward()
