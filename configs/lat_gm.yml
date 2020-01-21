@@ -2,43 +2,44 @@ all:
     task_trainer: "lat_gm"
     hp:
         use_class_attrs: true
+        reset_head_before_each_task: true
 
         model:
             type: "lat_gm"
             z_dim: 256
             hid_dim: 1024
-            feat_dim: 512
             emb_dim: 512
-            num_img_channels: 3
-            attr_output_dim: 512
             use_attrs_in_gen: true
+            use_attrs_in_discr: true
             resnet_type: 18
             feat_level: "conv"
 
         gen_optim:
             type: "adam"
-            kwargs: {lr: 0.0001, betas: [0.0, 0.9]}
+            # kwargs: {lr: 0.0001, betas: [0.0, 0.9]}
+            kwargs: {lr: 0.001}
 
         discr_optim:
-            type: "adam"
-            kwargs: {lr: 0.0001, betas: [0.0, 0.9]}
+            type: "sgd"
+            # kwargs: {lr: 0.0001, betas: [0.0, 0.9]}
+            kwargs: {lr: 0.03}
 
         clf_optim:
             type: "sgd"
-            kwargs: {lr: 0.001}
+            kwargs: {lr: 0.03}
 
         num_discr_steps_per_gen_step: 5
         loss_coefs:
             gp: 10
             distill: 1.
-            discr_cls: 1.
+            discr_cls: 100.
             gen_cls: 1.
 
-        batch_size: 64
+        batch_size: 10
         distill_batch_size: 500
 
         # Regularizing feature extractor
-        synaptic_strength: 0.01
+        synaptic_strength: 0.
         fisher_keep_prob: 0.5
         reg_strategy: "ewc"
 
@@ -47,8 +48,8 @@ all:
             enabled: true
             start_iter: -1
             hall_batch_size: 300
-            adv_coef: 0.01
-            entropy_coef: 0.01
+            adv_coef: 0.
+            entropy_coef: 0.
 
 
 cub:

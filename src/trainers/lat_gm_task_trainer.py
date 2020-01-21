@@ -27,6 +27,11 @@ class LatGMTaskTrainer(TaskTrainer):
 
         self.prev_model = self.BaseModel(self.config.hp.model, self.model.attrs).to(self.device_name)
         self.prev_model.load_state_dict(deepcopy(self.model.state_dict()))
+
+        if self.config.hp.get('reset_head_before_each_task'):
+            # self.model.load_state_dict(self.BaseModel(self.config.hp.model, self.model.attrs).to(self.device_name).state_dict())
+            self.model.reset_discriminator()
+
         self.learned_classes = np.unique(self.main_trainer.class_splits[:self.task_idx]).tolist()
         self.seen_classes = np.unique(self.main_trainer.class_splits[:self.task_idx + 1]).tolist()
         self.writer = SummaryWriter(os.path.join(self.main_trainer.paths.logs_path, f'task_{self.task_idx}'), flush_secs=5)
@@ -48,26 +53,26 @@ class LatGMTaskTrainer(TaskTrainer):
             'embedder': self.construct_optimizer_from_config(self.model.embedder.parameters(), self.config.hp.clf_optim),
         }
 
-    def start(self):
-        self._before_train_hook()
+    # def start(self):
+    #     self._before_train_hook()
 
-        assert self.is_trainable, "We do not have enough conditions to train this Task Trainer" \
-                                  "(for example, previous trainers was not finished or this trainer was already run)"
+    #     assert self.is_trainable, "We do not have enough conditions to train this Task Trainer" \
+    #                               "(for example, previous trainers was not finished or this trainer was already run)"
 
-        for _ in tqdm(range(self.config.hp.num_iters_per_task), desc=f'Task #{self.task_idx} iteration'):
-            batch = self.sample_train_batch()
-            self.train_on_batch(batch)
-            self.num_iters_done += 1
-            self.run_after_iter_done_callbacks()
+    #     for _ in tqdm(range(self.config.hp.num_iters_per_task), desc=f'Task #{self.task_idx} iteration'):
+    #         batch = self.sample_train_batch()
+    #         self.train_on_batch(batch)
+    #         self.num_iters_done += 1
+    #         self.run_after_iter_done_callbacks()
 
-        self._after_train_hook()
+    #     self._after_train_hook()
 
-    def sample_train_batch(self) -> Tuple[np.ndarray, np.ndarray]:
-        batch_size = min(len(self.task_ds_train), self.config.hp.batch_size)
-        idx = random.sample(range(len(self.task_ds_train)), batch_size)
-        x, y = zip(*[self.task_ds_train[i] for i in idx])
+    # def sample_train_batch(self) -> Tuple[np.ndarray, np.ndarray]:
+    #     batch_size = min(len(self.task_ds_train), self.config.hp.batch_size)
+    #     idx = random.sample(range(len(self.task_ds_train)), batch_size)
+    #     x, y = zip(*[self.task_ds_train[i] for i in idx])
 
-        return x, y
+    #     return x, y
 
     def train_on_batch(self, batch: Tuple[np.ndarray, np.ndarray]):
         self.model.train()
@@ -82,33 +87,34 @@ class LatGMTaskTrainer(TaskTrainer):
         #     self.creativity_step()
 
         self.discriminator_step(x, y)
-        self.classifier_step(x, y)
+        self.embedder_step(x, y)
 
     def discriminator_step(self, imgs: Tensor, y: Tensor):
         with torch.no_grad():
             x = self.model.embedder(imgs)
-            z = self.model.generator.sample_noise(imgs.size(0)).to(self.device_name)
-            x_fake = self.model.generator(z, y) # TODO: try picking y randomly
+            # z = self.model.generator.sample_noise(imgs.size(0)).to(self.device_name)
+            # x_fake = self.model.generator(z, y) # TODO: try picking y randomly
 
         adv_logits_on_real, cls_logits_on_real = self.model.discriminator(x)
-        adv_logits_on_fake = self.model.discriminator.run_adv_head(x_fake)
+        # adv_logits_on_fake = self.model.discriminator.run_adv_head(x_fake)
 
-        adv_loss = -adv_logits_on_real.mean() + adv_logits_on_fake.mean()
+        # adv_loss = -adv_logits_on_real.mean() + adv_logits_on_fake.mean()
         cls_loss = F.cross_entropy(prune_logits(cls_logits_on_real, self.output_mask), y)
-        grad_penalty = compute_gradient_penalty(self.model.discriminator.run_adv_head, x, x_fake)
+        # grad_penalty = compute_gradient_penalty(self.model.discriminator.run_adv_head, x, x_fake)
 
-        discr_loss_total = adv_loss \
-            + self.config.hp.loss_coefs.gp * grad_penalty \
-            + self.config.hp.loss_coefs.discr_cls * cls_loss
+        # discr_loss_total = adv_loss \
+        #     + self.config.hp.loss_coefs.gp * grad_penalty \
+        #     + self.config.hp.loss_coefs.discr_cls * cls_loss
+        discr_loss_total = cls_loss
 
         self.optim['discriminator'].zero_grad()
         discr_loss_total.backward()
         self.optim['discriminator'].step()
 
-        self.writer.add_scalar('discr/adv_loss', adv_loss.item(), self.num_iters_done)
-        self.writer.add_scalar('discr/mean_pred_real', adv_logits_on_real.mean().item(), self.num_iters_done)
-        self.writer.add_scalar('discr/mean_pred_fake', adv_logits_on_fake.mean().item(), self.num_iters_done)
-        self.writer.add_scalar('discr/grad_penalty', grad_penalty.item(), self.num_iters_done)
+        # self.writer.add_scalar('discr/adv_loss', adv_loss.item(), self.num_iters_done)
+        # self.writer.add_scalar('discr/mean_pred_real', adv_logits_on_real.mean().item(), self.num_iters_done)
+        # self.writer.add_scalar('discr/mean_pred_fake', adv_logits_on_fake.mean().item(), self.num_iters_done)
+        # self.writer.add_scalar('discr/grad_penalty', grad_penalty.item(), self.num_iters_done)
 
     def generator_step(self, y: Tensor):
         z = self.model.generator.sample_noise(y.size(0)).to(self.device_name)
@@ -148,7 +154,7 @@ class LatGMTaskTrainer(TaskTrainer):
 
         return loss / len(self.learned_classes)
 
-    def classifier_step(self, x: Tensor, y: Tensor):
+    def embedder_step(self, x: Tensor, y: Tensor):
         pruned = self.model.compute_pruned_predictions(x, self.output_mask)
         loss = self.criterion(pruned, y)
         acc = (pruned.argmax(dim=1) == y).float().mean().detach().cpu()

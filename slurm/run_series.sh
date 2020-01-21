@@ -65,14 +65,14 @@ num_runs=$1
 #     done
 # done
 
-# # Running Latent GM with VAE
-# for num_iters in 100 500 2500; do
-#     for (( random_seed=1; random_seed<=num_runs; random_seed++ )); do
-#         cli_args="-c lat_gm_vae -d cub -s $random_seed\
-#             --config.hp.num_iters_per_task $num_iters"
-#         sbatch --export=ALL,cli_args="$cli_args" slurm/slurm_job.sh;
-#     done
-# done
+# Running Latent GM
+for num_iters in 100 500 2500; do
+    for (( random_seed=1; random_seed<=num_runs; random_seed++ )); do
+        cli_args="-c lat_gm -d cub -s $random_seed\
+            --config.hp.num_iters_per_task $num_iters"
+        sbatch --export=ALL,cli_args="$cli_args" slurm/slurm_job.sh;
+    done
+done
 
 
 # # Running other methods

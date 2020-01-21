@@ -43,7 +43,7 @@ class TaskTrainer:
         elif optim_config.type == 'adam':
             return torch.optim.Adam(parameters, **optim_config.kwargs.to_dict())
         else:
-            raise NotImplementedError(f'Unkown optimizer: {optim_config.type}')
+            raise NotImplementedError(f'Unknown optimizer: {optim_config.type}')
 
     def init_dataloaders(self):
         self.train_dataloader = DataLoader(self.task_ds_train, batch_size=self.config.hp.batch_size, collate_fn=lambda b: list(zip(*b)))
@@ -98,7 +98,7 @@ class TaskTrainer:
     def train_on_batch(self, batch):
         raise NotImplementedError
 
-    def compute_accuracy(self, dataloader:DataLoader):
+    def compute_accuracy(self, dataloader: DataLoader):
         guessed = []
         self.model.eval()
 

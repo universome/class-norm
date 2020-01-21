@@ -17,8 +17,8 @@ class ConvFeatEmbedder(nn.Module):
 
         self.model = nn.Sequential(
             ResNetConvEmbedder(config.resnet_type, config.pretrained),
-            conv3x3(RESNET_CONV_FEAT_DIM[config.resnet_type], RESNET_CONV_FEAT_DIM[config.resnet_type]),
-            nn.Tanh()
+            # conv3x3(RESNET_CONV_FEAT_DIM[config.resnet_type], RESNET_CONV_FEAT_DIM[config.resnet_type]),
+            # nn.Tanh()
         )
 
     def forward(self, x):
@@ -26,10 +26,13 @@ class ConvFeatEmbedder(nn.Module):
 
 
 class ConvFeatDiscriminator(FeatDiscriminator):
-    def init_model(self):
-        self.body = ResNetLastBlock(self.config.resnet_type, pretrained=False)
-        self.cls_head = nn.Linear(RESNET_FEAT_DIM[self.config.resnet_type], self.config.num_classes)
-        self.adv_head = nn.Linear(RESNET_FEAT_DIM[self.config.resnet_type], 1)
+    def init_body(self):
+        self.body = nn.Sequential(
+            ResNetLastBlock(self.config.resnet_type, self.config.pretrained),
+            nn.ReLU(),
+            nn.Linear(RESNET_FEAT_DIM[self.config.resnet_type], self.config.hid_dim),
+            nn.ReLU()
+        )
 
 
 class ConvFeatGenerator(FeatGenerator):

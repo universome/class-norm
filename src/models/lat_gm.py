@@ -33,6 +33,16 @@ class LatGM(nn.Module):
     def compute_pruned_predictions(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
         return self.discriminator.compute_pruned_predictions(self.embedder(x), output_mask)
 
+    def reset_discriminator(self):
+        if self.config.feat_level == 'fc':
+            state_dict = FeatDiscriminator(self.config, self.attrs.cpu().numpy()).state_dict()
+        elif self.config.feat_level == 'conv':
+            state_dict = ConvFeatDiscriminator(self.config, self.attrs.cpu().numpy()).state_dict()
+        else:
+            raise NotImplementedError(f'Unknown feat level: {self.config.feat_level}')
+
+        self.discriminator.load_state_dict(state_dict)
+
 
 class ConvDecoder(nn.Module):
     """

@@ -42,6 +42,7 @@ TODO:
 - Why our test targets are still shuffled?
 - Can we improve prediction in the prediction space of all task just by renormalizing the logits by the mean logit or smth like that? We can store an average logit for each task or something during training. I believe we should just match the statistics of different tasks. Is it true that we will tend to predct the logits of the last task during prediction stage over the whole prediction space?
 - Another baseline to the problem above is to train the model to guess which task a current sample is coming from. This can be done by both training a specific task classifier and by keeping some episodic memory (an learning it like in dataset distillation?) and using kNN in image/feature space.
+- Why do we need to reset a classifier after each task? Maybe we should just increase a learning rate?
 
 Prototypical Generative Memory:
 - Apply classifier to both real and generated images and match the logits
