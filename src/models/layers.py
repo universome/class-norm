@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, Any
 
 import torch
 import torch.nn as nn
@@ -91,4 +91,14 @@ class ResNetConvEmbedder(nn.Module):
         x = self.resnet.layer2(x)
         x = self.resnet.layer3(x)
 
+        return x
+
+
+class Identity(nn.Module):
+    def __init__(self):
+        super(Identity, self).__init__()
+
+        self.dummy_param = nn.Parameter(torch.zeros(1))
+
+    def forward(self, x: Any) -> Any:
         return x
