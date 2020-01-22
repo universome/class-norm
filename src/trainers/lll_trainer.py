@@ -92,6 +92,9 @@ class LLLTrainer(BaseTrainer):
             else:
                 raise NotImplementedError(f'Unkown model type to use without attrs: {self.config.hp.model.type}')
 
+        if self.config.has('load_from_checkpoint'):
+            model.load_state_dict(torch.load(self.config.load_from_checkpoint))
+
         return model.to(self.device_name)
 
     def init_optimizers(self):
@@ -162,7 +165,12 @@ class LLLTrainer(BaseTrainer):
                 task_trainer.after_iter_done_callbacks.append(self.measure_accuracy_after_iter)
 
             self.task_trainers.append(task_trainer)
-            task_trainer.start()
+
+            if self.config.has('start_task') and self.num_tasks_learnt < self.config.start_task:
+                pass
+            else:
+                task_trainer.start()
+
             self.num_tasks_learnt += 1
             print(f'Train accuracy: {task_trainer.compute_train_accuracy()}')
             print(f'Test accuracy: {task_trainer.compute_test_accuracy()}')

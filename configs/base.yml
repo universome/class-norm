@@ -29,6 +29,15 @@ datasets:
     num_classes_per_task: 20
     num_reserved_classes: 0
 
+  cub_embedded:
+    name: "CUB_EMBEDDED"
+    dir: "data/CUB_EMBEDDED"
+    num_classes: 200
+
+    num_tasks: 10
+    num_classes_per_task: 20
+    num_reserved_classes: 0
+
   awa:
     name: "AWA"
     dir: "data/Animals_with_Attributes2"

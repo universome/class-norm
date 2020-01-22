@@ -17,7 +17,7 @@ class FeatGenerator(nn.Module):
         if config.get('use_attrs_in_gen'):
             assert not attrs is None
 
-            self.register_buffer('attrs', torch.tensor(attrs).clone().detach())
+            self.register_buffer('attrs', torch.tensor(attrs))
             self.attr_emb = nn.Linear(attrs.shape[1], config.emb_dim)
         else:
             self.cls_emb = nn.Embedding(config.num_classes, config.emb_dim)
@@ -72,7 +72,7 @@ class FeatDiscriminator(nn.Module):
         if config.use_attrs_in_discr:
             assert not attrs is None, "You should provide attrs to use attrs"
 
-            self.register_buffer('attrs', torch.tensor(attrs).clone().detach())
+            self.register_buffer('attrs', torch.tensor(attrs))
             self.cls_attr_emb = nn.Linear(attrs.shape[1], config.hid_dim)
             self.biases = nn.Parameter(torch.zeros(attrs.shape[0]))
         else:

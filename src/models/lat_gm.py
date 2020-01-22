@@ -4,9 +4,10 @@ import torch.nn as nn
 from torch import Tensor
 from firelab.config import Config
 
-from .feat_gan import FeatGenerator, FeatDiscriminator
-from .conv_feat_gan import ConvFeatGenerator, ConvFeatDiscriminator, ConvFeatEmbedder
-from .classifier import ResnetEmbedder
+from src.models.feat_gan import FeatGenerator, FeatDiscriminator
+from src.models.conv_feat_gan import ConvFeatGenerator, ConvFeatDiscriminator, ConvFeatEmbedder
+from src.models.classifier import ResnetEmbedder
+from src.models.layers import Identity
 
 
 class LatGM(nn.Module):
@@ -14,10 +15,13 @@ class LatGM(nn.Module):
         super(LatGM, self).__init__()
 
         self.config = config
-        self.register_buffer('attrs', torch.tensor(attrs).clone().detach())
+        self.register_buffer('attrs', torch.tensor(attrs))
 
         if self.config.feat_level == 'fc':
-            self.embedder = ResnetEmbedder(config)
+            if self.config.get('identity_embedder'):
+                self.embedder = Identity()
+            else:
+                self.embedder = ResnetEmbedder(config.pretrained)
             self.generator = FeatGenerator(config, attrs)
             self.discriminator = FeatDiscriminator(config, attrs)
         elif self.config.feat_level == 'conv':

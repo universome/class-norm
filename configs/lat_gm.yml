@@ -1,6 +1,9 @@
 all:
     task_trainer: "lat_gm"
+    # load_from_checkpoint: "experiments/lat_gm--cub_embedded--42-00019/checkpoints/model-task-0.pt"
+    # start_task: 1
     hp:
+        max_num_epochs: 50
         use_class_attrs: true
         reset_head_before_each_task: true
 
@@ -12,12 +15,13 @@ all:
             use_attrs_in_gen: true
             use_attrs_in_discr: true
             resnet_type: 18
-            feat_level: "conv"
+            feat_level: "fc"
 
         gen_optim:
-            type: "adam"
+            type: "sgd"
+            # type: "adam"
             # kwargs: {lr: 0.0001, betas: [0.0, 0.9]}
-            kwargs: {lr: 0.001}
+            kwargs: {lr: 0.03}
 
         discr_optim:
             type: "sgd"
@@ -31,37 +35,49 @@ all:
         num_discr_steps_per_gen_step: 5
         loss_coefs:
             gp: 10
-            distill: 1.
-            discr_cls: 100.
-            gen_cls: 1.
+            distill: 30.
+            discr_cls: 1.
+            gen_cls: 0.1
+
+        rehearsal:
+            enabled: true
+            start_iter: 1000
+            batch_size: 100
+            loss_coef: 1.
+
+        grad_clipping: {}
 
         batch_size: 10
         distill_batch_size: 500
 
         # Regularizing feature extractor
-        synaptic_strength: 0.
+        synaptic_strength: 10
         fisher_keep_prob: 0.5
         reg_strategy: "ewc"
 
         # Creativity losses
         creativity:
-            enabled: true
+            enabled: false
             start_iter: -1
             hall_batch_size: 300
             adv_coef: 0.
             entropy_coef: 0.
 
+cub_embedded:
+    hp:
+        model:
+            num_classes: 200
+            pretrained: true
+            identity_embedder: true
 
 cub:
     hp:
-        num_iters_per_task: 100
         model:
             num_classes: 200
             pretrained: true
 
 awa:
     hp:
-        num_iters_per_task: 5000
         model:
             num_classes: 50
             pretrained: false
