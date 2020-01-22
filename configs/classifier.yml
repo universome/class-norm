@@ -1,24 +1,28 @@
 trainer: "ClassifierTrainer"
-max_num_epochs: 95
+max_num_epochs: 300
 val_freq_epochs: 1
 hp:
-    img_target_shape: [224, 224]
-    batch_size: 64
+    batch_size: 256
     pretrained: true
     model:
-        type: "resnet50"
+        type: "resnet-head"
+        hid_dim: 512
+        resnet_type: 18
     optim:
-        type: "sgd"
+        type: "adam"
         kwargs:
-            lr: 0.001
-            momentum: 0.9
             weight_decay: 0.0001
+        # type: "sgd"
+        # kwargs:
+        #     lr: 0.01
+        #     momentum: 0.95
+        #     weight_decay: 0.001
         scheduler:
             type: "step"
             kwargs:
                 gamma: 0.1
-                step_size: 30
+                step_size: 100
 data:
-    name: "CUB"
-    dir: "data/CUB_200_2011"
+    name: "CUB_EMBEDDED"
+    dir: "data/CUB_EMBEDDED"
     num_classes: 200

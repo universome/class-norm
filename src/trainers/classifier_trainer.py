@@ -10,9 +10,11 @@ from firelab.base_trainer import BaseTrainer
 from firelab.config import Config
 
 from src.dataloaders.cub import CUB
+from src.dataloaders.load_data import load_data
 from src.utils.losses import LabelSmoothingLoss
 from src.models.classifier import resnet_embedder_forward
 from src.utils.model_utils import filter_params
+from src.utils.constants import RESNET_FEAT_DIM
 
 
 class ClassifierTrainer(BaseTrainer):
@@ -27,29 +29,43 @@ class ClassifierTrainer(BaseTrainer):
             self.model = resnet50(pretrained=self.config.hp.get('pretrained'))
             self.model.fc = nn.Linear(self.model.fc.weight.shape[1], self.config.data.num_classes)
             nn.init.kaiming_normal_(self.model.fc.weight.data)
+        elif self.config.hp.model.type == 'resnet-head':
+            self.model = nn.Sequential(
+                nn.Dropout(0.5),
+                nn.Linear(RESNET_FEAT_DIM[self.config.hp.model.resnet_type], self.config.hp.model.hid_dim),
+                nn.ReLU(),
+                nn.Linear(self.config.hp.model.hid_dim, self.config.data.num_classes)
+            )
         else:
             raise NotImplementedError(f'Unknown model: {self.config.hp.model.type}')
 
         self.model = self.model.to(self.device_name)
 
     def init_dataloaders(self):
-        train_transform = T.Compose([
-            T.ToPILImage(),
-            T.RandomResizedCrop(self.config.hp.img_target_shape),
-            T.RandomHorizontalFlip(),
-            T.ToTensor(),
-            T.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
-        ])
-        test_transform = T.Compose([
-            T.ToPILImage(),
-            T.Resize(self.config.hp.img_target_shape),
-            T.CenterCrop(self.config.hp.img_target_shape),
-            T.ToTensor(),
-            T.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
-        ])
+        if self.config.data.name == 'CUB':
+            train_transform = T.Compose([
+                T.ToPILImage(),
+                T.RandomResizedCrop(self.config.hp.img_target_shape),
+                T.RandomHorizontalFlip(),
+                T.ToTensor(),
+                T.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
+            ])
+            test_transform = T.Compose([
+                T.ToPILImage(),
+                T.Resize(self.config.hp.img_target_shape),
+                T.CenterCrop(self.config.hp.img_target_shape),
+                T.ToTensor(),
+                T.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
+            ])
 
-        ds_train = CUB(self.config.data.dir, train=True, transform=train_transform)
-        ds_test = CUB(self.config.data.dir, train=False, transform=test_transform)
+            ds_train = CUB(self.config.data.dir, train=True, transform=train_transform)
+            ds_test = CUB(self.config.data.dir, train=False, transform=test_transform)
+        elif self.config.data.name == 'CUB_EMBEDDED':
+            ds_train, ds_test, _ = load_data(self.config.data)
+            ds_train = [(torch.tensor(x), y) for x, y in ds_train]
+            ds_test = [(torch.tensor(x), y) for x, y in ds_test]
+        else:
+            raise NotImplementedError('Unknwon')
 
         self.train_dataloader = DataLoader(ds_train, batch_size=self.config.hp.batch_size, shuffle=True)
         self.val_dataloader = DataLoader(ds_test, batch_size=128, shuffle=False)
@@ -64,10 +80,13 @@ class ClassifierTrainer(BaseTrainer):
         else:
             raise NotImplementedError(f'Unknown optimizer: {self.config.hp.optim.type}')
 
-        self.optim = OptimClass([
-            {'params': filter_params(self.model, 'fc'), 'lr': 0.0005},
-            {'params': self.model.fc.parameters(), 'lr': 0.005},
-        ], **self.config.hp.optim.kwargs.to_dict())
+        if self.config.hp.model.type == 'resnet50':
+            self.optim = OptimClass([
+                {'params': filter_params(self.model, 'fc'), 'lr': 0.0005},
+                {'params': self.model.fc.parameters(), 'lr': 0.005},
+            ], **self.config.hp.optim.kwargs.to_dict())
+        else:
+            self.optim = OptimClass(self.model.parameters(), **self.config.hp.optim.kwargs.to_dict())
 
         if self.config.hp.optim.has('scheduler'):
             assert self.config.hp.optim.scheduler.type == "step"
