@@ -26,6 +26,7 @@ class LatGMVAETaskTrainer(LatGMTaskTrainer):
     def construct_optimizer(self) -> Dict:
         return {
             'vae': torch.optim.Adam(self.model.vae.parameters(), **self.config.hp.vae_optim.kwargs.to_dict()),
+            'embedder': torch.optim.Adam(self.model.embedder.parameters(), **self.config.hp.embedder_optim.kwargs.to_dict()),
             'classifier': torch.optim.Adam(self.model.classifier.parameters(), **self.config.hp.clf_optim.kwargs.to_dict()),
         }
 
@@ -35,11 +36,29 @@ class LatGMVAETaskTrainer(LatGMTaskTrainer):
         x = torch.tensor(batch[0]).to(self.device_name)
         y = torch.tensor(batch[1]).to(self.device_name)
 
-        self.train_vae_on_batch(x, y)
-        self.classifier_step(x, y)
+        if self.config.hp.num_vae_epochs < self.num_epochs_done:
+            self.train_vae_on_batch(x, y)
+        else:
+            self.classifier_step(x, y)
+
+    def classifier_step(self, x: Tensor, y: Tensor):
+        pruned = self.model.compute_pruned_predictions(x, self.output_mask)
+        loss = self.criterion(pruned, y)
+        acc = (pruned.argmax(dim=1) == y).float().mean().detach().cpu()
+
+        # if self.task_idx > 0:
+        #     reg = self.compute_classifier_reg()
+        #     loss += self.config.hp.synaptic_strength * reg
+
+        self.perform_optim_step(loss, 'classifier', retain_graph=True)
+        self.perform_optim_step(loss, 'embedder')
+
+        self.writer.add_scalar('clf/loss', loss.item(), self.num_iters_done)
+        self.writer.add_scalar('clf/acc', acc.item(), self.num_iters_done)
 
     def train_vae_on_batch(self, imgs, y):
-        with torch.no_grad(): x = self.model.embed(imgs)
+        with torch.no_grad(): x = self.model.embedder(imgs)
+
         x_rec, mean, log_var = self.model.vae(x, y)
         rec_loss = F.mse_loss(x_rec, x)
         #kld = compute_kld_with_standard_gaussian(mean, log_var)

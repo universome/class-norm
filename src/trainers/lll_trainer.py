@@ -11,7 +11,6 @@ import yaml
 
 from src.models.classifier import ZSClassifier, ResnetClassifier
 from src.models.feat_gan_classifier import FeatGANClassifier
-from src.models.feat_vae import FeatVAEClassifier
 from src.models.gan import GAN
 from src.models.gan_64x64 import GAN64x64
 from src.models.lat_gm import LatGM
@@ -40,6 +39,18 @@ from src.utils.metrics import (
     compute_ausuc,
     compute_acc_for_classes,
 )
+
+TASK_TRAINERS = {
+    'basic': BasicTaskTrainer,
+    'agem': AgemTaskTrainer,
+    'ewc': EWCTaskTrainer,
+    'mas': MASTaskTrainer,
+    'mergazsl': MeRGAZSLTaskTrainer,
+    'joint': JointTaskTrainer,
+    'genmem_gan': GenMemGANTaskTrainer,
+    'lat_gm': LatGMTaskTrainer,
+    'lat_gm_vae': LatGMVAETaskTrainer,
+}
 
 class LLLTrainer(BaseTrainer):
     def __init__(self, config: Config):
@@ -74,8 +85,6 @@ class LLLTrainer(BaseTrainer):
                 model = ZSClassifier(self.class_attributes, pretrained=self.config.hp.pretrained)
             elif self.config.hp.model.type == 'feat_gan_classifier':
                 model = FeatGANClassifier(self.config.hp.model, self.class_attributes)
-            elif self.config.hp.model.type== 'feat_vae_classifier':
-                model = FeatVAEClassifier(self.config.hp.model, self.class_attributes)
             elif self.config.hp.model.type == 'lat_gm':
                 model = LatGM(self.config.hp.model, self.class_attributes)
             elif self.config.hp.model.type == 'lat_gm_vae':
@@ -96,21 +105,6 @@ class LLLTrainer(BaseTrainer):
             model.load_state_dict(torch.load(self.config.load_from_checkpoint))
 
         return model.to(self.device_name)
-
-    def init_optimizers(self):
-        if self.config.hp.model.type == 'simple_classifier':
-            # TODO: without momentum?!
-            self.optim = torch.optim.Adam(self.model.parameters(), **self.config.hp.optim.kwargs.to_dict())
-        elif self.config.hp.model.type in (
-                'feat_gan_classifier',
-                'feat_vae_classifier',
-                'genmem_gan',
-                'genmem_gan_64x64',
-                'lat_gm',
-                'lat_gm_vae'):
-            self.optim = {} # We'll set this later in task trainer
-        else:
-            raise NotImplementedError(f'Unknown model type {self.config.hp.model.type}')
 
     def init_dataloaders(self):
         self.ds_train, self.ds_test, self.class_attributes = load_data(
@@ -156,7 +150,7 @@ class LLLTrainer(BaseTrainer):
             if self.config.get('metrics.ausuc'):
                 self.track_ausuc()
 
-            task_trainer = self.construct_trainer(task_idx)
+            task_trainer = TASK_TRAINERS[self.config.task_trainer](self, task_idx)
 
             if self.config.get('metrics.lca_num_batches', -1) >= 0:
                 task_trainer.after_iter_done_callbacks.append(self.measure_task_trainer_lca)
@@ -240,34 +234,12 @@ class LLLTrainer(BaseTrainer):
         np.save(os.path.join(self.paths.custom_data_path, 'targets'), [y for _, y in self.ds_test])
         np.save(os.path.join(self.paths.custom_data_path, 'iter_acc_history'), self.iter_accs_history)
 
-    def construct_trainer(self, task_idx: int) -> "TaskTrainer":
-        if self.config.task_trainer == 'basic':
-            return BasicTaskTrainer(self, task_idx)
-        elif self.config.task_trainer == 'agem':
-            return AgemTaskTrainer(self, task_idx)
-        elif self.config.task_trainer == 'ewc':
-            return EWCTaskTrainer(self, task_idx)
-        elif self.config.task_trainer == 'mas':
-            return MASTaskTrainer(self, task_idx)
-        elif self.config.task_trainer == 'mergazsl':
-            return MeRGAZSLTaskTrainer(self, task_idx)
-        elif self.config.task_trainer == 'joint':
-            return JointTaskTrainer(self, task_idx)
-        elif self.config.task_trainer == 'genmem_gan':
-            return GenMemGANTaskTrainer(self, task_idx)
-        elif self.config.task_trainer == 'lat_gm':
-            return LatGMTaskTrainer(self, task_idx)
-        elif self.config.task_trainer == 'lat_gm_vae':
-            return LatGMVAETaskTrainer(self, task_idx)
-        else:
-            raise NotImplementedError(f'Unknown task trainer: {self.config.task_trainer}')
-
     def compute_test_accs(self) -> List[float]:
         """Computes model test accuracy on all the tasks"""
         accuracies = []
 
         for task_idx in tqdm(range(self.config.data.num_tasks), desc='[Validating]'):
-            trainer = self.construct_trainer(task_idx)
+            trainer = TASK_TRAINERS[self.config.task_trainer](self, task_idx)
             accuracy = trainer.compute_test_accuracy()
             accuracies.append(accuracy)
 
@@ -277,7 +249,7 @@ class LLLTrainer(BaseTrainer):
         accs = self.compute_test_accs()
 
         for task_id, acc in enumerate(accs):
-            self.writer.add_scalar('Task_test_acc/{}', acc, self.num_tasks_learnt)
+            self.writer.add_scalar(f'Task_test_acc/{task_id}', acc, self.num_tasks_learnt)
 
         self.accs_history.append(accs)
 

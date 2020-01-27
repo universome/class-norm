@@ -72,50 +72,38 @@ class ResnetEmbedder(nn.Module):
 
 
 class FeatClassifier(nn.Module):
-    def __init__(self, config: Config, attrs: np.ndarray):
+    def __init__(self, config: Config, attrs: np.ndarray = None):
         super(FeatClassifier, self).__init__()
 
-        self.embedder = nn.Sequential(
+        self.config = config
+        self.use_attrs = not attrs is None
+        self.body = nn.Sequential(
             nn.Linear(config.feat_dim, config.hid_dim),
-            # nn.ReLU(),
-            # nn.Linear(config.hid_dim, config.hid_dim)
+            nn.ReLU(),
         )
-        self.register_buffer('attrs', torch.tensor(attrs).float())
-        self.attr_emb = nn.Sequential(
-            nn.Linear(attrs.shape[1], config.hid_dim, bias=False),
-            # nn.ReLU(),
-            # nn.Linear(config.hid_dim, config.hid_dim, bias=False),
-        )
-        self.biases = nn.Parameter(torch.zeros(attrs.shape[0]))
 
-    def forward(self, x: Tensor) -> Tensor:
-        img_feats = self.embedder(x)
-        attrs_feats = self.attr_emb(self.attrs)
-        logits = torch.mm(img_feats, attrs_feats.t()) + self.biases
+        if self.use_attrs:
+            self.register_buffer('attrs', torch.tensor(attrs))
+            self.cls_attr_emb = nn.Linear(attrs.shape[1], config.hid_dim)
+            self.biases = nn.Parameter(torch.zeros(attrs.shape[0]))
+        else:
+            self.cls_head = nn.Linear(self.config.hid_dim, self.config.num_classes)
 
-        return logits
+    def forward(self, x) -> Tensor:
+        return self.compute_cls_logits(self.body(x))
 
     def compute_pruned_predictions(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
         return prune_logits(self.forward(x), output_mask)
 
-# class FeatClassifier(nn.Module):
-#     def __init__(self, config: Config, attrs: np.ndarray):
-#         super(FeatClassifier, self).__init__()
-#
-#         self.model = nn.Sequential(
-#             nn.Linear(config.feat_dim, config.hid_dim),
-#             nn.ReLU(),
-#             nn.Linear(config.hid_dim, 200)
-#         )
-#
-#     def forward(self, x):
-#         return self.model(x)
-#
-#     def compute_pruned_predictions(self, x, output_mask):
-#         logits = self.model(x)
-#         pruned = prune_logits(logits, output_mask)
-#
-#         return pruned
+    def compute_cls_logits(self, embs: Tensor) -> Tensor:
+        feats = self.body(embs)
+
+        if self.use_attrs:
+            attr_embs = self.cls_attr_emb(self.attrs)
+            return torch.mm(feats, attr_embs.t()) + self.biases
+        else:
+            return self.cls_head(feats)
+
 
 def resnet_embedder_forward(resnet: nn.Module, x: Tensor) -> Tensor:
     """

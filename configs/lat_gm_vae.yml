@@ -1,10 +1,13 @@
 all:
   task_trainer: "lat_gm_vae"
   hp:
+    max_num_epochs: 100
     batch_size: 128
     img_target_shape: [224, 224]
-    vae_optim: {kwargs: {lr: 0.001, betas: [0.0, 0.9]}}
-    clf_optim: {kwargs: {lr: 0.001, betas: [0.0, 0.9]}}
+    vae_optim: {type: "adam", kwargs: {lr: 0.001, betas: [0.0, 0.9]}}
+    clf_optim: {type: "adam", kwargs: {lr: 0.001, betas: [0.0, 0.9]}}
+    embedder_optim: {type: "adam", kwargs: {lr: 0.001, betas: [0.0, 0.9]}}
+    grad_clipping: {}
 
     model:
       type: "lat_gm_vae"
@@ -14,8 +17,8 @@ all:
       feat_dim: 512
       hid_dim: 512
 
-      # Should we train a prior model?
-      learn_prior_dist: false
+      identity_embedder: true
+      learn_prior_dist: false # Should we train a prior model?
 
     distill_batch_size: 512
     kl_term_coef: 0.01
@@ -26,11 +29,17 @@ all:
     synaptic_strength: 0.01
     fisher_prob: 0.5
 
+cub_embedded:
+  hp:
+    model:
+      num_classes: 200
+
 cub:
   hp:
     num_iters_per_task: 10
     model:
       num_classes: 200
+
 awa:
   hp:
     num_iters_per_task: 5000

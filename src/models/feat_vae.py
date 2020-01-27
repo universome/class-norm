@@ -6,29 +6,6 @@ import torch.nn as nn
 from torch import Tensor
 from firelab.config import Config
 
-from src.models.classifier import ZSClassifier
-
-
-class FeatVAEClassifier(nn.Module):
-    def __init__(self, config: Config, attrs: np.ndarray):
-        super(FeatVAEClassifier, self).__init__()
-
-        self.config = config
-        self.vae = FeatVAE(config, attrs)
-        self.classifier = ZSClassifier(pretrained=self.config.hp.model.get('pretrained'))
-
-    def forward(self, x: Tensor):
-        f = self.feat_extractor(x)
-        logits = self.classifier(f)
-
-        return logits
-
-    def compute_pruned_predictions(self, x, output_mask):
-        f = self.feat_extractor(x)
-        logits = self.classifier.compute_pruned_predictions(f, output_mask)
-
-        return logits
-
 
 class FeatVAE(nn.Module):
     def __init__(self, config: Config, attrs: np.ndarray=None):

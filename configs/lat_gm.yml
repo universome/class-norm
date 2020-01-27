@@ -1,11 +1,11 @@
 all:
     task_trainer: "lat_gm"
-    # load_from_checkpoint: "experiments/lat_gm--cub_embedded--42-00019/checkpoints/model-task-0.pt"
-    # start_task: 1
+    load_from_checkpoint: "experiments/lat_gm--cub_embedded--42-00019/checkpoints/model-task-0.pt"
+    start_task: 1
     hp:
-        max_num_epochs: 50
+        max_num_epochs: 500
         use_class_attrs: true
-        reset_head_before_each_task: true
+        reset_head_before_each_task: false
 
         model:
             type: "lat_gm"
@@ -45,9 +45,12 @@ all:
             batch_size: 100
             loss_coef: 1.
 
-        grad_clipping: {}
+        grad_clipping:
+            generator: 100
+            discriminator: 100
+            embedder: 100
 
-        batch_size: 10
+        batch_size: 256
         distill_batch_size: 500
 
         # Regularizing feature extractor

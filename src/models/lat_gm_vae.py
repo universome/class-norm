@@ -4,42 +4,29 @@ import torch.nn as nn
 from torch import Tensor
 
 from src.models.feat_vae import FeatVAE
-from src.models.classifier import ResnetEmbedder
+from src.models.classifier import ResnetEmbedder, FeatClassifier
 from src.utils.lll import prune_logits
 from src.utils.constants import RESNET_FEAT_DIM
+from src.models.layers import Identity
+
 
 class LatGMVAE(nn.Module):
     def __init__(self, config, attrs: np.ndarray=None):
-        super(LatGMVAE, self).__init__(config, attrs)
+        super(LatGMVAE, self).__init__()
 
         self.config = config
+        self.register_buffer('attrs', torch.tensor(attrs))
         self.vae = FeatVAE(self.config, attrs)
-        self.embedder = ResnetEmbedder(config.pretrained)
-        self.clf_body = nn.Sequential(
-            nn.Linear(RESNET_FEAT_DIM[self.config.resnet_type], self.config.hid_dim),
-            nn.ReLU()
-        )
 
-        if config.use_attrs:
-            assert not attrs is None, "You should provide attrs to use attrs"
-
-            self.register_buffer('attrs', torch.tensor(attrs))
-            self.cls_attr_emb = nn.Linear(attrs.shape[1], config.hid_dim)
-            self.biases = nn.Parameter(torch.zeros(attrs.shape[0]))
+        if self.config.get('identity_embedder'):
+            self.embedder = Identity()
         else:
-            self.cls_head = nn.Linear(self.config.hid_dim, self.config.num_classes)
+            self.embedder = ResnetEmbedder(config.pretrained)
+
+        self.classifier = FeatClassifier(config, attrs)
 
     def forward(self, x) -> Tensor:
-        return self.compute_cls_logits(self.embedder(x))
+        return self.classifier(self.embedder(x))
 
     def compute_pruned_predictions(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
-        return prune_logits(self.forward(x), output_mask)
-
-    def compute_cls_logits(self, embs: Tensor) -> Tensor:
-        feats = self.cls_body(embs)
-
-        if self.config.use_attrs:
-            attr_embs = self.cls_attr_emb(self.attrs)
-            return torch.mm(feats, attr_embs.t()) + self.biases
-        else:
-            return self.cls_head(feats)
+        return self.classifier.compute_pruned_predictions(self.embedder(x), output_mask)

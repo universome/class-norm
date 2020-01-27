@@ -239,9 +239,9 @@ class LatGMTaskTrainer(TaskTrainer):
 
         return reg
 
-    def perform_optim_step(self, loss, module_name: str):
+    def perform_optim_step(self, loss, module_name: str, retain_graph: bool=False):
         self.optim[module_name].zero_grad()
-        loss.backward()
+        loss.backward(retain_graph=retain_graph)
 
         if self.config.hp.grad_clipping.has(module_name):
             parameters = getattr(self.model, module_name).parameters()
