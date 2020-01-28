@@ -2,6 +2,7 @@ all:
   task_trainer: "lat_gm_vae"
   hp:
     max_num_epochs: 100
+    num_vae_epochs: 50
     batch_size: 128
     img_target_shape: [224, 224]
     vae_optim: {type: "adam", kwargs: {lr: 0.001, betas: [0.0, 0.9]}}
@@ -20,10 +21,16 @@ all:
       identity_embedder: true
       learn_prior_dist: false # Should we train a prior model?
 
-    distill_batch_size: 512
+    rehearsal:
+      loss_coef: 1
+      batch_size: 128
+
     kl_term_coef: 0.01
-    enc_distill_loss_coef: 1.
-    dec_distill_loss_coef: 1.
+
+    distillation:
+      batch_size: 512
+      enc_loss_coef: 1.
+      dec_loss_coef: 1.
 
     reg_strategy: "ewc"
     synaptic_strength: 0.01

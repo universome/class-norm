@@ -31,6 +31,7 @@ class TaskTrainer:
         self.test_acc_batch_history = []
         self.after_iter_done_callbacks = []
         self.num_iters_done = 0
+        self.num_epochs_done = 0
 
         self._after_init_hook()
 
@@ -80,18 +81,20 @@ class TaskTrainer:
                                   "(for example, previous trainers was not finished or this trainer was already run)"
 
         epochs = range(1, self.config.hp.max_num_epochs + 1)
-        if len(epochs) > 10: epochs = tqdm(epochs, desc=f'Task #{self.task_idx}')
+        if self._should_tqdm_epochs(): epochs = tqdm(epochs, desc=f'Task #{self.task_idx}')
 
         for epoch in epochs:
             batches = self.train_dataloader
 
-            if len(epochs) <= 10:
+            if not self._should_tqdm_epochs():
                 batches = tqdm(batches, desc=f'Task #{self.task_idx} [epoch {epoch}/{self.config.hp.max_num_epochs}]')
 
             for batch in batches:
                 self.train_on_batch(batch)
                 self.num_iters_done += 1
                 self.run_after_iter_done_callbacks()
+
+            self.num_epochs_done += 1
 
         self._after_train_hook()
 
@@ -118,3 +121,6 @@ class TaskTrainer:
 
     def compute_train_accuracy(self):
         return self.compute_accuracy(self.train_dataloader)
+
+    def _should_tqdm_epochs(self) -> bool:
+        return self.config.hp.max_num_epochs > 10

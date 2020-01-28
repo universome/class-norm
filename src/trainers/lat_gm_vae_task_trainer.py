@@ -1,4 +1,5 @@
 import os
+import random
 from copy import deepcopy
 from typing import Tuple, Dict
 
@@ -37,26 +38,36 @@ class LatGMVAETaskTrainer(LatGMTaskTrainer):
         y = torch.tensor(batch[1]).to(self.device_name)
 
         if self.config.hp.num_vae_epochs < self.num_epochs_done:
-            self.train_vae_on_batch(x, y)
+            self.vae_step(x, y)
         else:
             self.classifier_step(x, y)
 
     def classifier_step(self, x: Tensor, y: Tensor):
         pruned = self.model.compute_pruned_predictions(x, self.output_mask)
-        loss = self.criterion(pruned, y)
-        acc = (pruned.argmax(dim=1) == y).float().mean().detach().cpu()
+        curr_loss = self.criterion(pruned, y)
+        curr_acc = (pruned.argmax(dim=1) == y).float().mean().detach().cpu()
 
         # if self.task_idx > 0:
         #     reg = self.compute_classifier_reg()
         #     loss += self.config.hp.synaptic_strength * reg
 
-        self.perform_optim_step(loss, 'classifier', retain_graph=True)
-        self.perform_optim_step(loss, 'embedder')
+        # self.perform_optim_step(loss, 'classifier', retain_graph=True)
+        # self.perform_optim_step(loss, 'embedder')
+        if self.task_idx > 0:
+            rehearsal_loss, rehearsal_acc = self.compute_rehearsal_loss()
+            total_loss = curr_loss + self.config.hp.rehearsal.loss_coef * rehearsal_loss
 
-        self.writer.add_scalar('clf/loss', loss.item(), self.num_iters_done)
-        self.writer.add_scalar('clf/acc', acc.item(), self.num_iters_done)
+            self.writer.add_scalar('classifier/rehearsal_loss', rehearsal_loss.item(), self.num_iters_done)
+            self.writer.add_scalar('classifier/rehearsal_acc', rehearsal_acc.item(), self.num_iters_done)
+        else:
+            total_loss = curr_loss
 
-    def train_vae_on_batch(self, imgs, y):
+        self.perform_optim_step(total_loss, 'classifier')
+
+        self.writer.add_scalar('clf/curr_oss', curr_loss.item(), self.num_iters_done)
+        self.writer.add_scalar('clf/curr_acc', curr_acc.item(), self.num_iters_done)
+
+    def vae_step(self, imgs, y):
         with torch.no_grad(): x = self.model.embedder(imgs)
 
         x_rec, mean, log_var = self.model.vae(x, y)
@@ -68,9 +79,9 @@ class LatGMVAETaskTrainer(LatGMTaskTrainer):
         total_loss = rec_loss + self.config.hp.kl_term_coef * kld
 
         if self.task_idx > 0:
-            enc_distill_loss, dec_distill_loss = self.knowledge_distillation_loss()
-            total_loss += self.config.hp.enc_distill_loss_coef * enc_distill_loss \
-                        + self.config.hp.dec_distill_loss_coef * dec_distill_loss
+            enc_distill_loss, dec_distill_loss = self.compute_distillation_loss()
+            total_loss += self.config.hp.distillation.enc_loss_coef * enc_distill_loss \
+                        + self.config.hp.distillation.dec_loss_coef * dec_distill_loss
 
             self.writer.add_scalar('vae/enc_distill_loss', enc_distill_loss.item(), self.num_iters_done)
             self.writer.add_scalar('vae/dec_distill_loss', dec_distill_loss.item(), self.num_iters_done)
@@ -82,8 +93,8 @@ class LatGMVAETaskTrainer(LatGMTaskTrainer):
         self.writer.add_scalar('vae/rec_loss', rec_loss.item(), self.num_iters_done)
         self.writer.add_scalar('vae/kl_loss', kld.item(), self.num_iters_done)
 
-    def knowledge_distillation_loss(self) -> Tuple[Tensor, Tensor]:
-        y = np.random.choice(self.learned_classes, self.config.hp.distill_batch_size)
+    def compute_distillation_loss(self) -> Tuple[Tensor, Tensor]:
+        y = np.random.choice(self.learned_classes, self.config.hp.distillation.batch_size)
         y = torch.tensor(y).to(self.device_name).long()
 
         with torch.no_grad():
@@ -102,3 +113,14 @@ class LatGMVAETaskTrainer(LatGMTaskTrainer):
 
         return enc_distill_loss, dec_distill_loss
 
+    def compute_rehearsal_loss(self) -> Tensor:
+        with torch.no_grad():
+            y = random.choices(self.learned_classes, k=self.config.hp.rehearsal.batch_size)
+            y = torch.tensor(y).to(self.device_name)
+            x_fake = self.model.vae.generate(y)
+
+        logits = self.model.classifier.compute_pruned_predictions(x_fake, self.learned_classes_mask)
+        loss = F.cross_entropy(logits, y)
+        acc = (logits.argmax(dim=1) == y).float().mean().detach().cpu()
+
+        return loss, acc
