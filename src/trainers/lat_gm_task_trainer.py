@@ -5,6 +5,7 @@ from copy import deepcopy
 
 import numpy as np
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 from torch.utils.tensorboard import SummaryWriter
@@ -50,10 +51,21 @@ class LatGMTaskTrainer(TaskTrainer):
 
     def construct_optimizer(self):
         return {
-            'generator': self.construct_optimizer_from_config(self.model.generator.parameters(), self.config.hp.gen_optim),
-            'discriminator': self.construct_optimizer_from_config(self.model.discriminator.parameters(), self.config.hp.discr_optim),
-            'embedder': self.construct_optimizer_from_config(self.model.embedder.parameters(), self.config.hp.clf_optim),
+            'generator': self.construct_optimizer_from_config(self.get_parameters('generator'), self.config.hp.gen_optim),
+            'discriminator': self.construct_optimizer_from_config(self.get_parameters('discriminator'), self.config.hp.discr_optim),
+            'classifier': self.construct_optimizer_from_config(self.get_parameters('classifier'), self.config.hp.cls_optim),
+            'embedder': self.construct_optimizer_from_config(self.get_parameters('embedder'), self.config.hp.embedder_optim),
         }
+
+    def get_parameters(self, name: str) -> Iterable[nn.Parameter]:
+        params_dict = {
+            'generator': self.model.generator.parameters(),
+            'discriminator': self.model.discriminator.get_adv_parameters(),
+            'classifier': self.model.discriminator.get_cls_parameters(),
+            'embedder': self.model.embedder.parameters(),
+        }
+
+        return params_dict[name]
 
     def train_on_batch(self, batch: Tuple[np.ndarray, np.ndarray]):
         self.model.train()
@@ -61,11 +73,13 @@ class LatGMTaskTrainer(TaskTrainer):
         x = torch.tensor(batch[0]).to(self.device_name)
         y = torch.tensor(batch[1]).to(self.device_name)
 
-        self.generator_step(y)
-        self.discriminator_step(x, y)
-        self.embedder_step(x, y)
-        self.creativity_step()
-        self.rehearsal_step()
+        if self.num_epochs_done < self.config.hp.num_gan_epochs:
+            self.generator_step(y)
+            self.discriminator_step(x, y)
+        else:
+            self.classifier_step(x, y)
+
+        # self.creativity_step()
 
     def discriminator_step(self, imgs: Tensor, y: Tensor):
         with torch.no_grad():
@@ -73,16 +87,13 @@ class LatGMTaskTrainer(TaskTrainer):
             z = self.model.generator.sample_noise(imgs.size(0)).to(self.device_name)
             x_fake = self.model.generator(z, y) # TODO: try picking y randomly
 
-        adv_logits_on_real, cls_logits_on_real = self.model.discriminator(x)
+        adv_logits_on_real = self.model.discriminator.run_adv_head(x)
         adv_logits_on_fake = self.model.discriminator.run_adv_head(x_fake)
 
         adv_loss = -adv_logits_on_real.mean() + adv_logits_on_fake.mean()
-        cls_loss = F.cross_entropy(prune_logits(cls_logits_on_real, self.output_mask), y)
         grad_penalty = compute_gradient_penalty(self.model.discriminator.run_adv_head, x, x_fake)
 
-        total_loss = adv_loss \
-            + self.config.hp.loss_coefs.gp * grad_penalty \
-            + self.config.hp.loss_coefs.discr_cls * cls_loss
+        total_loss = adv_loss + self.config.hp.loss_coefs.gp * grad_penalty
 
         self.perform_optim_step(total_loss, 'discriminator')
 
@@ -129,19 +140,30 @@ class LatGMTaskTrainer(TaskTrainer):
 
         return loss / len(self.learned_classes)
 
-    def embedder_step(self, x: Tensor, y: Tensor):
+    def classifier_step(self, x: Tensor, y: Tensor):
         pruned = self.model.compute_pruned_predictions(x, self.output_mask)
-        loss = self.criterion(pruned, y)
-        acc = (pruned.argmax(dim=1) == y).float().mean().detach().cpu()
+        curr_loss = self.criterion(pruned, y)
+        curr_acc = (pruned.argmax(dim=1) == y).float().mean().detach().cpu()
 
+        # if self.task_idx > 0:
+        #     reg = self.compute_classifier_reg()
+        #     loss += self.config.hp.synaptic_strength * reg
+
+        # self.perform_optim_step(loss, 'classifier', retain_graph=True)
+        # self.perform_optim_step(loss, 'embedder')
         if self.task_idx > 0:
-            reg = self.compute_classifier_reg()
-            loss += self.config.hp.synaptic_strength * reg
+            rehearsal_loss, rehearsal_acc = self.compute_rehearsal_loss()
+            total_loss = curr_loss + self.config.hp.rehearsal.loss_coef * rehearsal_loss
 
-        self.perform_optim_step(loss, 'embedder')
+            self.writer.add_scalar('cls/rehearsal_loss', rehearsal_loss.item(), self.num_iters_done)
+            self.writer.add_scalar('cls/rehearsal_acc', rehearsal_acc.item(), self.num_iters_done)
+        else:
+            total_loss = curr_loss
 
-        self.writer.add_scalar('clf/loss', loss.item(), self.num_iters_done)
-        self.writer.add_scalar('clf/acc', acc.item(), self.num_iters_done)
+        self.perform_optim_step(total_loss, 'classifier')
+
+        self.writer.add_scalar('cls/curr_oss', curr_loss.item(), self.num_iters_done)
+        self.writer.add_scalar('cls/curr_acc', curr_acc.item(), self.num_iters_done)
 
     def creativity_step(self) -> Tensor:
         if not self.config.hp.get('creativity.enabled'): return
@@ -185,30 +207,6 @@ class LatGMTaskTrainer(TaskTrainer):
         self.writer.add_scalar('creativity/adv_loss', adv_loss.item(), self.num_iters_done)
         self.writer.add_scalar('creativity/entropy', entropy.item(), self.num_iters_done)
 
-    def rehearsal_step(self):
-        """
-        Classifier should classify previous examples well
-        """
-        if not self.config.hp.get('rehearsal.enabled'): return
-        if len(self.learned_classes) == 0: return
-        if self.num_iters_done < self.config.hp.rehearsal.start_iter: return
-
-        with torch.no_grad():
-            y = random.choices(self.learned_classes, k=self.config.hp.rehearsal.batch_size)
-            y = torch.tensor(y).to(self.device_name)
-            x_fake = self.model.generator.sample(y)
-
-        logits = self.model.discriminator.compute_pruned_predictions(x_fake, self.learned_classes_mask)
-        cls_loss = F.cross_entropy(logits, y)
-
-        loss = self.config.hp.rehearsal.loss_coef * cls_loss
-        acc = (logits.argmax(dim=1) == y).float().mean().detach().cpu()
-
-        self.perform_optim_step(loss, 'discriminator')
-
-        self.writer.add_scalar('rehearsal/loss', loss.item(), self.num_iters_done)
-        self.writer.add_scalar('rehearsal/acc', acc.item(), self.num_iters_done)
-
     def compute_classifier_reg(self) -> Tensor:
         if self.config.hp.reg_strategy == 'mas':
             return self.compute_classifier_mas_reg()
@@ -216,6 +214,18 @@ class LatGMTaskTrainer(TaskTrainer):
             return self.compute_classifier_ewc_reg()
         else:
             raise NotImplementedError(f'Unknown regularization strategy: {self.config.hp.reg_strategy}')
+
+    def compute_rehearsal_loss(self) -> Tuple[Tensor, Tensor]:
+        with torch.no_grad():
+            y = random.choices(self.learned_classes, k=self.config.hp.rehearsal.batch_size)
+            y = torch.tensor(y).to(self.device_name)
+            x_fake = self.model.sample(y)
+
+        logits = self.model.compute_pruned_predictions(x_fake, self.learned_classes_mask)
+        loss = F.cross_entropy(logits, y)
+        acc = (logits.argmax(dim=1) == y).float().mean().detach().cpu()
+
+        return loss, acc
 
     def compute_classifier_mas_reg(self) -> Tensor:
         weights_curr = torch.cat([p.view(-1) for p in self.model.embedder.parameters()])
@@ -244,9 +254,8 @@ class LatGMTaskTrainer(TaskTrainer):
         loss.backward(retain_graph=retain_graph)
 
         if self.config.hp.grad_clipping.has(module_name):
-            parameters = getattr(self.model, module_name).parameters()
             grad_clip_val = self.config.hp.grad_clipping.has(module_name)
-            grad_norm = clip_grad_norm_(parameters, grad_clip_val)
+            grad_norm = clip_grad_norm_(self.get_parameters(module_name), grad_clip_val)
             self.writer.add_scalar(f'grad_norms/{module_name}', grad_norm, self.num_iters_done)
 
         self.optim[module_name].step()

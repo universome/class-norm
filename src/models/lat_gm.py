@@ -39,13 +39,16 @@ class LatGM(nn.Module):
 
     def reset_discriminator(self):
         if self.config.feat_level == 'fc':
-            state_dict = FeatDiscriminator(self.config, self.attrs.cpu().numpy()).state_dict()
+            new_state_dict = FeatDiscriminator(self.config, self.attrs.cpu().numpy()).state_dict()
         elif self.config.feat_level == 'conv':
-            state_dict = ConvFeatDiscriminator(self.config, self.attrs.cpu().numpy()).state_dict()
+            new_state_dict = ConvFeatDiscriminator(self.config, self.attrs.cpu().numpy()).state_dict()
         else:
             raise NotImplementedError(f'Unknown feat level: {self.config.feat_level}')
 
-        self.discriminator.load_state_dict(state_dict)
+        self.discriminator.load_state_dict(new_state_dict)
+
+    def sample(self, y: Tensor) -> Tensor:
+        return self.generator.sample(y)
 
 
 class ConvDecoder(nn.Module):

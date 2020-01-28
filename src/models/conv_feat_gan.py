@@ -26,8 +26,8 @@ class ConvFeatEmbedder(nn.Module):
 
 
 class ConvFeatDiscriminator(FeatDiscriminator):
-    def init_body(self):
-        self.body = nn.Sequential(
+    def init_body(self) -> nn.Module:
+        return nn.Sequential(
             ResNetLastBlock(self.config.resnet_type, self.config.pretrained),
             nn.ReLU(),
             nn.Linear(RESNET_FEAT_DIM[self.config.resnet_type], self.config.hid_dim),

@@ -75,34 +75,41 @@ class FeatClassifier(nn.Module):
     def __init__(self, config: Config, attrs: np.ndarray = None):
         super(FeatClassifier, self).__init__()
 
-        self.config = config
-        self.use_attrs = not attrs is None
         self.body = nn.Sequential(
             nn.Linear(config.feat_dim, config.hid_dim),
             nn.ReLU(),
         )
+        self.head = ClassifierHead(config, attrs)
+
+    def forward(self, x) -> Tensor:
+        return self.head(self.body(x))
+
+    def compute_pruned_predictions(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
+        return prune_logits(self.forward(x), output_mask)
+
+
+class ClassifierHead(nn.Module):
+    def __init__(self, config: Config, attrs: np.ndarray = None):
+        super(ClassifierHead, self).__init__()
+
+        self.use_attrs = not attrs is None
 
         if self.use_attrs:
             self.register_buffer('attrs', torch.tensor(attrs))
             self.cls_attr_emb = nn.Linear(attrs.shape[1], config.hid_dim)
             self.biases = nn.Parameter(torch.zeros(attrs.shape[0]))
         else:
-            self.cls_head = nn.Linear(self.config.hid_dim, self.config.num_classes)
+            self.head = nn.Linear(config.hid_dim, config.num_classes)
 
-    def forward(self, x) -> Tensor:
-        return self.compute_cls_logits(self.body(x))
-
-    def compute_pruned_predictions(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
-        return prune_logits(self.forward(x), output_mask)
-
-    def compute_cls_logits(self, embs: Tensor) -> Tensor:
-        feats = self.body(embs)
-
+    def forward(self, feats: Tensor) -> Tensor:
         if self.use_attrs:
             attr_embs = self.cls_attr_emb(self.attrs)
             return torch.mm(feats, attr_embs.t()) + self.biases
         else:
             return self.cls_head(feats)
+
+    def compute_pruned_predictions(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
+        return prune_logits(self.forward(x), output_mask)
 
 
 def resnet_embedder_forward(resnet: nn.Module, x: Tensor) -> Tensor:

@@ -1,7 +1,7 @@
 import os
 import random
 from copy import deepcopy
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Iterable
 
 import numpy as np
 import torch
@@ -26,10 +26,19 @@ class LatGMVAETaskTrainer(LatGMTaskTrainer):
 
     def construct_optimizer(self) -> Dict:
         return {
-            'vae': torch.optim.Adam(self.model.vae.parameters(), **self.config.hp.vae_optim.kwargs.to_dict()),
-            'embedder': torch.optim.Adam(self.model.embedder.parameters(), **self.config.hp.embedder_optim.kwargs.to_dict()),
-            'classifier': torch.optim.Adam(self.model.classifier.parameters(), **self.config.hp.clf_optim.kwargs.to_dict()),
+            'vae': torch.optim.Adam(self.get_parameters('vae'), **self.config.hp.vae_optim.kwargs.to_dict()),
+            'embedder': torch.optim.Adam(self.get_parameters('embedder'), **self.config.hp.embedder_optim.kwargs.to_dict()),
+            'classifier': torch.optim.Adam(self.get_parameters('classifier'), **self.config.hp.clf_optim.kwargs.to_dict()),
         }
+
+    def parameters(self, name: str) -> Iterable[nn.Parameter]:
+        params_dict = {
+            'vae': self.model.generator.parameters(),
+            'classifier': self.model.classifier.parameters(),
+            'embedder': self.model.embedder.parameters(),
+        }
+
+        return params_dict[name]
 
     def train_on_batch(self, batch):
         self.model.train()
@@ -41,31 +50,6 @@ class LatGMVAETaskTrainer(LatGMTaskTrainer):
             self.vae_step(x, y)
         else:
             self.classifier_step(x, y)
-
-    def classifier_step(self, x: Tensor, y: Tensor):
-        pruned = self.model.compute_pruned_predictions(x, self.output_mask)
-        curr_loss = self.criterion(pruned, y)
-        curr_acc = (pruned.argmax(dim=1) == y).float().mean().detach().cpu()
-
-        # if self.task_idx > 0:
-        #     reg = self.compute_classifier_reg()
-        #     loss += self.config.hp.synaptic_strength * reg
-
-        # self.perform_optim_step(loss, 'classifier', retain_graph=True)
-        # self.perform_optim_step(loss, 'embedder')
-        if self.task_idx > 0:
-            rehearsal_loss, rehearsal_acc = self.compute_rehearsal_loss()
-            total_loss = curr_loss + self.config.hp.rehearsal.loss_coef * rehearsal_loss
-
-            self.writer.add_scalar('classifier/rehearsal_loss', rehearsal_loss.item(), self.num_iters_done)
-            self.writer.add_scalar('classifier/rehearsal_acc', rehearsal_acc.item(), self.num_iters_done)
-        else:
-            total_loss = curr_loss
-
-        self.perform_optim_step(total_loss, 'classifier')
-
-        self.writer.add_scalar('clf/curr_oss', curr_loss.item(), self.num_iters_done)
-        self.writer.add_scalar('clf/curr_acc', curr_acc.item(), self.num_iters_done)
 
     def vae_step(self, imgs, y):
         with torch.no_grad(): x = self.model.embedder(imgs)
@@ -112,15 +96,3 @@ class LatGMVAETaskTrainer(LatGMTaskTrainer):
         dec_distill_loss = F.mse_loss(x_rec_new, x_rec_old)
 
         return enc_distill_loss, dec_distill_loss
-
-    def compute_rehearsal_loss(self) -> Tensor:
-        with torch.no_grad():
-            y = random.choices(self.learned_classes, k=self.config.hp.rehearsal.batch_size)
-            y = torch.tensor(y).to(self.device_name)
-            x_fake = self.model.vae.generate(y)
-
-        logits = self.model.classifier.compute_pruned_predictions(x_fake, self.learned_classes_mask)
-        loss = F.cross_entropy(logits, y)
-        acc = (logits.argmax(dim=1) == y).float().mean().detach().cpu()
-
-        return loss, acc

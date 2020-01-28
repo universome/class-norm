@@ -1,9 +1,10 @@
 all:
     task_trainer: "lat_gm"
-    load_from_checkpoint: "experiments/lat_gm--cub_embedded--42-00019/checkpoints/model-task-0.pt"
-    start_task: 1
+    # load_from_checkpoint: "experiments/lat_gm--cub_embedded--42-00019/checkpoints/model-task-0.pt"
+    # start_task: 1
     hp:
-        max_num_epochs: 500
+        max_num_epochs: 200
+        num_gan_epochs: 100
         use_class_attrs: true
         reset_head_before_each_task: false
 
@@ -16,21 +17,12 @@ all:
             use_attrs_in_discr: true
             resnet_type: 18
             feat_level: "fc"
+            share_body_in_discr: false
 
-        gen_optim:
-            type: "sgd"
-            # type: "adam"
-            # kwargs: {lr: 0.0001, betas: [0.0, 0.9]}
-            kwargs: {lr: 0.03}
-
-        discr_optim:
-            type: "sgd"
-            # kwargs: {lr: 0.0001, betas: [0.0, 0.9]}
-            kwargs: {lr: 0.03}
-
-        clf_optim:
-            type: "sgd"
-            kwargs: {lr: 0.03}
+        gen_optim: {type: "adam", kwargs: {lr: 0.001, betas: [0.0, 0.9]}}
+        discr_optim: {type: "adam", kwargs: {lr: 0.001, betas: [0.0, 0.9]}}
+        embedder_optim: {type: "adam", kwargs: {lr: 0.001, betas: [0.0, 0.9]}}
+        cls_optim: {type: "adam", kwargs: {lr: 0.001, betas: [0.0, 0.9]}}
 
         num_discr_steps_per_gen_step: 5
         loss_coefs:
@@ -48,6 +40,7 @@ all:
         grad_clipping:
             generator: 100
             discriminator: 100
+            classifier: 100
             embedder: 100
 
         batch_size: 256

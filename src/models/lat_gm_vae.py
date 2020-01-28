@@ -30,3 +30,6 @@ class LatGMVAE(nn.Module):
 
     def compute_pruned_predictions(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
         return self.classifier.compute_pruned_predictions(self.embedder(x), output_mask)
+
+    def sample(self, y: Tensor) -> Tensor:
+        return self.vae.generate(y)

@@ -1,4 +1,5 @@
-from typing import Tuple
+from typing import Tuple, Iterable
+from itertools import chain
 
 import numpy as np
 import torch
@@ -8,6 +9,7 @@ from firelab.config import Config
 
 from src.utils.lll import prune_logits
 from src.utils.constants import RESNET_FEAT_DIM
+from src.models.classifier import ClassifierHead
 
 
 class FeatGenerator(nn.Module):
@@ -65,44 +67,54 @@ class FeatDiscriminator(nn.Module):
     def __init__(self, config: Config, attrs: np.ndarray=None):
         super(FeatDiscriminator, self).__init__()
 
+        assert (not attrs is None) == config.use_attrs_in_discr
+
         self.config = config
-        self.init_body()
-        self.adv_head = nn.Linear(self.config.hid_dim, 1)
 
-        if config.use_attrs_in_discr:
-            assert not attrs is None, "You should provide attrs to use attrs"
-
-            self.register_buffer('attrs', torch.tensor(attrs))
-            self.cls_attr_emb = nn.Linear(attrs.shape[1], config.hid_dim)
-            self.biases = nn.Parameter(torch.zeros(attrs.shape[0]))
+        if self.config.share_body_in_discr:
+            self.adv_body = self.init_body()
+            self.cls_body = self.adv_body
         else:
-            self.cls_head = nn.Linear(self.config.hid_dim, self.config.num_classes)
+            self.adv_body = self.init_body()
+            self.cls_body = self.init_body()
 
-    def init_body(self):
-        self.body = nn.Sequential(
+        self.adv_head = nn.Linear(self.config.hid_dim, 1)
+        self.cls_head = ClassifierHead(self.config, attrs)
+
+    def init_body(self) -> nn.Module:
+        return nn.Sequential(
             nn.Linear(RESNET_FEAT_DIM[self.config.resnet_type], self.config.hid_dim),
             nn.ReLU()
         )
 
+    def get_adv_parameters(self) -> Iterable[nn.Parameter]:
+        return chain(self.adv_body.parameters(), self.adv_head.parameters())
+
+    def get_cls_parameters(self) -> Iterable[nn.Parameter]:
+        return chain(self.cls_body.parameters(), self.cls_head.parameters())
+
     def forward(self, x: Tensor) -> Tuple[Tensor, Tensor]:
-        feats = self.body(x)
-        discr_logits = self.adv_head(feats)
-        cls_logits = self.compute_cls_logits(feats)
+        adv_feats, cls_feats = self.compute_feats(x)
+        discr_logits = self.adv_head(adv_feats)
+        cls_logits = self.cls_head(cls_feats)
 
         return discr_logits, cls_logits
 
+    def compute_feats(self, x: Tensor) -> Tuple[Tensor, Tensor]:
+        adv_feats = self.adv_body(x)
+
+        if self.config.share_body_in_discr:
+            cls_feats = adv_feats
+        else:
+            cls_feats = self.cls_body(x)
+
+        return adv_feats, cls_feats
+
     def run_adv_head(self, x: Tensor) -> Tensor:
-        return self.adv_head(self.body(x))
+        return self.adv_head(self.adv_body(x))
 
     def run_cls_head(self, x: Tensor) -> Tensor:
-        return self.compute_cls_logits(self.body(x))
-
-    def compute_cls_logits(self, feats: Tensor) -> Tensor:
-        if self.config.use_attrs_in_discr:
-            attr_embs = self.cls_attr_emb(self.attrs)
-            return torch.mm(feats, attr_embs.t()) + self.biases
-        else:
-            return self.cls_head(feats)
+        return self.cls_head(self.cls_body(x))
 
     def compute_pruned_predictions(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
         return prune_logits(self.run_cls_head(x), output_mask)
