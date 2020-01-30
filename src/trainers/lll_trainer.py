@@ -61,13 +61,7 @@ class LLLTrainer(BaseTrainer):
 
         self.episodic_memory = []
         self.episodic_memory_output_mask = []
-        self.zst_accs = []
-        self.accs_history = []
         self.logits_history = []
-        self.ausuc_scores = []
-        self.ausuc_accs = []
-        self.lca_accs = []
-        self.iter_accs_history = []
 
         self.save_config()
 
@@ -98,6 +92,8 @@ class LLLTrainer(BaseTrainer):
                 model = GAN(self.config.hp.model)
             elif self.config.hp.model.type == 'genmem_gan_64x64':
                 model = GAN64x64(self.config.hp.model)
+            elif self.config.hp.model.type == 'lat_gm_vae':
+                model = LatGMVAE(self.config.hp.model)
             else:
                 raise NotImplementedError(f'Unkown model type to use without attrs: {self.config.hp.model.type}')
 
@@ -122,20 +118,6 @@ class LLLTrainer(BaseTrainer):
         for task_idx, task_classes in enumerate(self.class_splits):
             print(f'[Task {task_idx}]:', task_classes.tolist())
 
-    def measure_task_trainer_lca(self, task_trainer: "TaskTrainer"):
-        if self.config.get('metrics.lca_num_batches', -1) >= task_trainer.num_iters_done:
-            assert len(self.lca_accs) >= task_trainer.task_idx
-
-            if len(self.lca_accs) == task_trainer.task_idx: self.lca_accs.append([])
-
-            self.lca_accs[task_trainer.task_idx].append(task_trainer.compute_test_accuracy())
-
-    def measure_accuracy_after_iter(self, _):
-        logits = self.run_inference(self.ds_test)
-        targets = [y for _, y in self.ds_test]
-        accs = [compute_acc_for_classes(logits, targets, cs) for cs in self.class_splits]
-        self.iter_accs_history.append(accs)
-
     def start(self):
         self.init()
         self.num_tasks_learnt = 0
@@ -147,16 +129,7 @@ class LLLTrainer(BaseTrainer):
             if self.config.get('logging.save_logits'):
                self.logits_history.append(self.run_inference(self.ds_test))
 
-            if self.config.get('metrics.ausuc'):
-                self.track_ausuc()
-
             task_trainer = TASK_TRAINERS[self.config.task_trainer](self, task_idx)
-
-            if self.config.get('metrics.lca_num_batches', -1) >= 0:
-                task_trainer.after_iter_done_callbacks.append(self.measure_task_trainer_lca)
-
-            if self.config.get('logging.log_logits_after_each_iter', False):
-                task_trainer.after_iter_done_callbacks.append(self.measure_accuracy_after_iter)
 
             self.task_trainers.append(task_trainer)
 
@@ -172,43 +145,12 @@ class LLLTrainer(BaseTrainer):
             if self.config.task_trainer == 'agem':
                 task_trainer.extend_episodic_memory()
 
-            if self.config.get('metrics.average_accuracy') or self.config.get('metrics.forgetting_measure'):
-                self.validate()
-
             self.checkpoint(task_idx)
-
-        self.compute_metrics()
-        self.save_experiment_data()
-
-    def compute_metrics(self):
-        if self.config.get('metrics.average_accuracy'):
-            print('Average Accuracy:', compute_average_accuracy(self.accs_history))
-
-        if self.config.get('metrics.forgetting_measure'):
-            print('Forgetting Measure:', compute_forgetting_measure(self.accs_history))
-
-        if self.config.get('metrics.lca_num_batches', -1) >= 0:
-            lca_n_batches = min(self.config.metrics.lca_num_batches, min([len(accs) - 1 for accs in self.lca_accs]))
-            print(f'Learning Curve Area [beta = {lca_n_batches}]:', compute_learning_curve_area(self.lca_accs, lca_n_batches))
-
-        if self.config.get('metrics.ausuc'):
-            self.track_ausuc()
-            print('Mean ausuc:', np.mean(self.ausuc_scores))
 
         if self.config.get('logging.save_logits'):
             self.logits_history.append(self.run_inference(self.ds_test))
 
-    def track_ausuc(self):
-        logits = self.run_inference(self.ds_test)
-        targets = np.array([y for _, y in self.ds_test])
-        seen_classes = np.unique(self.class_splits[:self.num_tasks_learnt])
-        seen_classes_mask = construct_output_mask(seen_classes, self.config.data.num_classes)
-        ausuc, ausuc_accs = compute_ausuc(logits, targets, seen_classes_mask)
-
-        self.ausuc_scores.append(ausuc)
-        self.ausuc_accs.append(ausuc_accs)
-
-        self.writer.add_scalar('AUSUC', ausuc, self.num_tasks_learnt)
+        self.save_experiment_data()
 
     def run_inference(self, dataset: List[Tuple[np.ndarray, int]]):
         self.model.eval()
@@ -223,35 +165,9 @@ class LLLTrainer(BaseTrainer):
         return logits
 
     def save_experiment_data(self):
-        np.save(os.path.join(self.paths.custom_data_path, 'zst_accs'), self.zst_accs)
-        np.save(os.path.join(self.paths.custom_data_path, 'accs_history'), self.accs_history)
-        np.save(os.path.join(self.paths.custom_data_path, 'test_acc_batch_histories'),
-            [t.test_acc_batch_history for t in self.task_trainers])
-        np.save(os.path.join(self.paths.custom_data_path, 'ausuc_scores'), self.ausuc_scores)
-        np.save(os.path.join(self.paths.custom_data_path, 'ausuc_accs'), self.ausuc_accs)
         np.save(os.path.join(self.paths.custom_data_path, 'logits_history'), self.logits_history)
         np.save(os.path.join(self.paths.custom_data_path, 'class_splits'), self.class_splits)
         np.save(os.path.join(self.paths.custom_data_path, 'targets'), [y for _, y in self.ds_test])
-        np.save(os.path.join(self.paths.custom_data_path, 'iter_acc_history'), self.iter_accs_history)
-
-    def compute_test_accs(self) -> List[float]:
-        """Computes model test accuracy on all the tasks"""
-        accuracies = []
-
-        for task_idx in tqdm(range(self.config.data.num_tasks), desc='[Validating]'):
-            trainer = TASK_TRAINERS[self.config.task_trainer](self, task_idx)
-            accuracy = trainer.compute_test_accuracy()
-            accuracies.append(accuracy)
-
-        return accuracies
-
-    def validate(self):
-        accs = self.compute_test_accs()
-
-        for task_id, acc in enumerate(accs):
-            self.writer.add_scalar(f'Task_test_acc/{task_id}', acc, self.num_tasks_learnt)
-
-        self.accs_history.append(accs)
 
     def checkpoint(self, curr_task_idx: int):
         path = os.path.join(self.paths.checkpoints_path, f'model-task-{curr_task_idx}.pt')
