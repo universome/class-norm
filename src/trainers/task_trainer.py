@@ -14,11 +14,10 @@ class TaskTrainer:
         self.task_idx = task_idx
         self.main_trainer = main_trainer
         self.config = main_trainer.config
+        self.model = main_trainer.model
 
         if self.config.hp.get('reinit_after_each_task'):
-            self.model = main_trainer.create_model()
-        else:
-            self.model = main_trainer.model
+            self.model.load_state_dict(main_trainer.create_model().state_dict())
 
         self.device_name = main_trainer.device_name
         self.criterion = nn.CrossEntropyLoss()

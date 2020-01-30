@@ -10,33 +10,36 @@ all:
     embedder_optim: {type: "adam", kwargs: {lr: 0.001, betas: [0.0, 0.9]}}
     grad_clipping: {}
 
+    use_class_attrs: false
     model:
       type: "lat_gm_vae"
-      use_attrs_in_vae: true
+      use_attrs_in_vae: false
       z_dim: 512
       emb_dim: 512
-      feat_dim: 512
+      resnet_type: 18
       hid_dim: 512
 
       identity_embedder: true
       learn_prior_dist: false # Should we train a prior model?
 
     rehearsal:
-      loss_coef: 1
+      loss_coef: 5.
       batch_size: 128
 
     kl_term_coef: 0.01
 
     distillation:
-      batch_size: 512
-      enc_loss_coef: 1.
-      dec_loss_coef: 1.
+      batch_size: 1024
+      enc_loss_coef: 5.
+      dec_loss_coef: 5.
 
     reg_strategy: "ewc"
     synaptic_strength: 0.01
     fisher_prob: 0.5
 
 cub_embedded:
+  data:
+    resnet_type: 18
   hp:
     model:
       num_classes: 200

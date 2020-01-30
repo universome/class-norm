@@ -3,7 +3,7 @@ import numpy as np
 from firelab.config import Config
 
 from src.dataloaders import cub, cub_embedded, awa, svhn
-from src.dataloaders.utils import extract_resnet18_features_for_dataset
+from src.dataloaders.utils import extract_resnet_features_for_dataset
 
 
 def load_data(config: Config, img_target_shape: Tuple[int, int]=None,
@@ -13,8 +13,8 @@ def load_data(config: Config, img_target_shape: Tuple[int, int]=None,
         ds_test = cub.load_dataset(config.dir, is_train=False, target_shape=img_target_shape, preprocess=preprocess)
         class_attributes = cub.load_class_attributes(config.dir).astype(np.float32)
     elif config.name == 'CUB_EMBEDDED':
-        ds_train = cub_embedded.load_dataset(config.dir, is_train=True)
-        ds_test = cub_embedded.load_dataset(config.dir, is_train=False)
+        ds_train = cub_embedded.load_dataset(config.dir, resnet_type=config.get('resnet_type', 18), is_train=True)
+        ds_test = cub_embedded.load_dataset(config.dir, resnet_type=config.get('resnet_type', 18), is_train=False)
         class_attributes = cub.load_class_attributes(config.dir).astype(np.float32)
     elif config.name == 'AWA':
         ds_train = awa.load_dataset(config.dir, split='train', target_shape=img_target_shape)
@@ -28,8 +28,8 @@ def load_data(config: Config, img_target_shape: Tuple[int, int]=None,
         raise NotImplementedError(f'Unkown dataset: {config.name}')
 
     if embed_data:
-        ds_train = extract_resnet18_features_for_dataset(ds_train)
-        ds_test = extract_resnet18_features_for_dataset(ds_test)
+        ds_train = extract_resnet_features_for_dataset(ds_train, resnet_type=18)
+        ds_test = extract_resnet_features_for_dataset(ds_test, resnet_type=18)
 
     # np.save(f'/tmp/{config.name}_train', ds_train)
     # np.save(f'/tmp/{config.name}_test', ds_test)

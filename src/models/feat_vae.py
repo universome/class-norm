@@ -6,6 +6,8 @@ import torch.nn as nn
 from torch import Tensor
 from firelab.config import Config
 
+from src.utils.constants import RESNET_FEAT_DIM
+
 
 class FeatVAE(nn.Module):
     def __init__(self, config: Config, attrs: np.ndarray=None):
@@ -21,28 +23,34 @@ class FeatVAE(nn.Module):
             self.dec_attr_emb = nn.Linear(attrs.shape[1], config.emb_dim)
             self.prior_attr_emb = nn.Linear(attrs.shape[1], config.emb_dim)
         else:
-            self.enc_class_emb = nn.Embedding(self.config.num_classes, self.config.class_emb_dim)
-            self.dec_class_emb = nn.Embedding(self.config.num_classes, self.config.class_emb_dim) # TODO: share weights?
-            self.prior_class_emb = nn.Embedding(self.config.num_classes, self.config.class_emb_dim)
+            self.enc_class_emb = nn.Embedding(self.config.num_classes, self.config.emb_dim)
+            self.dec_class_emb = nn.Embedding(self.config.num_classes, self.config.emb_dim) # TODO: share weights?
+            self.prior_class_emb = nn.Embedding(self.config.num_classes, self.config.emb_dim)
 
         self.encoder = nn.Sequential(
-            nn.Linear(config.feat_dim + self.config.emb_dim, config.hid_dim),
+            nn.Linear(RESNET_FEAT_DIM[self.config.resnet_type] + self.config.emb_dim, config.hid_dim),
             nn.ReLU(),
-            nn.Linear(config.hid_dim, config.hid_dim),
+            nn.Linear(self.config.hid_dim, self.config.hid_dim),
             nn.ReLU(),
-            nn.Linear(config.hid_dim, config.z_dim * 2),
+            nn.Linear(self.config.hid_dim, self.config.hid_dim),
+            nn.ReLU(),
+            nn.Linear(self.config.hid_dim, self.config.z_dim * 2),
         )
 
         self.decoder = nn.Sequential(
-            nn.Linear(config.z_dim + self.config.emb_dim, config.hid_dim),
+            nn.Linear(self.config.z_dim + self.config.emb_dim, config.hid_dim),
             nn.ReLU(),
-            nn.Linear(config.hid_dim, config.hid_dim),
+            nn.Linear(self.config.hid_dim, self.config.hid_dim),
             nn.ReLU(),
-            nn.Linear(config.hid_dim, config.feat_dim),
+            nn.Linear(self.config.hid_dim, self.config.hid_dim),
+            nn.ReLU(),
+            nn.Linear(self.config.hid_dim, RESNET_FEAT_DIM[self.config.resnet_type]),
         )
 
         self.prior = nn.Sequential(
             nn.Linear(self.config.emb_dim, self.config.hid_dim),
+            nn.ReLU(),
+            nn.Linear(self.config.hid_dim, self.config.hid_dim),
             nn.ReLU(),
             nn.Linear(self.config.hid_dim, self.config.hid_dim),
             nn.ReLU(),

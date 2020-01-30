@@ -15,9 +15,8 @@ base:
     batch_size: 10
     model:
       type: "simple_classifier"
-    optim:
-      type: "sgd"
-      kwargs: {lr: 0.001}
+    optim: {type: "sgd", kwargs: {lr: 0.03}}
+    # optim: {type: "adam", kwargs: {lr: 0.001, betas: [0.0, 0.9]}}
 
 datasets:
   cub:

@@ -6,7 +6,6 @@ from torch import Tensor
 from src.models.feat_vae import FeatVAE
 from src.models.classifier import ResnetEmbedder, FeatClassifier
 from src.utils.lll import prune_logits
-from src.utils.constants import RESNET_FEAT_DIM
 from src.models.layers import Identity
 
 
@@ -15,13 +14,13 @@ class LatGMVAE(nn.Module):
         super(LatGMVAE, self).__init__()
 
         self.config = config
-        self.register_buffer('attrs', torch.tensor(attrs))
+        if not attrs is None: self.register_buffer('attrs', torch.tensor(attrs))
         self.vae = FeatVAE(self.config, attrs)
 
         if self.config.get('identity_embedder'):
             self.embedder = Identity()
         else:
-            self.embedder = ResnetEmbedder(config.pretrained)
+            self.embedder = ResnetEmbedder(config.pretrained, config.resnet_type)
 
         self.classifier = FeatClassifier(config, attrs)
 

@@ -28,7 +28,8 @@ class LatGMTaskTrainer(TaskTrainer):
     def _after_init_hook(self):
         prev_trainer = self.get_previous_trainer()
 
-        self.prev_model = self.BaseModel(self.config.hp.model, self.model.attrs).to(self.device_name)
+        attrs = self.model.attrs if hasattr(self.model, 'attrs') else None
+        self.prev_model = self.BaseModel(self.config.hp.model, attrs).to(self.device_name)
         self.prev_model.load_state_dict(deepcopy(self.model.state_dict()))
 
         if self.config.hp.get('reset_head_before_each_task'):

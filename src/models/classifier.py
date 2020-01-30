@@ -2,10 +2,14 @@ import numpy as np
 import torch
 from torch import Tensor
 import torch.nn as nn
-from torchvision.models.resnet import resnet18
+from torchvision.models.resnet import resnet18, resnet34, resnet50
 from firelab.config import Config
 
 from src.utils.lll import prune_logits
+from src.utils.constants import RESNET_FEAT_DIM
+
+
+RESNET_CLS = {18: resnet18, 34: resnet34, 50: resnet50}
 
 
 class ZSClassifier(nn.Module):
@@ -60,10 +64,10 @@ class ResnetClassifier(nn.Module):
 
 
 class ResnetEmbedder(nn.Module):
-    def __init__(self, pretrained: bool=True):
+    def __init__(self, pretrained: bool=True, resnet_type: int=18):
         super(ResnetEmbedder, self).__init__()
 
-        self.resnet = resnet18(pretrained=pretrained)
+        self.resnet = RESNET_CLS[resnet_type](pretrained=pretrained)
 
         del self.resnet.fc # So it's not included in parameters
 
@@ -76,7 +80,7 @@ class FeatClassifier(nn.Module):
         super(FeatClassifier, self).__init__()
 
         self.body = nn.Sequential(
-            nn.Linear(config.feat_dim, config.hid_dim),
+            nn.Linear(RESNET_FEAT_DIM[config.resnet_type], config.hid_dim),
             nn.ReLU(),
         )
         self.head = ClassifierHead(config, attrs)
@@ -106,7 +110,7 @@ class ClassifierHead(nn.Module):
             attr_embs = self.cls_attr_emb(self.attrs)
             return torch.mm(feats, attr_embs.t()) + self.biases
         else:
-            return self.cls_head(feats)
+            return self.head(feats)
 
     def compute_pruned_predictions(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
         return prune_logits(self.forward(x), output_mask)

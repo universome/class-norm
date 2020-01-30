@@ -31,9 +31,9 @@ class LatGMVAETaskTrainer(LatGMTaskTrainer):
             'classifier': torch.optim.Adam(self.get_parameters('classifier'), **self.config.hp.clf_optim.kwargs.to_dict()),
         }
 
-    def parameters(self, name: str) -> Iterable[nn.Parameter]:
+    def get_parameters(self, name: str) -> Iterable[nn.Parameter]:
         params_dict = {
-            'vae': self.model.generator.parameters(),
+            'vae': self.model.vae.parameters(),
             'classifier': self.model.classifier.parameters(),
             'embedder': self.model.embedder.parameters(),
         }
