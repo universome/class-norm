@@ -2,6 +2,8 @@ import copy
 from typing import List, Tuple
 import numpy as np
 
+from src.utils.data_utils import flatten
+
 
 def compute_average_accuracy(accuracies_history: List[List[float]], after_task_idx: int=-1) -> float:
     """
@@ -134,7 +136,7 @@ def compute_ausuc_slow(logits: List[List[float]], targets: List[int], seen_class
     return np.trapz(y=acc_S_T_list, x=acc_U_T_list) * 100.0
 
 
-def compute_ausuc_matrix(logits_history: np.ndarray, targets: List[int], class_splits: np.ndarray) -> np.ndarray:
+def compute_ausuc_matrix(logits_history: np.ndarray, targets: List[int], class_splits: List[List[int]]) -> np.ndarray:
     """
     Computes pairwise AUSUC scores between tasks given logits history
 
@@ -152,7 +154,7 @@ def compute_ausuc_matrix(logits_history: np.ndarray, targets: List[int], class_s
         ausucs = []
 
         for task_to in range(num_tasks):
-            classes = set(np.hstack([class_splits[task_to], class_splits[task_from]]))
+            classes = set(flatten([class_splits[task_to], class_splits[task_from]]))
             curr_logits = [l for l, t in zip(logits_history[task_from], targets) if t in classes]
             curr_targets = [t for t in targets if t in classes]
 
@@ -167,7 +169,7 @@ def compute_ausuc_matrix(logits_history: np.ndarray, targets: List[int], class_s
     return np.array(ausuc_matrix)
 
 
-def compute_individual_accs_matrix(logits_history: np.ndarray, targets: List[int], class_splits: np.ndarray) -> np.ndarray:
+def compute_individual_accs_matrix(logits_history: np.ndarray, targets: List[int], class_splits: List[List[int]]) -> np.ndarray:
     """
     Computes accuracy for each task for each timestep.
     You would like to use np.triu or np.triu_indices to get zero-shot accuracies
@@ -184,7 +186,7 @@ def compute_individual_accs_matrix(logits_history: np.ndarray, targets: List[int
     return np.array([[compute_acc_for_classes(l, targets, cs) for cs in class_splits] for l in logits_history])
 
 
-def compute_task_transfer_matrix(logits_history: np.ndarray, targets: List[int], class_splits: np.ndarray) -> np.ndarray:
+def compute_task_transfer_matrix(logits_history: np.ndarray, targets: List[int], class_splits: List[List[int]]) -> np.ndarray:
     """
     Task transfer matrix is a matrix of accuracy differences in each task.
     It depicts changes in performance for each task at each timestep.
@@ -215,7 +217,7 @@ def compute_unseen_classes_acc_history(logits_history: List[List[List[float]]], 
 
     :return: zero-shot accuracies of size [NUM_TASKS]
     """
-    unseen_classes = [np.unique(class_splits[i:]) for i in range(len(class_splits))]
+    unseen_classes = [np.unique(flatten(class_splits[i:])) for i in range(len(class_splits))]
     accs = [compute_acc_for_classes(l, targets, cs, restrict_space) for l, cs in zip(logits_history, unseen_classes)]
 
     return accs
@@ -234,7 +236,7 @@ def compute_seen_classes_acc_history(logits_history: List[List[List[float]]], ta
 
     :return: zero-shot accuracies of size [NUM_TASKS]
     """
-    seen_classes = [np.unique(class_splits[:i+1]) for i in range(len(class_splits))]
+    seen_classes = [np.unique(flatten(class_splits[:i+1])) for i in range(len(class_splits))]
     accs = [compute_acc_for_classes(l, targets, cs, restrict_space) for l, cs in zip(logits_history, seen_classes)]
 
     return accs
@@ -253,7 +255,7 @@ def compute_joined_ausuc_history(logits_history: List[List[List[float]]], target
     :return: AUSUC scores of size [NUM_TASKS]
     """
     num_classes = len(logits_history[0][0])
-    seen_classes = [np.unique(class_splits[:i]) for i in range(len(class_splits))]
+    seen_classes = [np.unique(flatten(class_splits[:i])) for i in range(len(class_splits))]
     seen_classes_masks = [construct_mask(num_classes, cs) for cs in seen_classes]
     ausuc_scores = [compute_ausuc(l, targets, m)[0] for l, m in zip(logits_history, seen_classes_masks)]
 

@@ -24,6 +24,7 @@ Tricks to use:
 - penalize other logits sometimes to make model be prepared for operating in "distinguish between all-classes" regime. For A-GEM we could use episodic memory for this.
 - Use moment-matching in generative models to improve the generations
 - LR warmup
+- Maybe we can switch from using class attributes early in training to using normal classification head later in training? This will allow us to have fast learning dynamics and good final scores (since using normal head performs much better).
 
 MeRGAZSL:
 - Use discriminator with 3 outputs: real, synthetic, fake.

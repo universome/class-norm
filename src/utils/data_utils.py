@@ -1,9 +1,10 @@
 import warnings
-from typing import List, Tuple
+from typing import List, Tuple, Any
 
 import numpy as np
 from torch.utils.data import Dataset
 from skimage.transform import resize
+from firelab.config import Config
 
 
 def get_data_splits(class_splits:List[List[int]], dataset) -> List[Dataset]:
@@ -18,24 +19,34 @@ def get_train_test_data_splits(class_splits:List[List[int]], ds_train:Dataset, d
     return data_splits
 
 
-def split_classes_for_tasks(num_classes: int, num_tasks: int, num_classes_per_task: int, num_reserved_classes: int=0) -> List[List[int]]:
+def split_classes_for_tasks(config: Config) -> List[List[int]]:
     """
     Splits classes into `num_tasks` groups and returns these splits
 
     :param num_classes:
     :param num_tasks:
     :param num_classes_per_task:
-    :param num_reserved_classes: — if we run live HPO, then we would like to reserve some of the first classes for it
     :return:
     """
-    num_classes_to_use = num_tasks * num_classes_per_task
 
-    if num_classes_to_use > num_classes - num_reserved_classes:
-        warnings.warn(f'We will have duplicated classes: {num_classes_to_use} > {num_classes - num_reserved_classes}')
+    if config.has('task_sizes'):
+        num_classes_to_use = sum(config.task_sizes)
+    else:
+        num_classes_to_use = config.num_tasks * config.num_classes_per_task
 
-    classes = np.arange(num_classes)[num_reserved_classes:]
+    if num_classes_to_use > config.num_classes:
+        warnings.warn(f"We'll have duplicated classes: {num_classes_to_use} > {config.num_classes}")
+
+    classes = np.arange(config.num_classes)
     classes = np.tile(classes, np.ceil(num_classes_to_use / len(classes)).astype(int))[:num_classes_to_use]
-    splits = np.random.permutation(classes).reshape(num_tasks, num_classes_per_task)
+    classes = np.random.permutation(classes)
+
+    if config.has('task_sizes'):
+        steps = flatten([[0], np.cumsum(config.task_sizes[:-1])])
+        splits = [classes[c:c + size].tolist() for c, size in zip(steps, config.task_sizes)]
+    else:
+        splits = classes.reshape(config.num_tasks, config.num_classes_per_task)
+        splits = splits.tolist()
 
     return splits
 
@@ -82,3 +93,7 @@ def compute_class_centroids(dataset: List[Tuple[np.ndarray, int]], total_num_cla
 def filter_out_classes(ds: List[Tuple[np.ndarray, int]], classes_to_keep: List[int]) -> List[Tuple[np.ndarray, int]]:
     """Removes datapoints with classes that are not in `classes_to_keep` list"""
     return [(x, y) for x, y in ds if y in classes_to_keep]
+
+
+def flatten(list_of_lists: List[List[Any]]) -> List[Any]:
+    return [x for list in list_of_lists for x in list]

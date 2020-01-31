@@ -102,20 +102,18 @@ class LLLTrainer(BaseTrainer):
             self.ds_train = filter_out_classes(self.ds_train, self.config.data.classes_to_use)
             self.ds_test = filter_out_classes(self.ds_test, self.config.data.classes_to_use)
 
-        self.class_splits = split_classes_for_tasks(
-            self.config.data.num_classes, self.config.data.num_tasks,
-            self.config.data.num_classes_per_task, self.config.data.get('num_reserved_classes', 0))
+        self.class_splits = split_classes_for_tasks(self.config.lll_setup)
         self.data_splits = get_train_test_data_splits(self.class_splits, self.ds_train, self.ds_test)
 
         for task_idx, task_classes in enumerate(self.class_splits):
-            print(f'[Task {task_idx}]:', task_classes.tolist())
+            print(f'[Task {task_idx}]:', task_classes)
 
     def start(self):
         self.init()
         self.num_tasks_learnt = 0
         self.task_trainers = [] # TODO: this is memory-leaky :|
 
-        for task_idx in range(self.config.data.num_tasks):
+        for task_idx in range(self.config.lll_setup.num_tasks):
             print(f'Starting task #{task_idx}')
 
             if self.config.get('logging.save_logits'):

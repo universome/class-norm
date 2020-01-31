@@ -27,14 +27,14 @@ class ClassifierTrainer(BaseTrainer):
     def init_models(self):
         if self.config.hp.model.type == 'resnet50':
             self.model = resnet50(pretrained=self.config.hp.get('pretrained'))
-            self.model.fc = nn.Linear(self.model.fc.weight.shape[1], self.config.data.num_classes)
+            self.model.fc = nn.Linear(self.model.fc.weight.shape[1], self.config.lll_setup.num_classes)
             nn.init.kaiming_normal_(self.model.fc.weight.data)
         elif self.config.hp.model.type == 'resnet-head':
             self.model = nn.Sequential(
                 nn.Dropout(0.5),
                 nn.Linear(RESNET_FEAT_DIM[self.config.hp.model.resnet_type], self.config.hp.model.hid_dim),
                 nn.ReLU(),
-                nn.Linear(self.config.hp.model.hid_dim, self.config.data.num_classes)
+                nn.Linear(self.config.hp.model.hid_dim, self.config.lll_setup.num_classes)
             )
         else:
             raise NotImplementedError(f'Unknown model: {self.config.hp.model.type}')
@@ -97,7 +97,7 @@ class ClassifierTrainer(BaseTrainer):
             self.has_scheduler = False
 
     def init_criterions(self):
-        # self.criterion = LabelSmoothingLoss(self.config.data.num_classes)
+        # self.criterion = LabelSmoothingLoss(self.config.lll_setup.num_classes)
         self.criterion = nn.CrossEntropyLoss()
 
     def on_epoch_done(self):

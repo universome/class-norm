@@ -17,6 +17,7 @@ from src.models.gan import GAN
 from src.models.gan_64x64 import GAN64x64
 from src.trainers.task_trainer import TaskTrainer
 from src.utils.plotting import plot_samples
+from src.utils.data_utils import flatten
 
 
 class GenMemGANTaskTrainer(TaskTrainer):
@@ -27,8 +28,8 @@ class GenMemGANTaskTrainer(TaskTrainer):
 
         self.prev_model = ModelClass(self.config.hp.model).to(self.device_name)
         self.prev_model.load_state_dict(deepcopy(self.model.state_dict()))
-        self.learnt_classes = np.unique(self.main_trainer.class_splits[:self.task_idx]).tolist()
-        self.seen_classes = np.unique(self.main_trainer.class_splits[:self.task_idx + 1]).tolist()
+        self.learnt_classes = np.unique(flatten(self.main_trainer.class_splits[:self.task_idx])).tolist()
+        self.seen_classes = np.unique(flatten(self.main_trainer.class_splits[:self.task_idx + 1])).tolist()
         self.writer = SummaryWriter(os.path.join(self.main_trainer.paths.logs_path, f'task_{self.task_idx}'), flush_secs=5)
 
         if self.task_idx > 0:

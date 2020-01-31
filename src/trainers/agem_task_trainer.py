@@ -8,7 +8,7 @@ import numpy as np
 from src.trainers.task_trainer import TaskTrainer
 from src.utils.lll import prune_logits
 from src.utils.constants import NEG_INF
-from src.utils.data_utils import construct_output_mask
+from src.utils.data_utils import construct_output_mask, flatten
 
 
 class AgemTaskTrainer(TaskTrainer):
@@ -100,8 +100,8 @@ class AgemTaskTrainer(TaskTrainer):
         groups = [[(x,y) for (x,y) in ds_train if y == label] for label in unique_labels] # Slow but concise
         num_samples_to_add = [min(len(g), num_samples_per_class) for g in groups]
         task_memory = [random.sample(g, n) for g, n in zip(groups, num_samples_to_add)]
-        task_memory = [s for group in task_memory for s in group] # Flattening
-        task_mask = construct_output_mask(self.main_trainer.class_splits[self.task_idx], self.config.data.num_classes)
+        task_memory = flatten(task_memory)
+        task_mask = construct_output_mask(self.main_trainer.class_splits[self.task_idx], self.config.lll_setup.num_classes)
         task_mask = task_mask.reshape(1, -1).repeat(len(task_memory), axis=0)
 
         assert len(task_memory) <= num_samples_per_class * len(groups)

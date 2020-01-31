@@ -19,7 +19,7 @@ from src.utils.model_utils import get_number_of_parameters
 from src.models.lat_gm import LatGM
 from src.trainers.task_trainer import TaskTrainer
 from src.utils.weights_importance import compute_mse_grad, compute_diagonal_fisher
-from src.utils.data_utils import construct_output_mask
+from src.utils.data_utils import construct_output_mask, flatten
 
 
 class LatGMTaskTrainer(TaskTrainer):
@@ -35,9 +35,9 @@ class LatGMTaskTrainer(TaskTrainer):
         if self.config.hp.get('reset_head_before_each_task'):
             self.model.reset_discriminator()
 
-        self.learned_classes = np.unique(self.main_trainer.class_splits[:self.task_idx]).tolist()
-        self.learned_classes_mask = construct_output_mask(self.learned_classes, self.config.data.num_classes)
-        self.seen_classes = np.unique(self.main_trainer.class_splits[:self.task_idx + 1]).tolist()
+        self.learned_classes = np.unique(flatten(self.main_trainer.class_splits[:self.task_idx])).tolist()
+        self.learned_classes_mask = construct_output_mask(self.learned_classes, self.config.lll_setup.num_classes)
+        self.seen_classes = np.unique(flatten(self.main_trainer.class_splits[:self.task_idx + 1])).tolist()
         self.writer = SummaryWriter(os.path.join(self.main_trainer.paths.logs_path, f'task_{self.task_idx}'), flush_secs=5)
 
         if not prev_trainer is None:

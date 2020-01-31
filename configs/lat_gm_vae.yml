@@ -10,7 +10,7 @@ all:
     embedder_optim: {type: "adam", kwargs: {lr: 0.001, betas: [0.0, 0.9]}}
     grad_clipping: {}
 
-    use_class_attrs: false
+    use_class_attrs: true
     model:
       type: "lat_gm_vae"
       use_attrs_in_vae: false
@@ -40,6 +40,11 @@ all:
 cub_embedded:
   data:
     resnet_type: 18
+
+  lll_setup:
+    num_classes: 200
+    num_tasks: 6
+    task_sizes: [100, 20, 20, 20, 20, 20]
   hp:
     model:
       num_classes: 200

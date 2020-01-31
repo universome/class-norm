@@ -11,7 +11,7 @@ from torch.nn.utils import clip_grad_norm_
 from src.trainers.task_trainer import TaskTrainer
 from src.utils.lll import prune_logits
 from src.utils.losses import compute_gradient_penalty
-from src.utils.data_utils import compute_class_centroids
+from src.utils.data_utils import compute_class_centroids, flatten
 
 
 class MeRGAZSLTaskTrainer(TaskTrainer):
@@ -19,11 +19,11 @@ class MeRGAZSLTaskTrainer(TaskTrainer):
         assert self.config.hp.model.type == 'feat_gan_classifier'
 
         # TODO: replace with running centroids if you want more fair LLL setup (seeing one example only once)
-        self.class_centroids = compute_class_centroids(self.task_ds_train, self.config.data.num_classes)
+        self.class_centroids = compute_class_centroids(self.task_ds_train, self.config.lll_setup.num_classes)
         self.prev_model = deepcopy(self.model).to(self.device_name).eval()
         self.current_classes = self.main_trainer.class_splits[self.task_idx]
-        self.learnt_classes = np.unique(self.main_trainer.class_splits[:self.task_idx]).tolist()
-        self.seen_classes = np.unique(self.main_trainer.class_splits[:self.task_idx + 1]).tolist()
+        self.learnt_classes = np.unique(flatten(self.main_trainer.class_splits[:self.task_idx])).tolist()
+        self.seen_classes = np.unique(flatten(self.main_trainer.class_splits[:self.task_idx + 1])).tolist()
         self.writer = SummaryWriter(os.path.join(self.main_trainer.paths.logs_path, f'task_{self.task_idx}'))
 
         self.optim = {
@@ -137,7 +137,7 @@ class MeRGAZSLTaskTrainer(TaskTrainer):
             z = self.model.generator.sample_noise(y.size(0)).to(self.device_name)
             x = self.model.generator(z, self.model.attrs[y])
 
-        seen_classes_output_mask = np.zeros(self.config.data.num_classes).astype(bool)
+        seen_classes_output_mask = np.zeros(self.config.lll_setup.num_classes).astype(bool)
         seen_classes_output_mask[self.seen_classes] = True
         pruned_logits = self.model.classifier.compute_pruned_predictions(x, seen_classes_output_mask)
         loss = self.criterion(pruned_logits, y)
@@ -165,4 +165,4 @@ class MeRGAZSLTaskTrainer(TaskTrainer):
         distances = [(c - class_centroids[l]).norm() for l, c in centroids_fake.items()]
         loss = sum(distances) # TODO: check that this thing is differentiable
 
-        return loss / self.config.data.num_classes
+        return loss / self.config.lll_setup.num_classes

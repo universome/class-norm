@@ -25,11 +25,11 @@ cub:
   data:
     name: "CUB"
     dir: "data/CUB_200_2011"
-    num_classes: 200
 
-    num_tasks: 10
+  lll_setup:
     num_classes_per_task: 20
-    num_reserved_classes: 0
+    num_classes: 200
+    num_tasks: 10
 
   hp:
     model: {pretrained: true}
@@ -40,9 +40,9 @@ cub_embedded:
     dir: "data/CUB_EMBEDDED"
     num_classes: 200
 
+  lll_setup:
     num_tasks: 10
     num_classes_per_task: 20
-    num_reserved_classes: 0
     resnet_type: 18
 
 awa:
@@ -51,9 +51,9 @@ awa:
     dir: "data/Animals_with_Attributes2"
     num_classes: 50
 
+  lll_setup:
     num_tasks: 5
     num_classes_per_task: 10
-    num_reserved_classes: 0
 
 svhn:
   data:
@@ -61,6 +61,6 @@ svhn:
     dir: "data/SVHN"
     num_classes: 10
 
+  lll_setup:
     num_tasks: 10
     num_classes_per_task: 1
-    num_reserved_classes: 0

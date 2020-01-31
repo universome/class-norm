@@ -25,7 +25,7 @@ class TaskTrainer:
         self.optim = self.construct_optimizer()
 
         self.task_ds_train, self.task_ds_test = main_trainer.data_splits[task_idx]
-        self.output_mask = construct_output_mask(main_trainer.class_splits[task_idx], self.config.data.num_classes)
+        self.output_mask = construct_output_mask(main_trainer.class_splits[task_idx], self.config.lll_setup.num_classes)
         self.init_dataloaders()
         self.test_acc_batch_history = []
         self.after_iter_done_callbacks = []

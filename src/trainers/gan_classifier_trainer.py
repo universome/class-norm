@@ -24,7 +24,7 @@ class GANClassifierTrainer(BaseTrainer):
     def init_models(self):
         assert self.config.data.get('source') == 'gan_model'
 
-        self.classifier = ResnetClassifier(num_classes=self.config.data.num_classes)
+        self.classifier = ResnetClassifier(num_classes=self.config.lll_setup.num_classes)
         self.gan = GAN(self.config.hp.gan_config)
         self.gan.load_state_dict(torch.load(self.config.hp.gan_checkpoint_path))
 
@@ -75,7 +75,7 @@ class GANClassifierTrainer(BaseTrainer):
 
     def create_gan_dataloader(self):
         def sample_fn():
-            y = torch.randint(low=0, high=self.config.data.num_classes, size=(self.config.hp.batch_size,))
+            y = torch.randint(low=0, high=self.config.lll_setup.num_classes, size=(self.config.hp.batch_size,))
             y = y.to(self.device_name)
 
             return (self.gan.generator.sample(y), y)
