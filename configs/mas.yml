@@ -2,6 +2,7 @@ all:
   task_trainer: "mas"
   hp:
     optim: {type: "sgd", kwargs: {lr: 0.03}}
+    synaptic_strength: 0.1
 
 cub_embedded:
   hp:
@@ -14,10 +15,3 @@ cub_embedded:
     optim: {type: "adam", kwargs: {lr: 0.001}}
   data:
     resnet_type: 18
-
-cub:
-  hp:
-    synaptic_strength: 0.1
-awa:
-  hp:
-    synaptic_strength: 0.1
