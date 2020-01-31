@@ -12,55 +12,21 @@ from src.utils.constants import RESNET_FEAT_DIM
 RESNET_CLS = {18: resnet18, 34: resnet34, 50: resnet50}
 
 
-class ZSClassifier(nn.Module):
-    def __init__(self, attrs:np.ndarray, pretrained:bool=False):
-        super(ZSClassifier, self).__init__()
-
-        self.embedder = ResnetEmbedder(pretrained=pretrained)
-        self.register_buffer('attrs', torch.tensor(attrs.tolist()).float())
-        self.attr_emb = nn.Linear(attrs.shape[1], 512, bias=False)
-        self.biases = nn.Parameter(torch.zeros(attrs.shape[0]))
-
-    def forward(self, x: Tensor) -> Tensor:
-        img_feats = self.embedder(x)
-        logits = self.run_head(self.embedder(x))
-
-        return logits
-
-    def run_head(self, img_feats: Tensor) -> Tensor:
-        attrs_feats = self.attr_emb(self.attrs)
-        logits = torch.mm(img_feats, attrs_feats.t()) + self.biases
-
-        return logits
-
-    def compute_pruned_predictions(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
-        logits = self.forward(x)
-        pruned_logits = prune_logits(logits, output_mask)
-
-        return pruned_logits
-
-    def get_head_size(self) -> int:
-        return self.biases.numel() + self.attr_emb.weight.numel()
-
-
 class ResnetClassifier(nn.Module):
-    def __init__(self, num_classes: int, pretrained: bool=False):
+    def __init__(self, config: Config, attrs: np.ndarray=None):
         super(ResnetClassifier, self).__init__()
 
-        self.embedder = ResnetEmbedder(pretrained=pretrained)
-        self.head = nn.Linear(512, num_classes)
+        self.embedder = ResnetEmbedder(config.pretrained, config.resnet_type)
+        self.head = ClassifierHead(config, attrs)
 
     def compute_pruned_predictions(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
-        logits = self.forward(x)
-        pruned_logits = prune_logits(logits, output_mask)
-
-        return pruned_logits
+        return prune_logits(self.forward(x), output_mask)
 
     def forward(self, x: Tensor) -> Tensor:
-        feats = self.embedder(x)
-        logits = self.head(feats)
+        return self.head(self.embedder(x))
 
-        return logits
+    def get_head_size(self) -> int:
+        return sum(p.numel() for p in self.head.parameters())
 
 
 class ResnetEmbedder(nn.Module):
