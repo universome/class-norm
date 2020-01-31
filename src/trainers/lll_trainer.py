@@ -9,7 +9,7 @@ from firelab.config import Config
 from tqdm import tqdm
 import yaml
 
-from src.models.classifier import ZSClassifier, ResnetClassifier
+from src.models.classifier import ResnetClassifier, FeatClassifier
 from src.models.feat_gan_classifier import FeatGANClassifier
 from src.models.gan import GAN
 from src.models.gan_64x64 import GAN64x64
@@ -74,28 +74,20 @@ class LLLTrainer(BaseTrainer):
         self.model = self.create_model()
 
     def create_model(self):
+        models = {
+            'simple_classifier': ResnetClassifier,
+            'feat_gan_classifier': FeatGANClassifier,
+            'lat_gm': LatGM,
+            'lat_gm_vae': LatGMVAE,
+            'feat_classifier': FeatClassifier,
+            'genmem_gan': GAN,
+            'genmem_gan_64x64': GAN64x64
+        }
+
         if self.config.hp.get('use_class_attrs'):
-            if self.config.hp.model.type == 'simple_classifier':
-                model = ZSClassifier(self.class_attributes, pretrained=self.config.hp.pretrained)
-            elif self.config.hp.model.type == 'feat_gan_classifier':
-                model = FeatGANClassifier(self.config.hp.model, self.class_attributes)
-            elif self.config.hp.model.type == 'lat_gm':
-                model = LatGM(self.config.hp.model, self.class_attributes)
-            elif self.config.hp.model.type == 'lat_gm_vae':
-                model = LatGMVAE(self.config.hp.model, self.class_attributes)
-            else:
-                raise NotImplementedError(f'Unknown model type {self.config.hp.model.type}')
+            model = models[self.config.hp.model.type](self.config.hp.model, self.class_attributes)
         else:
-            if self.config.hp.model.type == 'simple_classifier':
-                model = ResnetClassifier(self.config.data.num_classes, pretrained=self.config.hp.pretrained)
-            elif self.config.hp.model.type == 'genmem_gan':
-                model = GAN(self.config.hp.model)
-            elif self.config.hp.model.type == 'genmem_gan_64x64':
-                model = GAN64x64(self.config.hp.model)
-            elif self.config.hp.model.type == 'lat_gm_vae':
-                model = LatGMVAE(self.config.hp.model)
-            else:
-                raise NotImplementedError(f'Unkown model type to use without attrs: {self.config.hp.model.type}')
+            model = models[self.config.hp.model.type](self.config.hp.model)
 
         if self.config.has('load_from_checkpoint'):
             model.load_state_dict(torch.load(self.config.load_from_checkpoint))
