@@ -6,6 +6,18 @@ all:
     # optim: {type: "adam", kwargs: {lr: 0.001, betas: [0.0, 0.9]}}
     reinit_after_each_task: false
 
+cub_embedded:
+  hp:
+    max_num_epochs: 50
+    model:
+      type: "feat_classifier"
+      resnet_type: 18
+      hid_dim: 512
+      num_classes: 200
+    optim: {type: "adam", kwargs: {lr: 0.001}}
+  data:
+    resnet_type: 18
+
 cub:
   hp:
     max_num_epochs: 5

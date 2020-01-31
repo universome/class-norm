@@ -1,4 +1,4 @@
-base:
+all:
   inference_batch_size: 512
 #  metrics:
 #    average_accuracy: true
@@ -14,12 +14,15 @@ base:
     use_class_attrs: true
     batch_size: 10
     model:
+      resnet_type: 18
+      pretrained: false
       type: "simple_classifier"
+      hid_dim: 512
     optim: {type: "sgd", kwargs: {lr: 0.03}}
     # optim: {type: "adam", kwargs: {lr: 0.001, betas: [0.0, 0.9]}}
 
-datasets:
-  cub:
+cub:
+  data:
     name: "CUB"
     dir: "data/CUB_200_2011"
     num_classes: 200
@@ -28,7 +31,11 @@ datasets:
     num_classes_per_task: 20
     num_reserved_classes: 0
 
-  cub_embedded:
+  hp:
+    model: {pretrained: true}
+
+cub_embedded:
+  data:
     name: "CUB_EMBEDDED"
     dir: "data/CUB_EMBEDDED"
     num_classes: 200
@@ -36,8 +43,10 @@ datasets:
     num_tasks: 10
     num_classes_per_task: 20
     num_reserved_classes: 0
+    resnet_type: 18
 
-  awa:
+awa:
+  data:
     name: "AWA"
     dir: "data/Animals_with_Attributes2"
     num_classes: 50
@@ -46,7 +55,8 @@ datasets:
     num_classes_per_task: 10
     num_reserved_classes: 0
 
-  svhn:
+svhn:
+  data:
     name: "SVHN"
     dir: "data/SVHN"
     num_classes: 10

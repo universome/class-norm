@@ -5,10 +5,8 @@ all:
 
 cub:
   hp:
-    pretrained: true
     synaptic_strength: 10
     fisher_keep_prob: 0.5
 awa:
   hp:
-    pretrained: false
     synaptic_strength: 100

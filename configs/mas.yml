@@ -1,12 +1,23 @@
 all:
   task_trainer: "mas"
-  hp: {}
+  hp:
+    optim: {type: "sgd", kwargs: {lr: 0.03}}
+
+cub_embedded:
+  hp:
+    max_num_epochs: 10
+    model:
+      type: "feat_classifier"
+      resnet_type: 18
+      hid_dim: 512
+      num_classes: 200
+    optim: {type: "adam", kwargs: {lr: 0.001}}
+  data:
+    resnet_type: 18
 
 cub:
   hp:
-    pretrained: true
     synaptic_strength: 0.1
 awa:
   hp:
-    pretrained: false
     synaptic_strength: 0.1
