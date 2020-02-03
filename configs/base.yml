@@ -39,11 +39,23 @@ cub_embedded:
     name: "CUB_EMBEDDED"
     dir: "data/CUB_EMBEDDED"
     num_classes: 200
+    resnet_type: 18
 
   lll_setup:
     num_tasks: 10
     num_classes_per_task: 20
-    resnet_type: 18
+
+cub_conv_feats:
+  data:
+    name: "CUB_EMBEDDED"
+    dir: "data/CUB_EMBEDDED"
+    num_classes: 200
+    resnet_type: 50
+    feat_level: "conv"
+
+  lll_setup:
+    num_tasks: 10
+    num_classes_per_task: 20
 
 awa:
   data:

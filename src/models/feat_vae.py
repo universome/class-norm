@@ -13,21 +13,45 @@ class FeatVAE(nn.Module):
     def __init__(self, config: Config, attrs: np.ndarray=None):
         super(FeatVAE, self).__init__()
 
+        self.encoder = FeatVAEEncoder(config, attrs)
+        self.decoder = FeatVAEDecoder(config, attrs)
+        self.prior = FeatVAEPrior(config, attrs)
+
+    def forward(self, x: Tensor, y: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+        mean, log_var = self.encoder(x, y)
+        z = self.sample(mean, log_var)
+        x_rec = self.decode(z, y)
+
+        return x_rec, mean, log_var
+
+    def sample(self, mean: Tensor, log_var: Tensor) -> Tensor:
+        """Samples z ~ N(mean, sigma)"""
+        return torch.randn_like(log_var) * (log_var / 2).exp() + mean
+
+    def sample_from_prior(self, y: Tensor) -> Tensor:
+        mean, log_var = self.prior(y)
+        eps = torch.randn_like(log_var)
+        z = mean + eps * (log_var / 2).exp()
+
+        return z
+
+    def get_prior_distribution(self, y: Tensor) -> Tuple[Tensor, Tensor]:
+        pass
+
+    def generate(self, y: Tensor) -> Tensor:
+        z = self.sample_from_prior(y)
+        x = self.decode(z, y)
+
+        return x
+
+
+class FeatVAEEncoder(nn.Module):
+    def __init__(self, config: Config, attrs: np.ndarray=None):
+        super(FeatVAEEncoder, self).__init__()
+
         self.config = config
-
-        if config.get('use_attrs_in_vae'):
-            assert not attrs is None
-
-            self.register_buffer('attrs', torch.tensor(attrs).clone().detach())
-            self.enc_attr_emb = nn.Linear(attrs.shape[1], config.emb_dim)
-            self.dec_attr_emb = nn.Linear(attrs.shape[1], config.emb_dim)
-            self.prior_attr_emb = nn.Linear(attrs.shape[1], config.emb_dim)
-        else:
-            self.enc_class_emb = nn.Embedding(self.config.num_classes, self.config.emb_dim)
-            self.dec_class_emb = nn.Embedding(self.config.num_classes, self.config.emb_dim) # TODO: share weights?
-            self.prior_class_emb = nn.Embedding(self.config.num_classes, self.config.emb_dim)
-
-        self.encoder = nn.Sequential(
+        self.embedder = FeatVAEEmbedder(config, attrs)
+        self.model = nn.Sequential(
             nn.Linear(RESNET_FEAT_DIM[self.config.resnet_type] + self.config.emb_dim, config.hid_dim),
             nn.ReLU(),
             nn.Linear(self.config.hid_dim, self.config.hid_dim),
@@ -37,8 +61,24 @@ class FeatVAE(nn.Module):
             nn.Linear(self.config.hid_dim, self.config.z_dim * 2),
         )
 
-        self.decoder = nn.Sequential(
-            nn.Linear(self.config.z_dim + self.config.emb_dim, config.hid_dim),
+    def forward(self, x: Tensor, y: Tensor) -> Tuple[Tensor, Tensor]:
+        y_emb = self.embedder(y)
+        inputs = torch.cat([x, y_emb], dim=1)
+        encodings = self.model(inputs)
+        mean = encodings[:, :self.config.z_dim]
+        log_var = encodings[:, self.config.z_dim:]
+
+        return mean, log_var
+
+
+class FeatVAEDecoder(nn.Module):
+    def __init__(self, config: Config, attrs: np.ndarray=None):
+        super(FeatVAEDecoder, self).__init__()
+
+        self.config = config
+        self.embedder = FeatVAEEmbedder(config, attrs)
+        self.model = nn.Sequential(
+            nn.Linear(self.config.z_dim + self.config.emb_dim, self.config.hid_dim),
             nn.ReLU(),
             nn.Linear(self.config.hid_dim, self.config.hid_dim),
             nn.ReLU(),
@@ -47,7 +87,21 @@ class FeatVAE(nn.Module):
             nn.Linear(self.config.hid_dim, RESNET_FEAT_DIM[self.config.resnet_type]),
         )
 
-        self.prior = nn.Sequential(
+    def forward(self, z: Tensor, y: Tensor) -> Tensor:
+        y_emb = self.embedder(y)
+        inputs = torch.cat([z, y_emb], dim=1)
+        x_rec = self.model(inputs)
+
+        return x_rec
+
+
+class FeatVAEPrior(nn.Module):
+    def __init__(self, config: Config, attrs: np.ndarray=None):
+        super(FeatVAEPrior, self).__init__()
+
+        self.config = config
+        self.embedder = FeatVAEEmbedder(config, attrs)
+        self.model = nn.Sequential(
             nn.Linear(self.config.emb_dim, self.config.hid_dim),
             nn.ReLU(),
             nn.Linear(self.config.hid_dim, self.config.hid_dim),
@@ -57,61 +111,10 @@ class FeatVAE(nn.Module):
             nn.Linear(self.config.hid_dim, self.config.z_dim * 2),
         )
 
-    def forward(self, x: Tensor, y: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
-        mean, log_var = self.encode(x, y)
-        z = self.sample(mean, log_var)
-        x_rec = self.decode(z, y)
-
-        return x_rec, mean, log_var
-
-    def compute_enc_class_emb(self, y: Tensor) -> Tensor:
-        if self.config.get('use_attrs_in_vae'):
-            return self.enc_attr_emb(self.attrs[y])
-        else:
-            return self.enc_class_emb(y)
-
-    def compute_dec_class_emb(self, y: Tensor) -> Tensor:
-        if self.config.get('use_attrs_in_vae'):
-            return self.dec_attr_emb(self.attrs[y])
-        else:
-            return self.dec_class_emb(y)
-
-    def compute_prior_class_emb(self, y: Tensor) -> Tensor:
-        if self.config.get('use_attrs_in_vae'):
-            return self.prior_attr_emb(self.attrs[y])
-        else:
-            return self.prior_class_emb(y)
-
-    def encode(self, x: Tensor, y: Tensor) -> Tuple[Tensor, Tensor]:
-        y_emb = self.compute_enc_class_emb(y)
-        inputs = torch.cat([x, y_emb], dim=1)
-        encodings = self.encoder(inputs)
-        mean = encodings[:, :self.config.z_dim]
-        log_var = encodings[:, self.config.z_dim:]
-
-        return mean, log_var
-
-    def decode(self, z: Tensor, y: Tensor) -> Tensor:
-        y_emb = self.compute_dec_class_emb(y)
-        inputs = torch.cat([z, y_emb], dim=1)
-
-        return self.decoder(inputs)
-
-    def sample(self, mean: Tensor, log_var: Tensor) -> Tensor:
-        """Samples z ~ N(mean, sigma)"""
-        return torch.randn_like(log_var) * (log_var / 2).exp() + mean
-
-    def sample_z_from_prior(self, y: Tensor) -> Tensor:
-        mean, log_var = self.get_prior_distribution(y)
-        eps = torch.randn_like(log_var)
-        z = mean + eps * (log_var / 2).exp()
-
-        return z
-
-    def get_prior_distribution(self, y: Tensor) -> Tuple[Tensor, Tensor]:
+    def forward(self, y: Tensor):
         if self.config.get('learn_prior_dist'):
-            y_emb = self.compute_prior_class_emb(y)
-            encodings = self.prior(y_emb)
+            y_emb = self.embedder(y)
+            encodings = self.model(y_emb)
             mean = encodings[:, :self.config.z_dim]
             log_var = encodings[:, self.config.z_dim:]
         else:
@@ -120,8 +123,21 @@ class FeatVAE(nn.Module):
 
         return mean, log_var
 
-    def generate(self, y: Tensor) -> Tensor:
-        z = self.sample_z_from_prior(y)
-        x = self.decode(z, y)
 
-        return x
+class FeatVAEEmbedder(nn.Module):
+    def __init__(self, config: Config, attrs: np.ndarray=None):
+        super(FeatVAEEmbedder, self).__init__()
+
+        self.config = config
+        if self.config.get('use_attrs_in_vae'):
+            self.register_buffer('attrs', torch.tensor(attrs))
+            self.model = nn.Linear(self.attrs.size[1], self.config.emb_dim)
+        else:
+            self.model = nn.Embedding(self.config.num_classes, self.config.emb_dim)
+
+    def forward(self, y: Tensor) -> Tensor:
+        # TODO: let's use both attrs and class labels!
+        if self.config.get('use_attrs_in_vae'):
+            return self.model(self.attrs[y])
+        else:
+            return self.model(y)

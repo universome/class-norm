@@ -67,7 +67,7 @@ def extract_resnet_features_for_dataset(
     *args, **kwargs) -> List[Tuple[np.ndarray, int]]:
 
     if feat_level == 'fc':
-        embedder = ResnetEmbedder(pretrained=True, resnet_type=resnet_type)
+        embedder = ResnetEmbedder(resnet_type=resnet_type, pretrained=True)
     elif feat_level == 'conv':
         embedder = ResNetConvEmbedder(resnet_type=resnet_type, pretrained=True)
     else:

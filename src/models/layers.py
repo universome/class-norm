@@ -49,10 +49,11 @@ class Flatten(nn.Module):
 
 
 class ResNetLastBlock(nn.Module):
-    def __init__(self, resnet_type: int, pretrained: bool):
+    def __init__(self, resnet_type: int, pretrained: bool, should_pool: bool=True):
         super(ResNetLastBlock, self).__init__()
 
         self.resnet = RESNET_TYPE_TO_CLS[resnet_type](pretrained=pretrained)
+        self.should_pool = should_pool
 
         del self.resnet.conv1
         del self.resnet.bn1
@@ -65,8 +66,10 @@ class ResNetLastBlock(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         x = self.resnet.layer4(x)
-        x = self.resnet.avgpool(x)
-        x = torch.flatten(x, 1)
+
+        if self.should_pool:
+            x = self.resnet.avgpool(x)
+            x = torch.flatten(x, 1)
 
         return x
 
@@ -102,3 +105,29 @@ class Identity(nn.Module):
 
     def forward(self, x: Any) -> Any:
         return x
+
+
+class ConvTransposeBNReLU(nn.Module):
+    def __init__(self, num_in_c: int, num_out_c: int, kernel_size: int, *conv_args):
+        super(ConvTransposeBNReLU, self).__init__()
+
+        self.block = nn.Sequential(
+            nn.ConvTranspose2d(num_in_c, num_out_c, kernel_size, *conv_args),
+            nn.BatchNorm2d(num_out_c),
+            nn.ReLU(),
+        )
+
+    def forward(self, x):
+        return self.block(x)
+
+
+class RepeatToSize(nn.Module):
+    def __init__(self, target_size: int):
+        super(RepeatToSize, self).__init__()
+
+        self.target_size = target_size
+
+    def forward(self, x: Tensor) -> Tensor:
+        assert x.ndim == 2
+
+        return x.view(x.size(0), x.size(1), 1, 1).repeat(1, 1, self.target_size, self.target_size)

@@ -21,7 +21,7 @@ class LatGM(nn.Module):
             if self.config.get('identity_embedder'):
                 self.embedder = Identity()
             else:
-                self.embedder = ResnetEmbedder(config.pretrained)
+                self.embedder = ResnetEmbedder(pretrained=config.pretrained)
             self.generator = FeatGenerator(config, attrs)
             self.discriminator = FeatDiscriminator(config, attrs)
         elif self.config.feat_level == 'conv':

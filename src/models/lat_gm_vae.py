@@ -4,25 +4,37 @@ import torch.nn as nn
 from torch import Tensor
 
 from src.models.feat_vae import FeatVAE
-from src.models.classifier import ResnetEmbedder, FeatClassifier
+from src.models.conv_feat_vae import ConvFeatVAE
+from src.models.classifier import ResnetEmbedder, FeatClassifier, ConvFeatClassifier
 from src.utils.lll import prune_logits
-from src.models.layers import Identity
+from src.models.layers import Identity, ResNetConvEmbedder
 
 
 class LatGMVAE(nn.Module):
     def __init__(self, config, attrs: np.ndarray=None):
         super(LatGMVAE, self).__init__()
-
+        print('Config:', config)
         self.config = config
+        if self.config.feat_level == 'conv':
+            VAEClass = ConvFeatVAE
+            ClassifierClass = ConvFeatClassifier
+            EmbedderClass = ResNetConvEmbedder
+        elif self.config.feat_level == 'fc':
+            VAEClass = FeatVAE
+            ClassifierClass = FeatClassifier
+            EmbedderClass = ResnetEmbedder
+        else:
+            raise NotImplementedError(f'Unknown feat level: {self.config.feat_level}')
+
         if not attrs is None: self.register_buffer('attrs', torch.tensor(attrs))
-        self.vae = FeatVAE(self.config, attrs)
+        self.vae = VAEClass(self.config, attrs)
 
         if self.config.get('identity_embedder'):
             self.embedder = Identity()
         else:
-            self.embedder = ResnetEmbedder(config.pretrained, config.resnet_type)
+            self.embedder = EmbedderClass(config.resnet_type, config.pretrained)
 
-        self.classifier = FeatClassifier(config, attrs)
+        self.classifier = ClassifierClass(config, attrs)
 
     def forward(self, x) -> Tensor:
         return self.classifier(self.embedder(x))

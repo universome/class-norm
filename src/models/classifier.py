@@ -7,6 +7,7 @@ from firelab.config import Config
 
 from src.utils.lll import prune_logits
 from src.utils.constants import RESNET_FEAT_DIM
+from src.models.layers import ResNetLastBlock
 
 
 RESNET_CLS = {18: resnet18, 34: resnet34, 50: resnet50}
@@ -16,7 +17,7 @@ class ResnetClassifier(nn.Module):
     def __init__(self, config: Config, attrs: np.ndarray=None):
         super(ResnetClassifier, self).__init__()
 
-        self.embedder = ResnetEmbedder(config.pretrained, config.resnet_type)
+        self.embedder = ResnetEmbedder(onfig.resnet_type, config.pretrained)
         self.head = ClassifierHead(config, attrs)
 
     def compute_pruned_predictions(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
@@ -30,7 +31,7 @@ class ResnetClassifier(nn.Module):
 
 
 class ResnetEmbedder(nn.Module):
-    def __init__(self, pretrained: bool=True, resnet_type: int=18):
+    def __init__(self, resnet_type: int=18, pretrained: bool=True):
         super(ResnetEmbedder, self).__init__()
 
         self.resnet = RESNET_CLS[resnet_type](pretrained=pretrained)
@@ -45,11 +46,15 @@ class FeatClassifier(nn.Module):
     def __init__(self, config: Config, attrs: np.ndarray = None):
         super(FeatClassifier, self).__init__()
 
-        self.body = nn.Sequential(
-            nn.Linear(RESNET_FEAT_DIM[config.resnet_type], config.hid_dim),
+        self.config = config
+        self.body = self.create_body()
+        self.head = ClassifierHead(config, attrs)
+
+    def create_body(self) -> nn.Module:
+        return nn.Sequential(
+            nn.Linear(RESNET_FEAT_DIM[self.config.resnet_type], self.config.cls_hid_dim),
             nn.ReLU(),
         )
-        self.head = ClassifierHead(config, attrs)
 
     def forward(self, x) -> Tensor:
         return self.head(self.body(x))
@@ -66,10 +71,10 @@ class ClassifierHead(nn.Module):
 
         if self.use_attrs:
             self.register_buffer('attrs', torch.tensor(attrs))
-            self.cls_attr_emb = nn.Linear(attrs.shape[1], config.hid_dim)
+            self.cls_attr_emb = nn.Linear(attrs.shape[1], config.cls_hid_dim)
             self.biases = nn.Parameter(torch.zeros(attrs.shape[0]))
         else:
-            self.head = nn.Linear(config.hid_dim, config.num_classes)
+            self.head = nn.Linear(config.cls_hid_dim, config.num_classes)
 
     def forward(self, feats: Tensor) -> Tensor:
         if self.use_attrs:
@@ -80,6 +85,14 @@ class ClassifierHead(nn.Module):
 
     def compute_pruned_predictions(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
         return prune_logits(self.forward(x), output_mask)
+
+
+class ConvFeatClassifier(FeatClassifier):
+    def create_body(self) -> nn.Module:
+        return nn.Sequential(
+            ResNetLastBlock(self.config.resnet_type, self.config.pretrained),
+            nn.ReLU(),
+        )
 
 
 def resnet_embedder_forward(resnet: nn.Module, x: Tensor) -> Tensor:

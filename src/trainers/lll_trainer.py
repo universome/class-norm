@@ -52,6 +52,16 @@ TASK_TRAINERS = {
     'lat_gm_vae': LatGMVAETaskTrainer,
 }
 
+MODELS = {
+    'simple_classifier': ResnetClassifier,
+    'feat_gan_classifier': FeatGANClassifier,
+    'lat_gm': LatGM,
+    'lat_gm_vae': LatGMVAE,
+    'feat_classifier': FeatClassifier,
+    'genmem_gan': GAN,
+    'genmem_gan_64x64': GAN64x64,
+}
+
 class LLLTrainer(BaseTrainer):
     def __init__(self, config: Config):
         super(LLLTrainer, self).__init__(config)
@@ -74,20 +84,10 @@ class LLLTrainer(BaseTrainer):
         self.model = self.create_model()
 
     def create_model(self):
-        models = {
-            'simple_classifier': ResnetClassifier,
-            'feat_gan_classifier': FeatGANClassifier,
-            'lat_gm': LatGM,
-            'lat_gm_vae': LatGMVAE,
-            'feat_classifier': FeatClassifier,
-            'genmem_gan': GAN,
-            'genmem_gan_64x64': GAN64x64
-        }
-
         if self.config.hp.get('use_class_attrs'):
-            model = models[self.config.hp.model.type](self.config.hp.model, self.class_attributes)
+            model = MODELS[self.config.hp.model.type](self.config.hp.model, self.class_attributes)
         else:
-            model = models[self.config.hp.model.type](self.config.hp.model)
+            model = MODELS[self.config.hp.model.type](self.config.hp.model)
 
         if self.config.has('load_from_checkpoint'):
             model.load_state_dict(torch.load(self.config.load_from_checkpoint))

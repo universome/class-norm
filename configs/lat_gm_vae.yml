@@ -1,8 +1,8 @@
 all:
   task_trainer: "lat_gm_vae"
   hp:
-    max_num_epochs: 100
-    num_vae_epochs: 50
+    max_num_epochs: 4
+    num_vae_epochs: 2
     batch_size: 128
     img_target_shape: [224, 224]
     vae_optim: {type: "adam", kwargs: {lr: 0.001, betas: [0.0, 0.9]}}
@@ -18,20 +18,21 @@ all:
       emb_dim: 512
       resnet_type: 18
       hid_dim: 512
+      cls_hid_dim: 512
 
       identity_embedder: true
       learn_prior_dist: false # Should we train a prior model?
 
     rehearsal:
-      loss_coef: 5.
+      loss_coef: 1.
       batch_size: 128
 
     kl_term_coef: 0.01
 
     distillation:
       batch_size: 1024
-      enc_loss_coef: 5.
-      dec_loss_coef: 5.
+      enc_loss_coef: 1.
+      dec_loss_coef: 1.
 
     reg_strategy: "ewc"
     synaptic_strength: 0.01
@@ -48,6 +49,25 @@ cub_embedded:
   hp:
     model:
       num_classes: 200
+
+cub_conv_feats:
+  data:
+    resnet_type: 50
+
+  lll_setup:
+    num_classes: 200
+    num_tasks: 6
+    task_sizes: [100, 20, 20, 20, 20, 20]
+  hp:
+    model:
+      resnet_type: 50
+      z_dim: 1024
+      emb_dim: 1024
+      num_classes: 200
+      z_spatial_size: 14
+      conv_feat_spatial_size: 28
+      feat_level: "conv"
+      cls_hid_dim: 2048
 
 cub:
   hp:
