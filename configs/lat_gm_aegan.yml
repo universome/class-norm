@@ -1,0 +1,71 @@
+all:
+    task_trainer: "lat_gm_aegan"
+    hp:
+        max_num_epochs: 200
+        num_gan_epochs: 100
+        use_class_attrs: false
+        reset_head_before_each_task: true
+
+        model:
+            type: "lat_gm"
+            z_dim: 256
+            hid_dim: 1024
+            emb_dim: 512
+            use_attrs_in_gen: true
+            use_attrs_in_discr: true
+            resnet_type: 18
+            feat_level: "fc"
+            share_body_in_discr: true
+
+        gen_optim: {type: "adam", kwargs: {lr: 0.001, betas: [0.0, 0.9]}}
+        discr_optim: {type: "adam", kwargs: {lr: 0.001, betas: [0.0, 0.9]}}
+        embedder_optim: {type: "adam", kwargs: {lr: 0.001, betas: [0.0, 0.9]}}
+        cls_optim: {type: "adam", kwargs: {lr: 0.001, betas: [0.0, 0.9]}}
+
+        num_discr_steps_per_gen_step: 5
+        loss_coefs:
+            gp: 10
+            distill: 30.
+            discr_cls: 1.
+            gen_cls: 0.1
+
+        rehearsal:
+            enabled: true
+            start_iter: 1000
+            batch_size: 100
+            loss_coef: 1.
+
+        grad_clipping:
+            generator: 100
+            discriminator: 100
+            classifier: 100
+            embedder: 100
+
+        batch_size: 256
+        distill_batch_size: 500
+
+        # Regularizing feature extractor
+        synaptic_strength: 10
+        fisher_keep_prob: 0.5
+        reg_strategy: "ewc"
+
+        # Creativity losses
+        creativity:
+            enabled: false
+            start_iter: -1
+            hall_batch_size: 300
+            adv_coef: 0.
+            entropy_coef: 0.
+
+cub_embedded:
+    hp:
+        model:
+            num_classes: 200
+            pretrained: true
+            identity_embedder: true
+
+cub:
+    hp:
+        model:
+            num_classes: 200
+            pretrained: true

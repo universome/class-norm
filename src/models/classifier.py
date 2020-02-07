@@ -7,7 +7,7 @@ from firelab.config import Config
 
 from src.utils.lll import prune_logits
 from src.utils.constants import RESNET_FEAT_DIM
-from src.models.layers import ResNetLastBlock
+from src.models.layers import ResNetLastBlock, GaussianDropout
 
 
 RESNET_CLS = {18: resnet18, 34: resnet34, 50: resnet50}
@@ -52,6 +52,7 @@ class FeatClassifier(nn.Module):
 
     def create_body(self) -> nn.Module:
         return nn.Sequential(
+            GaussianDropout(self.config.get('cls_gaussian_dropout_sigma', 0.))
             nn.Linear(RESNET_FEAT_DIM[self.config.resnet_type], self.config.cls_hid_dim),
             nn.ReLU(),
         )

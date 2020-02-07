@@ -61,11 +61,13 @@ def get_subset_by_labels(dataset, labels: List[int]) -> List[int]:
     return subset
 
 
-def construct_output_mask(task_labels:List[int], total_num_classes:int) -> np.ndarray:
+def construct_output_mask(classes: List[int], total_num_classes:int) -> np.ndarray:
     """Returns 1D array of the output mask"""
 
     mask = np.zeros(total_num_classes).astype(bool)
-    mask[task_labels] = True
+
+    if len(classes) > 0:
+        mask[classes] = True
 
     return mask
 

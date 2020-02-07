@@ -13,13 +13,13 @@ from src.models.layers import Identity, ResNetConvEmbedder
 class LatGMVAE(nn.Module):
     def __init__(self, config, attrs: np.ndarray=None):
         super(LatGMVAE, self).__init__()
-        print('Config:', config)
+
         self.config = config
-        if self.config.feat_level == 'conv':
+        if self.config.get('feat_level', 'fc') == 'conv':
             VAEClass = ConvFeatVAE
             ClassifierClass = ConvFeatClassifier
             EmbedderClass = ResNetConvEmbedder
-        elif self.config.feat_level == 'fc':
+        elif self.config.get('feat_level', 'fc') == 'fc':
             VAEClass = FeatVAE
             ClassifierClass = FeatClassifier
             EmbedderClass = ResnetEmbedder

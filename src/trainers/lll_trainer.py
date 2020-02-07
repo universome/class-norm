@@ -29,6 +29,7 @@ from src.trainers.joint_task_trainer import JointTaskTrainer
 from src.trainers.genmem_gan_task_trainer import GenMemGANTaskTrainer
 from src.trainers.lat_gm_task_trainer import LatGMTaskTrainer
 from src.trainers.lat_gm_vae_task_trainer import LatGMVAETaskTrainer
+from src.trainers.lat_gm_aegan_task_trainer import LatGMAEGANTaskTrainer
 
 from src.utils.data_utils import construct_output_mask, filter_out_classes
 
@@ -50,6 +51,7 @@ TASK_TRAINERS = {
     'genmem_gan': GenMemGANTaskTrainer,
     'lat_gm': LatGMTaskTrainer,
     'lat_gm_vae': LatGMVAETaskTrainer,
+    'lat_gm_aegan': LatGMAEGANTaskTrainer
 }
 
 MODELS = {

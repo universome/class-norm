@@ -2,7 +2,7 @@ import copy
 from typing import List, Tuple
 import numpy as np
 
-from src.utils.data_utils import flatten
+from src.utils.data_utils import flatten, construct_output_mask
 
 
 def compute_average_accuracy(accuracies_history: List[List[float]], after_task_idx: int=-1) -> float:
@@ -256,7 +256,7 @@ def compute_joined_ausuc_history(logits_history: List[List[List[float]]], target
     """
     num_classes = len(logits_history[0][0])
     seen_classes = [np.unique(flatten(class_splits[:i])) for i in range(len(class_splits))]
-    seen_classes_masks = [construct_mask(num_classes, cs) for cs in seen_classes]
+    seen_classes_masks = [construct_output_mask(cs, num_classes) for cs in seen_classes]
     ausuc_scores = [compute_ausuc(l, targets, m)[0] for l, m in zip(logits_history, seen_classes_masks)]
 
     return ausuc_scores
@@ -296,10 +296,3 @@ def remap_targets(targets: List[int], classes: List[int]) -> List[int]:
     :return: remapped classes
     """
     return [(classes.index(t) if t in classes else -1) for t in targets]
-
-
-def construct_mask(num_classes: int, ones_idx: List[int]) -> List[bool]:
-    mask = np.zeros(num_classes).astype(bool)
-    mask[ones_idx] = True
-
-    return mask

@@ -20,7 +20,7 @@ class FeatVAE(nn.Module):
     def forward(self, x: Tensor, y: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         mean, log_var = self.encoder(x, y)
         z = self.sample(mean, log_var)
-        x_rec = self.decode(z, y)
+        x_rec = self.decoder(z, y)
 
         return x_rec, mean, log_var
 
@@ -35,12 +35,9 @@ class FeatVAE(nn.Module):
 
         return z
 
-    def get_prior_distribution(self, y: Tensor) -> Tuple[Tensor, Tensor]:
-        pass
-
     def generate(self, y: Tensor) -> Tensor:
         z = self.sample_from_prior(y)
-        x = self.decode(z, y)
+        x = self.decoder(z, y)
 
         return x
 
@@ -112,7 +109,7 @@ class FeatVAEPrior(nn.Module):
         )
 
     def forward(self, y: Tensor):
-        if self.config.get('learn_prior_dist'):
+        if self.config.get('learn_prior'):
             y_emb = self.embedder(y)
             encodings = self.model(y_emb)
             mean = encodings[:, :self.config.z_dim]

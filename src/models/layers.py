@@ -131,3 +131,15 @@ class RepeatToSize(nn.Module):
         assert x.ndim == 2
 
         return x.view(x.size(0), x.size(1), 1, 1).repeat(1, 1, self.target_size, self.target_size)
+
+
+class GaussianDropout(nn.Module):
+    def __init__(self, sigma: float):
+        super(GaussianDropout, self).__init__()
+        self.sigma = sigma
+
+    def forward(self, x):
+        if self.training or self.sigma == 0:
+            return x
+        else:
+            return x + self.sigma * torch.randn_like(x)

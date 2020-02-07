@@ -58,6 +58,9 @@ class TaskTrainer:
     def _after_train_hook(self):
         pass
 
+    def on_epoch_done(self):
+        pass
+
     def run_after_iter_done_callbacks(self):
         for callback in self.after_iter_done_callbacks:
             callback(self)
@@ -79,14 +82,19 @@ class TaskTrainer:
         assert self.is_trainable, "We do not have enough conditions to train this Task Trainer"\
                                   "(for example, previous trainers was not finished or this trainer was already run)"
 
-        epochs = range(1, self.config.hp.max_num_epochs + 1)
+        if self.task_idx == 0:
+            num_epochs = self.config.hp.get('base_task_max_num_epochs', self.config.hp.max_num_epochs)
+        else:
+            num_epochs = self.config.hp.max_num_epochs
+
+        epochs = range(1, num_epochs + 1)
         if self._should_tqdm_epochs(): epochs = tqdm(epochs, desc=f'Task #{self.task_idx}')
 
         for epoch in epochs:
             batches = self.train_dataloader
 
             if not self._should_tqdm_epochs():
-                batches = tqdm(batches, desc=f'Task #{self.task_idx} [epoch {epoch}/{self.config.hp.max_num_epochs}]')
+                batches = tqdm(batches, desc=f'Task #{self.task_idx} [epoch {epoch}/{num_epochs}]')
 
             for batch in batches:
                 self.train_on_batch(batch)
@@ -94,6 +102,7 @@ class TaskTrainer:
                 self.run_after_iter_done_callbacks()
 
             self.num_epochs_done += 1
+            self.on_epoch_done()
 
         self._after_train_hook()
 

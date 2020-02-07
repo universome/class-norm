@@ -38,6 +38,7 @@ class LatGMTaskTrainer(TaskTrainer):
         self.learned_classes = np.unique(flatten(self.main_trainer.class_splits[:self.task_idx])).tolist()
         self.learned_classes_mask = construct_output_mask(self.learned_classes, self.config.lll_setup.num_classes)
         self.seen_classes = np.unique(flatten(self.main_trainer.class_splits[:self.task_idx + 1])).tolist()
+        self.seen_classes_mask = construct_output_mask(self.seen_classes, self.config.lll_setup.num_classes)
         self.writer = SummaryWriter(os.path.join(self.main_trainer.paths.logs_path, f'task_{self.task_idx}'), flush_secs=5)
 
         if not prev_trainer is None:
@@ -222,7 +223,7 @@ class LatGMTaskTrainer(TaskTrainer):
             y = torch.tensor(y).to(self.device_name)
             x_fake = self.model.sample(y)
 
-        logits = self.model.compute_pruned_predictions(x_fake, self.learned_classes_mask)
+        logits = self.model.compute_pruned_predictions(x_fake, self.seen_classes_mask)
         loss = F.cross_entropy(logits, y)
         acc = (logits.argmax(dim=1) == y).float().mean().detach().cpu()
 

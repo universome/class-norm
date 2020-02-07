@@ -46,7 +46,12 @@ class LatGMVAETaskTrainer(LatGMTaskTrainer):
         x = torch.tensor(batch[0]).to(self.device_name)
         y = torch.tensor(batch[1]).to(self.device_name)
 
-        if self.config.hp.num_vae_epochs < self.num_epochs_done:
+        if self.task_idx == 0:
+            vae_num_epochs = self.config.hp.get('base_task_vae_num_epochs', self.config.hp.vae_num_epochs)
+        else:
+            vae_num_epochs = self.config.hp.vae_num_epochs
+
+        if vae_num_epochs < self.num_epochs_done:
             self.vae_step(x, y)
         else:
             self.classifier_step(x, y)
@@ -57,7 +62,7 @@ class LatGMVAETaskTrainer(LatGMTaskTrainer):
         x_rec, mean, log_var = self.model.vae(x, y)
         rec_loss = F.mse_loss(x_rec, x)
         #kld = compute_kld_with_standard_gaussian(mean, log_var)
-        prior_mean, prior_log_var = self.model.vae.get_prior_distribution(y)
+        prior_mean, prior_log_var = self.model.vae.prior(y)
         kld = compute_kld_between_diagonal_gaussians(mean, log_var, prior_mean, prior_log_var)
 
         total_loss = rec_loss + self.config.hp.kl_term_coef * kld
@@ -83,12 +88,12 @@ class LatGMVAETaskTrainer(LatGMTaskTrainer):
 
         with torch.no_grad():
             x = self.prev_model.vae.generate(y)
-            mean_old, log_var_old = self.prev_model.vae.encode(x, y)
+            mean_old, log_var_old = self.prev_model.vae.encoder(x, y)
             z = self.prev_model.vae.sample(mean_old, log_var_old)
-            x_rec_old = self.prev_model.vae.decode(z, y)
+            x_rec_old = self.prev_model.vae.decoder(z, y)
 
-        mean_new, log_var_new = self.model.vae.encode(x, y)
-        x_rec_new = self.model.vae.decode(z, y)
+        mean_new, log_var_new = self.model.vae.encoder(x, y)
+        x_rec_new = self.model.vae.decoder(z, y)
 
         enc_distill_loss = F.mse_loss(
             torch.cat([mean_new, log_var_new], dim=1),
