@@ -24,9 +24,9 @@ class FeatVAE(nn.Module):
 
         return x_rec, mean, log_var
 
-    def sample(self, mean: Tensor, log_var: Tensor) -> Tensor:
+    def sample(self, mean: Tensor, log_var: Tensor, noise_level: float=1.) -> Tensor:
         """Samples z ~ N(mean, sigma)"""
-        return torch.randn_like(log_var) * (log_var / 2).exp() + mean
+        return mean + noise_level * torch.randn_like(log_var) * (log_var / 2).exp()
 
     def sample_from_prior(self, y: Tensor) -> Tensor:
         mean, log_var = self.prior(y)
@@ -100,10 +100,6 @@ class FeatVAEPrior(nn.Module):
         self.embedder = FeatVAEEmbedder(config, attrs)
         self.model = nn.Sequential(
             nn.Linear(self.config.emb_dim, self.config.hid_dim),
-            nn.ReLU(),
-            nn.Linear(self.config.hid_dim, self.config.hid_dim),
-            nn.ReLU(),
-            nn.Linear(self.config.hid_dim, self.config.hid_dim),
             nn.ReLU(),
             nn.Linear(self.config.hid_dim, self.config.z_dim * 2),
         )

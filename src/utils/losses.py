@@ -30,7 +30,13 @@ def compute_kld_with_standard_gaussian(mean: Tensor, log_var: Tensor) -> Tensor:
     return -0.5 * (1 + log_var - mean.pow(2) - log_var.exp()).sum(dim=1).mean()
 
 
-def compute_kld_between_diagonal_gaussians(mean_a: Tensor, log_var_a: Tensor, mean_b: Tensor, log_var_b: Tensor) -> Tensor:
+def compute_kld_between_diagonal_gaussians(
+        mean_a: Tensor,
+        log_var_a: Tensor,
+        mean_b: Tensor,
+        log_var_b: Tensor,
+        reduction:str='mean') -> Tensor:
+
     assert mean_a.ndim == log_var_a.ndim == mean_b.ndim == log_var_b.ndim == 2
 
     var_term = (log_var_a.exp() / log_var_b.exp()).sum(dim=1)
@@ -39,7 +45,10 @@ def compute_kld_between_diagonal_gaussians(mean_a: Tensor, log_var_a: Tensor, me
     k = mean_a.size(1)
     kld = 0.5 * (var_term + quadr_term - k + log_var_term)
 
-    return kld.mean()
+    if reduction == 'mean':
+        return kld.mean()
+    else:
+        return kld
 
 
 class LabelSmoothingLoss(nn.Module):

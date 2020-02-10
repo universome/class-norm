@@ -17,7 +17,7 @@ class ResnetClassifier(nn.Module):
     def __init__(self, config: Config, attrs: np.ndarray=None):
         super(ResnetClassifier, self).__init__()
 
-        self.embedder = ResnetEmbedder(onfig.resnet_type, config.pretrained)
+        self.embedder = ResnetEmbedder(config.resnet_type, config.pretrained)
         self.head = ClassifierHead(config, attrs)
 
     def compute_pruned_predictions(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
@@ -52,7 +52,7 @@ class FeatClassifier(nn.Module):
 
     def create_body(self) -> nn.Module:
         return nn.Sequential(
-            GaussianDropout(self.config.get('cls_gaussian_dropout_sigma', 0.))
+            GaussianDropout(self.config.get('cls_gaussian_dropout_sigma', 0.)),
             nn.Linear(RESNET_FEAT_DIM[self.config.resnet_type], self.config.cls_hid_dim),
             nn.ReLU(),
         )
