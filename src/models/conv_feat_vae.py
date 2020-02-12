@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from firelab.config import Config
 
-from src.utils.constants import RESNET_CONV_FEAT_DIM
+from src.utils.constants import INPUT_DIMS
 from src.models.layers import ResNetLastBlock, Reshape, ConvTransposeBNReLU, RepeatToSize
 from src.models.feat_vae import FeatVAE, FeatVAEEncoder, FeatVAEDecoder, FeatVAEPrior, FeatVAEEmbedder
 
@@ -24,7 +24,7 @@ class ConvFeatVAEEncoder(FeatVAEEncoder):
 
         self.config = config
         self.embedder = ConvFeatVAEEmbedder(config, attrs, self.config.conv_feat_spatial_size)
-        self.model = ResNetLastBlock(self.config.resnet_type, self.config.pretrained, should_pool=False)
+        self.model = ResNetLastBlock(self.config.input_type, self.config.pretrained, should_pool=False)
 
 
 class ConvFeatVAEDecoder(FeatVAEDecoder):
@@ -36,7 +36,7 @@ class ConvFeatVAEDecoder(FeatVAEDecoder):
         self.model = nn.Sequential(
             ConvTransposeBNReLU(self.config.z_dim + self.config.emb_dim, self.config.hid_dim, 5),
             ConvTransposeBNReLU(self.config.hid_dim, self.config.hid_dim, 6),
-            nn.ConvTranspose2d(self.config.hid_dim, RESNET_CONV_FEAT_DIM[self.config.resnet_type], 6),
+            nn.ConvTranspose2d(self.config.hid_dim, INPUT_DIMS[self.config.input_type], 6),
         )
 
 
@@ -50,7 +50,7 @@ class ConvFeatVAEPrior(FeatVAEPrior):
             Reshape([-1, self.config.emb_dim, 1, 1]),
             ConvTransposeBNReLU(self.config.emb_dim, self.config.hid_dim, 6),
             ConvTransposeBNReLU(self.config.hid_dim, self.config.hid_dim, 5),
-            nn.ConvTranspose2d(self.config.hid_dim, RESNET_CONV_FEAT_DIM[self.config.resnet_type], 5),
+            nn.ConvTranspose2d(self.config.hid_dim, INPUT_DIMS[self.config.input_type], 5),
         )
 
 

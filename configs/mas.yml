@@ -9,9 +9,9 @@ cub_embedded:
     max_num_epochs: 10
     model:
       type: "feat_classifier"
-      resnet_type: 18
+      input_type: "resnet18_feat"
       hid_dim: 512
       num_classes: 200
     optim: {type: "adam", kwargs: {lr: 0.001}}
   data:
-    resnet_type: 18
+    input_type: "resnet18_feat"

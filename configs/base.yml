@@ -14,7 +14,7 @@ all:
     use_class_attrs: true
     batch_size: 10
     model:
-      resnet_type: 18
+      input_type: "resnet18_feat"
       pretrained: false
       type: "simple_classifier"
       hid_dim: 512
@@ -39,7 +39,7 @@ cub_embedded:
     name: "CUB_EMBEDDED"
     dir: "data/CUB_EMBEDDED"
     num_classes: 200
-    resnet_type: 18
+    input_type: "resnet18_feat"
     feat_level: "fc"
 
   lll_setup:
@@ -51,7 +51,7 @@ cub_conv_feats:
     name: "CUB_EMBEDDED"
     dir: "data/CUB_EMBEDDED"
     num_classes: 200
-    resnet_type: 50
+    input_type: "resnet50_conv"
     feat_level: "conv"
 
   lll_setup:

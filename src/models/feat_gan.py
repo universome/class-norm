@@ -8,7 +8,7 @@ from torch import Tensor
 from firelab.config import Config
 
 from src.utils.lll import prune_logits
-from src.utils.constants import RESNET_FEAT_DIM
+from src.utils.constants import INPUT_DIMS
 from src.models.classifier import ClassifierHead
 
 
@@ -30,8 +30,11 @@ class FeatGenerator(nn.Module):
     def init_model(self):
         self.model = nn.Sequential(
             nn.Linear(self.config.z_dim + self.config.emb_dim, self.config.hid_dim),
+            # nn.LeakyReLU(),
+            # nn.Linear(self.config.hid_dim, self.config.hid_dim),
             nn.LeakyReLU(),
-            nn.Linear(self.config.hid_dim, RESNET_FEAT_DIM[self.config.resnet_type]),
+            nn.Linear(self.config.hid_dim, INPUT_DIMS[self.config.input_type]),
+            #nn.Tanh()
         )
 
     def forward(self, z: Tensor, y: Tensor) -> Tensor:
@@ -67,24 +70,29 @@ class FeatDiscriminator(nn.Module):
     def __init__(self, config: Config, attrs: np.ndarray=None):
         super(FeatDiscriminator, self).__init__()
 
-        assert (not attrs is None) == config.use_attrs_in_discr
-
         self.config = config
+        if self.config.use_attrs_in_discr:
+            assert (not attrs is None)
+
+        if self.config.get('conditional_discr', False):
+            assert not self.config.share_body_in_discr
 
         if self.config.share_body_in_discr:
             self.adv_body = self.init_body()
             self.cls_body = self.adv_body
         else:
-            self.adv_body = self.init_body()
+            self.adv_body = self.init_body(conditional=self.config.conditional_discr)
             self.cls_body = self.init_body()
 
         self.adv_head = nn.Linear(self.config.hid_dim, 1)
         self.cls_head = ClassifierHead(self.config, attrs)
 
-    def init_body(self) -> nn.Module:
+    def init_body(self, conditional:bool=False) -> nn.Module:
         return nn.Sequential(
-            nn.Linear(RESNET_FEAT_DIM[self.config.resnet_type], self.config.hid_dim),
-            nn.ReLU()
+            nn.Linear(INPUT_DIMS[self.config.input_type], self.config.hid_dim),
+            nn.ReLU(),
+            # nn.Linear(self.config.hid_dim, self.config.hid_dim),
+            # nn.ReLU(),
         )
 
     def get_adv_parameters(self) -> Iterable[nn.Parameter]:
@@ -126,7 +134,7 @@ class FeatDiscriminatorWithoutClsHead(nn.Module):
 
         self.config = config
         self.model = nn.Sequential(
-            nn.Linear(RESNET_FEAT_DIM[self.config.resnet_type], config.hid_dim),
+            nn.Linear(INPUT_DIMS[self.config.input_type], config.hid_dim),
             nn.ReLU(),
             nn.Linear(config.hid_dim, 1)
         )

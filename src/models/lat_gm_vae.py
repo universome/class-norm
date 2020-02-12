@@ -32,7 +32,7 @@ class LatGMVAE(nn.Module):
         if self.config.get('identity_embedder'):
             self.embedder = Identity()
         else:
-            self.embedder = EmbedderClass(config.resnet_type, config.pretrained)
+            self.embedder = EmbedderClass(config.input_type, config.pretrained)
 
         self.classifier = ClassifierClass(config, attrs)
 

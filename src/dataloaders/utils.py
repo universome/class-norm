@@ -62,14 +62,14 @@ def preprocess_imgs(imgs: List[np.ndarray]) -> List[np.ndarray]:
 
 def extract_resnet_features_for_dataset(
     dataset: List[Tuple[np.ndarray, int]],
-    resnet_type: int=18,
+    input_type: int=18,
     feat_level: str='fc',
     *args, **kwargs) -> List[Tuple[np.ndarray, int]]:
 
     if feat_level == 'fc':
-        embedder = ResnetEmbedder(resnet_type=resnet_type, pretrained=True)
+        embedder = ResnetEmbedder(input_type=input_type, pretrained=True)
     elif feat_level == 'conv':
-        embedder = ResNetConvEmbedder(resnet_type=resnet_type, pretrained=True)
+        embedder = ResNetConvEmbedder(input_type=input_type, pretrained=True)
     else:
         raise NotImplementedError(f'Unknown feat level: {feat_level}')
 

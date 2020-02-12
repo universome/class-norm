@@ -6,7 +6,8 @@ import torch.nn as nn
 from torch import Tensor
 from firelab.config import Config
 
-from src.utils.constants import RESNET_FEAT_DIM
+from src.utils.constants import INPUT_DIMS
+from src.models.layers import FeatEmbedder
 
 
 class FeatVAE(nn.Module):
@@ -47,9 +48,9 @@ class FeatVAEEncoder(nn.Module):
         super(FeatVAEEncoder, self).__init__()
 
         self.config = config
-        self.embedder = FeatVAEEmbedder(config, attrs)
+        self.embedder = FeatEmbedder(config, self.config.use_attrs_in_vae, attrs)
         self.model = nn.Sequential(
-            nn.Linear(RESNET_FEAT_DIM[self.config.resnet_type] + self.config.emb_dim, config.hid_dim),
+            nn.Linear(INPUT_DIMS[self.config.input_type] + self.config.emb_dim, config.hid_dim),
             nn.ReLU(),
             nn.Linear(self.config.hid_dim, self.config.hid_dim),
             nn.ReLU(),
@@ -73,7 +74,7 @@ class FeatVAEDecoder(nn.Module):
         super(FeatVAEDecoder, self).__init__()
 
         self.config = config
-        self.embedder = FeatVAEEmbedder(config, attrs)
+        self.embedder = FeatEmbedder(config, self.config.use_attrs_in_vae, attrs)
         self.model = nn.Sequential(
             nn.Linear(self.config.z_dim + self.config.emb_dim, self.config.hid_dim),
             nn.ReLU(),
@@ -81,7 +82,7 @@ class FeatVAEDecoder(nn.Module):
             nn.ReLU(),
             nn.Linear(self.config.hid_dim, self.config.hid_dim),
             nn.ReLU(),
-            nn.Linear(self.config.hid_dim, RESNET_FEAT_DIM[self.config.resnet_type]),
+            nn.Linear(self.config.hid_dim, INPUT_DIMS[self.config.input_type]),
         )
 
     def forward(self, z: Tensor, y: Tensor) -> Tensor:
@@ -97,7 +98,7 @@ class FeatVAEPrior(nn.Module):
         super(FeatVAEPrior, self).__init__()
 
         self.config = config
-        self.embedder = FeatVAEEmbedder(config, attrs)
+        self.embedder = FeatEmbedder(config, self.config.use_attrs_in_vae, attrs)
         self.model = nn.Sequential(
             nn.Linear(self.config.emb_dim, self.config.hid_dim),
             nn.ReLU(),
@@ -115,22 +116,3 @@ class FeatVAEPrior(nn.Module):
             log_var = torch.zeros(y.size(0), self.config.z_dim).to(y.device)
 
         return mean, log_var
-
-
-class FeatVAEEmbedder(nn.Module):
-    def __init__(self, config: Config, attrs: np.ndarray=None):
-        super(FeatVAEEmbedder, self).__init__()
-
-        self.config = config
-        if self.config.get('use_attrs_in_vae'):
-            self.register_buffer('attrs', torch.tensor(attrs))
-            self.model = nn.Linear(self.attrs.size[1], self.config.emb_dim)
-        else:
-            self.model = nn.Embedding(self.config.num_classes, self.config.emb_dim)
-
-    def forward(self, y: Tensor) -> Tensor:
-        # TODO: let's use both attrs and class labels!
-        if self.config.get('use_attrs_in_vae'):
-            return self.model(self.attrs[y])
-        else:
-            return self.model(y)

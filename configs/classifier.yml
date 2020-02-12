@@ -7,7 +7,7 @@ hp:
     model:
         type: "resnet-head"
         hid_dim: 512
-        resnet_type: 18
+        input_type: "resnet18_feat"
     optim:
         type: "adam"
         kwargs:

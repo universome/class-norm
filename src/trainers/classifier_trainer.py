@@ -14,7 +14,7 @@ from src.dataloaders.load_data import load_data
 from src.utils.losses import LabelSmoothingLoss
 from src.models.classifier import resnet_embedder_forward
 from src.utils.model_utils import filter_params
-from src.utils.constants import RESNET_FEAT_DIM
+from src.utils.constants import INPUT_DIMS
 
 
 class ClassifierTrainer(BaseTrainer):
@@ -32,7 +32,7 @@ class ClassifierTrainer(BaseTrainer):
         elif self.config.hp.model.type == 'resnet-head':
             self.model = nn.Sequential(
                 nn.Dropout(0.5),
-                nn.Linear(RESNET_FEAT_DIM[self.config.hp.model.resnet_type], self.config.hp.model.hid_dim),
+                nn.Linear(INPUT_DIMS[self.config.hp.model.input_type], self.config.hp.model.hid_dim),
                 nn.ReLU(),
                 nn.Linear(self.config.hp.model.hid_dim, self.config.lll_setup.num_classes)
             )

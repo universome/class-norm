@@ -1,12 +1,14 @@
 from typing import Tuple, Any
 
+import numpy as np
 import torch
 import torch.nn as nn
 from torch import Tensor
 from torchvision.models.resnet import resnet18, resnet34, resnet50
+from firelab.config import Config
 
 
-RESNET_TYPE_TO_CLS = {18: resnet18, 34: resnet34, 50: resnet50}
+input_type_TO_CLS = {18: resnet18, 34: resnet34, 50: resnet50}
 
 
 class ConditionalBatchNorm2d(nn.Module):
@@ -49,10 +51,10 @@ class Flatten(nn.Module):
 
 
 class ResNetLastBlock(nn.Module):
-    def __init__(self, resnet_type: int, pretrained: bool, should_pool: bool=True):
+    def __init__(self, input_type: int, pretrained: bool, should_pool: bool=True):
         super(ResNetLastBlock, self).__init__()
 
-        self.resnet = RESNET_TYPE_TO_CLS[resnet_type](pretrained=pretrained)
+        self.resnet = input_type_TO_CLS[input_type](pretrained=pretrained)
         self.should_pool = should_pool
 
         del self.resnet.conv1
@@ -75,10 +77,10 @@ class ResNetLastBlock(nn.Module):
 
 
 class ResNetConvEmbedder(nn.Module):
-    def __init__(self, resnet_type: int, pretrained: bool):
+    def __init__(self, input_type: int, pretrained: bool):
         super(ResNetConvEmbedder, self).__init__()
 
-        self.resnet = RESNET_TYPE_TO_CLS[resnet_type](pretrained=pretrained)
+        self.resnet = input_type_TO_CLS[input_type](pretrained=pretrained)
 
         del self.resnet.layer4
         del self.resnet.avgpool
@@ -143,3 +145,23 @@ class GaussianDropout(nn.Module):
             return x
         else:
             return x + self.sigma * torch.randn_like(x)
+
+
+class FeatEmbedder(nn.Module):
+    def __init__(self, config: Config, use_attrs: bool=False, attrs: np.ndarray=None):
+        super(FeatEmbedder, self).__init__()
+
+        self.config = config
+        self.use_attrs = use_attrs
+
+        if self.use_attrs:
+            self.register_buffer('attrs', torch.tensor(attrs))
+            self.model = nn.Linear(self.attrs.size[1], self.config.emb_dim)
+        else:
+            self.model = nn.Embedding(self.config.num_classes, self.config.emb_dim)
+
+    def forward(self, y: Tensor) -> Tensor:
+        # TODO: let's use both attrs and class labels!
+        inputs = self.attrs[y] if self.use_attrs else y
+
+        return self.model(inputs)

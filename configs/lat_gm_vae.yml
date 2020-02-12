@@ -19,7 +19,7 @@ all:
       use_attrs_in_vae: false
       z_dim: 512
       emb_dim: 512
-      resnet_type: 18
+      input_type: "resnet18_feat"
       hid_dim: 512
       cls_hid_dim: 512
 
@@ -43,7 +43,7 @@ all:
 
 cub_embedded:
   data:
-    resnet_type: 18
+    input_type: "resnet18_feat"
 
   lll_setup:
     num_classes: 200
@@ -55,7 +55,7 @@ cub_embedded:
 
 cub_conv_feats:
   data:
-    resnet_type: 50
+    input_type: "resnet50_feat"
 
   lll_setup:
     num_classes: 200
@@ -63,7 +63,7 @@ cub_conv_feats:
     task_sizes: [100, 20, 20, 20, 20, 20]
   hp:
     model:
-      resnet_type: 50
+      input_type: "resnet50_feat"
       z_dim: 1024
       emb_dim: 1024
       num_classes: 200

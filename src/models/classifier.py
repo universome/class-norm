@@ -6,7 +6,7 @@ from torchvision.models.resnet import resnet18, resnet34, resnet50
 from firelab.config import Config
 
 from src.utils.lll import prune_logits
-from src.utils.constants import RESNET_FEAT_DIM
+from src.utils.constants import INPUT_DIMS
 from src.models.layers import ResNetLastBlock, GaussianDropout
 
 
@@ -17,7 +17,7 @@ class ResnetClassifier(nn.Module):
     def __init__(self, config: Config, attrs: np.ndarray=None):
         super(ResnetClassifier, self).__init__()
 
-        self.embedder = ResnetEmbedder(config.resnet_type, config.pretrained)
+        self.embedder = ResnetEmbedder(config.input_type, config.pretrained)
         self.head = ClassifierHead(config, attrs)
 
     def compute_pruned_predictions(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
@@ -31,10 +31,10 @@ class ResnetClassifier(nn.Module):
 
 
 class ResnetEmbedder(nn.Module):
-    def __init__(self, resnet_type: int=18, pretrained: bool=True):
+    def __init__(self, input_type: int=18, pretrained: bool=True):
         super(ResnetEmbedder, self).__init__()
 
-        self.resnet = RESNET_CLS[resnet_type](pretrained=pretrained)
+        self.resnet = RESNET_CLS[input_type](pretrained=pretrained)
 
         del self.resnet.fc # So it's not included in parameters
 
@@ -53,7 +53,7 @@ class FeatClassifier(nn.Module):
     def create_body(self) -> nn.Module:
         return nn.Sequential(
             GaussianDropout(self.config.get('cls_gaussian_dropout_sigma', 0.)),
-            nn.Linear(RESNET_FEAT_DIM[self.config.resnet_type], self.config.cls_hid_dim),
+            nn.Linear(INPUT_DIMS[self.config.input_type], self.config.cls_hid_dim),
             nn.ReLU(),
         )
 
@@ -91,7 +91,7 @@ class ClassifierHead(nn.Module):
 class ConvFeatClassifier(FeatClassifier):
     def create_body(self) -> nn.Module:
         return nn.Sequential(
-            ResNetLastBlock(self.config.resnet_type, self.config.pretrained),
+            ResNetLastBlock(self.config.input_type, self.config.pretrained),
             nn.ReLU(),
         )
 
