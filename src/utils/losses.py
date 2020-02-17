@@ -3,9 +3,11 @@ import torch.nn as nn
 from torch import Tensor, autograd
 
 
-def compute_gradient_penalty(discriminator, x_real, x_fake):
+def compute_gradient_penalty(discriminator, x_real, x_fake, y: Tensor=None):
     """
     Computes gradient penalty according to WGAN-GP paper
+    Args:
+    - y — class labels for cGAN
     """
     assert x_real.size() == x_fake.size()
 
@@ -15,7 +17,12 @@ def compute_gradient_penalty(discriminator, x_real, x_fake):
 
     interpolations = interpolations.to(x_real.device)
     interpolations.requires_grad_(True)
-    outputs = discriminator(interpolations)
+
+    if y is None:
+        outputs = discriminator(interpolations)
+    else:
+        outputs = discriminator(interpolations, y)
+
     grads = autograd.grad(
         outputs,
         interpolations,

@@ -30,8 +30,8 @@ class FeatGenerator(nn.Module):
     def init_model(self):
         self.model = nn.Sequential(
             nn.Linear(self.config.z_dim + self.config.emb_dim, self.config.hid_dim),
-            # nn.LeakyReLU(),
-            # nn.Linear(self.config.hid_dim, self.config.hid_dim),
+            nn.LeakyReLU(),
+            nn.Linear(self.config.hid_dim, self.config.hid_dim),
             nn.LeakyReLU(),
             nn.Linear(self.config.hid_dim, INPUT_DIMS[self.config.input_type]),
             #nn.Tanh()
@@ -74,14 +74,11 @@ class FeatDiscriminator(nn.Module):
         if self.config.use_attrs_in_discr:
             assert (not attrs is None)
 
-        if self.config.get('conditional_discr', False):
-            assert not self.config.share_body_in_discr
+        self.adv_body = self.init_body()
 
         if self.config.share_body_in_discr:
-            self.adv_body = self.init_body()
             self.cls_body = self.adv_body
         else:
-            self.adv_body = self.init_body(conditional=self.config.conditional_discr)
             self.cls_body = self.init_body()
 
         self.adv_head = nn.Linear(self.config.hid_dim, 1)
@@ -127,6 +124,22 @@ class FeatDiscriminator(nn.Module):
     def compute_pruned_predictions(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
         return prune_logits(self.run_cls_head(x), output_mask)
 
+
+class ConditionalFeatDiscriminator(FeatDiscriminator):
+    def __init__(self, config):
+        nn.Module.__init__(self)
+
+        self.embedder = nn.Embedding(config.num_classes, config.emb_dim)
+        self.model = nn.Sequential(
+            nn.Linear(config.emb_dim + INPUT_DIMS[config.input_type], config.hid_dim),
+            nn.ReLU(),
+            nn.Linear(config.hid_dim, 1)
+        )
+
+    def forward(self, x, y):
+        inputs = torch.cat([x, self.embedder(y)], dim=1)
+
+        return self.model(inputs)
 
 class FeatDiscriminatorWithoutClsHead(nn.Module):
     def __init__(self, config: Config):
