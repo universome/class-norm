@@ -10,7 +10,11 @@ from src.utils.constants import INPUT_DIMS
 from src.models.layers import ResNetLastBlock, GaussianDropout
 
 
-RESNET_CLS = {18: resnet18, 34: resnet34, 50: resnet50}
+RESNET_CLS = {
+    'resnet18_feat': resnet18,
+    'resnet34_feat': resnet34,
+    'resnet50_feat': resnet50
+}
 
 
 class ResnetClassifier(nn.Module):

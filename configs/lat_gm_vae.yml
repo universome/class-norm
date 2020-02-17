@@ -22,8 +22,6 @@ all:
       input_type: "resnet18_feat"
       hid_dim: 512
       cls_hid_dim: 512
-
-      identity_embedder: true
       learn_prior: false # Should we train a prior model?
 
     rehearsal:
@@ -52,6 +50,7 @@ cub_embedded:
   hp:
     model:
       num_classes: 200
+      identity_embedder: true
 
 cub_conv_feats:
   data:

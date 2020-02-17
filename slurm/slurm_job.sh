@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-#SBATCH --time 10080
+#SBATCH --time 7-0
 #SBATCH --mem 64G
 #SBATCH --gres gpu:v100:1
 #SBATCH --cpus-per-task 4

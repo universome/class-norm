@@ -13,8 +13,8 @@ def load_data(config: Config, img_target_shape: Tuple[int, int]=None,
         ds_test = cub.load_dataset(config.dir, is_train=False, target_shape=img_target_shape, preprocess=preprocess)
         class_attributes = cub.load_class_attributes(config.dir).astype(np.float32)
     elif config.name == 'CUB_EMBEDDED':
-        ds_train = cub_embedded.load_dataset(config.dir, config.input_type, config.feat_level, is_train=True)
-        ds_test = cub_embedded.load_dataset(config.dir, config.input_type, config.feat_level, is_train=False)
+        ds_train = cub_embedded.load_dataset(config.dir, config.input_type, is_train=True)
+        ds_test = cub_embedded.load_dataset(config.dir, config.input_type, is_train=False)
         class_attributes = cub.load_class_attributes(config.dir).astype(np.float32)
     elif config.name == 'AWA':
         ds_train = awa.load_dataset(config.dir, split='train', target_shape=img_target_shape)

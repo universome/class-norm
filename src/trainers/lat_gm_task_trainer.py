@@ -15,11 +15,12 @@ from firelab.config import Config
 
 from src.utils.losses import compute_gradient_penalty
 from src.utils.lll import prune_logits
-from src.utils.model_utils import get_number_of_parameters
 from src.models.lat_gm import LatGM
 from src.trainers.task_trainer import TaskTrainer
 from src.utils.weights_importance import compute_mse_grad, compute_diagonal_fisher
+from src.utils.model_utils import get_number_of_parameters
 from src.utils.data_utils import construct_output_mask, flatten
+from src.utils.training_utils import construct_optimizer
 
 
 class LatGMTaskTrainer(TaskTrainer):
@@ -53,10 +54,10 @@ class LatGMTaskTrainer(TaskTrainer):
 
     def construct_optimizer(self):
         return {
-            'generator': self.construct_optimizer_from_config(self.get_parameters('generator'), self.config.hp.gen_optim),
-            'discriminator': self.construct_optimizer_from_config(self.get_parameters('discriminator'), self.config.hp.discr_optim),
-            'classifier': self.construct_optimizer_from_config(self.get_parameters('classifier'), self.config.hp.cls_optim),
-            'embedder': self.construct_optimizer_from_config(self.get_parameters('embedder'), self.config.hp.embedder_optim),
+            'generator': construct_optimizer(self.get_parameters('generator'), self.config.hp.gen_optim),
+            'discriminator': construct_optimizer(self.get_parameters('discriminator'), self.config.hp.discr_optim),
+            'classifier': construct_optimizer(self.get_parameters('classifier'), self.config.hp.cls_optim),
+            'embedder': construct_optimizer(self.get_parameters('embedder'), self.config.hp.embedder_optim),
         }
 
     def get_parameters(self, name: str) -> Iterable[nn.Parameter]:
@@ -113,7 +114,7 @@ class LatGMTaskTrainer(TaskTrainer):
         pruned_logits_on_fake = prune_logits(cls_logits_on_fake, self.output_mask)
 
         adv_loss = -adv_logits_on_fake.mean()
-        distillation_loss = self.knowledge_distillation_loss()
+        distillation_loss = self.gen_knowledge_distillation_loss()
         cls_loss = F.cross_entropy(pruned_logits_on_fake, y)
         cls_acc = (pruned_logits_on_fake.argmax(dim=1) == y).float().mean().detach().cpu()
 
@@ -128,7 +129,7 @@ class LatGMTaskTrainer(TaskTrainer):
         self.writer.add_scalar(f'gen/cls_loss', cls_loss.item(), self.num_iters_done)
         self.writer.add_scalar(f'gen/cls_acc', cls_acc.item(), self.num_iters_done)
 
-    def knowledge_distillation_loss(self) -> Tensor:
+    def gen_knowledge_distillation_loss(self) -> Tensor:
         if len(self.learned_classes) == 0: return torch.tensor(0.)
 
         num_samples_per_class = self.config.hp.distill_batch_size // len(self.learned_classes)
@@ -154,11 +155,11 @@ class LatGMTaskTrainer(TaskTrainer):
         # self.perform_optim_step(loss, 'classifier', retain_graph=True)
         # self.perform_optim_step(loss, 'embedder')
         if self.task_idx > 0:
-            rehearsal_loss, rehearsal_acc = self.compute_rehearsal_loss()
-            total_loss = curr_loss + self.config.hp.rehearsal.loss_coef * rehearsal_loss
+            distill_loss, distill_acc = self.compute_cls_distill_loss()
+            total_loss = curr_loss + self.config.hp.cls_distill.loss_coef * distill_loss
 
-            self.writer.add_scalar('cls/rehearsal_loss', rehearsal_loss.item(), self.num_iters_done)
-            self.writer.add_scalar('cls/rehearsal_acc', rehearsal_acc.item(), self.num_iters_done)
+            self.writer.add_scalar('cls/distill_loss', distill_loss.item(), self.num_iters_done)
+            self.writer.add_scalar('cls/distill_acc', distill_acc.item(), self.num_iters_done)
         else:
             total_loss = curr_loss
 
@@ -217,15 +218,16 @@ class LatGMTaskTrainer(TaskTrainer):
         else:
             raise NotImplementedError(f'Unknown regularization strategy: {self.config.hp.reg_strategy}')
 
-    def compute_rehearsal_loss(self) -> Tuple[Tensor, Tensor]:
+    def compute_cls_distill_loss(self) -> Tuple[Tensor, Tensor]:
         with torch.no_grad():
-            y = random.choices(self.learned_classes, k=self.config.hp.rehearsal.batch_size)
+            y = random.choices(self.learned_classes, k=self.config.hp.cls_distill.batch_size)
             y = torch.tensor(y).to(self.device_name)
             x_fake = self.model.sample(y)
+            logits_prev = self.prev_model.compute_pruned_predictions(x_fake, self.seen_classes_mask)
 
-        logits = self.model.compute_pruned_predictions(x_fake, self.seen_classes_mask)
-        loss = F.cross_entropy(logits, y)
-        acc = (logits.argmax(dim=1) == y).float().mean().detach().cpu()
+        logits_curr = self.model.compute_pruned_predictions(x_fake, self.seen_classes_mask)
+        loss = F.mse_loss(logits_curr, logits_prev)
+        acc = (logits_curr.argmax(dim=1) == y).float().mean().detach().cpu()
 
         return loss, acc
 

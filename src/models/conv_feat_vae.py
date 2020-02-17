@@ -5,8 +5,8 @@ from firelab.config import Config
 
 from src.utils.constants import INPUT_DIMS
 from src.models.layers import ResNetLastBlock, Reshape, ConvTransposeBNReLU, RepeatToSize
-from src.models.feat_vae import FeatVAE, FeatVAEEncoder, FeatVAEDecoder, FeatVAEPrior, FeatVAEEmbedder
-
+from src.models.feat_vae import FeatVAE, FeatVAEEncoder, FeatVAEDecoder, FeatVAEPrior
+from src.models.layers import FeatEmbedder
 
 class ConvFeatVAE(FeatVAE):
     def __init__(self, config: Config, attrs: np.ndarray=None):
@@ -54,7 +54,7 @@ class ConvFeatVAEPrior(FeatVAEPrior):
         )
 
 
-class ConvFeatVAEEmbedder(FeatVAEEmbedder):
+class ConvFeatVAEEmbedder(FeatEmbedder):
     def __init__(self, config: Config, attrs: np.ndarray=None, target_spatial_size: int=1):
         nn.Module.__init__(self)
 
