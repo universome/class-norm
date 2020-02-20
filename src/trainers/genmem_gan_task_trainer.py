@@ -22,15 +22,19 @@ from src.utils.data_utils import flatten
 
 class GenMemGANTaskTrainer(TaskTrainer):
     def _after_init_hook(self):
-        assert self.config.hp.model_type in ['genmem_gan', 'genmem_gan_64x64']
+        assert self.config.hp.model.type in ['genmem_gan', 'genmem_gan_64x64']
 
-        ModelClass = GAN if self.config.hp.model_type == 'genmem_gan' else GAN64x64
+        ModelClass = GAN if self.config.hp.model.type == 'genmem_gan' else GAN64x64
 
         self.prev_model = ModelClass(self.config.hp.model).to(self.device_name)
         self.prev_model.load_state_dict(deepcopy(self.model.state_dict()))
         self.learnt_classes = np.unique(flatten(self.main_trainer.class_splits[:self.task_idx])).tolist()
         self.seen_classes = np.unique(flatten(self.main_trainer.class_splits[:self.task_idx + 1])).tolist()
         self.writer = SummaryWriter(os.path.join(self.main_trainer.paths.logs_path, f'task_{self.task_idx}'), flush_secs=5)
+
+        # Load on a GPU for to speed up training
+        # self.task_train_images = torch.from_numpy(np.array([d[0] for d in self.task_ds_train])).to(self.device_name)
+        # self.task_train_labels = torch.from_numpy(np.array([d[1] for d in self.task_ds_train])).to(self.device_name)
 
         if self.task_idx > 0:
             self.fixed_noise = self.main_trainer.task_trainers[self.task_idx - 1].fixed_noise
@@ -46,8 +50,9 @@ class GenMemGANTaskTrainer(TaskTrainer):
     def train_on_batch(self, batch: Tuple[np.ndarray, np.ndarray]):
         self.model.train()
 
-        x = torch.tensor(batch[0]).to(self.device_name)
+        x = torch.from_numpy(np.array(batch[0])).to(self.device_name)
         y = torch.tensor(batch[1]).to(self.device_name)
+        # x, y = batch
 
         if self.num_iters_done % self.config.hp.num_discr_steps_per_gen_step == 0:
             gen_start_time = time()
@@ -138,5 +143,7 @@ class GenMemGANTaskTrainer(TaskTrainer):
         batch_size = min(self.config.hp.batch_size, len(self.task_ds_train))
         idx = random.sample(range(len(self.task_ds_train)), batch_size)
         x, y = zip(*[self.task_ds_train[i] for i in idx])
+        # x = self.task_train_images[idx]
+        # y = self.task_train_labels[idx]
 
         return x, y

@@ -72,8 +72,9 @@ svhn:
   data:
     name: "SVHN"
     dir: "data/SVHN"
-    num_classes: 10
+    num_classes: &svhn_num_classes 10
 
   lll_setup:
+    num_classes: *svhn_num_classes
     num_tasks: 10
     num_classes_per_task: 1
