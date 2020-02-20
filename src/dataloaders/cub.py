@@ -11,14 +11,14 @@ from .utils import read_column, shuffle_dataset, load_imgs, preprocess_imgs
 
 def load_dataset(
         data_dir: PathLike,
-        is_train:bool=True,
+        split: str='train',
         target_shape: Tuple[int, int]=None,
         preprocess: bool=True) -> List[Tuple[np.ndarray, int]]:
 
     filename = os.path.join(data_dir, 'images.txt')
     img_paths = read_column(filename, 1)
     train_test_split = load_train_test_split(data_dir)
-    img_paths = [p for (p, train) in zip(img_paths, train_test_split) if train == is_train]
+    img_paths = [p for (p, train) in zip(img_paths, train_test_split) if split == 'train']
 
     # import random
     # img_paths = random.sample(img_paths, 100)
@@ -26,7 +26,7 @@ def load_dataset(
     imgs = load_imgs(os.path.join(data_dir, 'images'), img_paths, target_shape)
     labels = load_labels(img_paths)
     if preprocess: imgs = preprocess_imgs(imgs)
-    if is_train: imgs, labels = shuffle_dataset(imgs, labels)
+    if split == 'train': imgs, labels = shuffle_dataset(imgs, labels)
 
     return list(zip(imgs, labels))
 
@@ -65,7 +65,7 @@ def load_class_attributes(data_dir: PathLike) -> np.ndarray:
 
 class CUB(Dataset):
     def __init__(self, data_dir: str, train: bool=True, transform: Callable=None):
-        self.dataset = load_dataset(data_dir, is_train=train, preprocess=False)
+        self.dataset = load_dataset(data_dir, split=('train' if train else 'test'), preprocess=False)
         self.transform = transform
 
     def __getitem__(self, index):
