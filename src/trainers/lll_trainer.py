@@ -87,9 +87,9 @@ class LLLTrainer(BaseTrainer):
 
     def create_model(self):
         if self.config.hp.get('use_class_attrs'):
-            model = MODELS[self.config.hp.model.type](self.config.hp.model, self.class_attributes)
+            model = MODELS[self.config.hp.model.type](self.config, self.class_attributes)
         else:
-            model = MODELS[self.config.hp.model.type](self.config.hp.model)
+            model = MODELS[self.config.hp.model.type](self.config)
 
         if self.config.has('load_from_checkpoint'):
             model.load_state_dict(torch.load(self.config.load_from_checkpoint))

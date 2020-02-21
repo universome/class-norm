@@ -80,3 +80,29 @@ svhn:
     num_classes: *svhn_num_classes
     num_tasks: 10
     num_classes_per_task: 1
+
+cifar10:
+  data:
+    name: "CIFAR10"
+    dir: "data/CIFAR10"
+    num_classes: &cifar10_num_classes 10
+    num_img_channels: 3
+    img_size: 32
+
+  lll_setup:
+    num_classes: *cifar10_num_classes
+    num_tasks: 10
+    num_classes_per_task: 1
+
+cifar100:
+  data:
+    name: "CIFAR100"
+    dir: "data/CIFAR100"
+    num_classes: &cifar100_num_classes 100
+    num_img_channels: 3
+    img_size: 32
+
+  lll_setup:
+    num_classes: *cifar100_num_classes
+    num_tasks: 100
+    num_classes_per_task: 10

@@ -7,7 +7,7 @@ hp:
     gan_config_path: "experiments/genmem_gan--svhn--1-00001/config.yml"
 
     classifier:
-        pretrained: false
+        pretrained: true
         resnet_n_layers: 18
     generator: {dim: 32, z_dim: 128}
     discriminator: {dim: 32}

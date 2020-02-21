@@ -26,7 +26,7 @@ class GenMemGANTaskTrainer(TaskTrainer):
 
         ModelClass = GAN if self.config.hp.model.type == 'genmem_gan' else GAN64x64
 
-        self.prev_model = ModelClass(self.config.hp.model).to(self.device_name)
+        self.prev_model = ModelClass(self.config).to(self.device_name)
         self.prev_model.load_state_dict(deepcopy(self.model.state_dict()))
         self.learnt_classes = np.unique(flatten(self.main_trainer.class_splits[:self.task_idx])).tolist()
         self.seen_classes = np.unique(flatten(self.main_trainer.class_splits[:self.task_idx + 1])).tolist()
@@ -39,7 +39,7 @@ class GenMemGANTaskTrainer(TaskTrainer):
         if self.task_idx > 0:
             self.fixed_noise = self.main_trainer.task_trainers[self.task_idx - 1].fixed_noise
         else:
-            self.fixed_noise = np.random.randn(1000, self.config.hp.model.z_dim).astype(np.float32)
+            self.fixed_noise = np.random.randn(1000, self.config.hp.generator.z_dim).astype(np.float32)
 
     def construct_optimizer(self):
         return {
@@ -55,13 +55,9 @@ class GenMemGANTaskTrainer(TaskTrainer):
         # x, y = batch
 
         if self.num_iters_done % self.config.hp.num_discr_steps_per_gen_step == 0:
-            gen_start_time = time()
             self.generator_step(y)
-            self.writer.add_scalar('gen/iter_time', time() - gen_start_time, self.num_iters_done)
 
-        discr_start_time = time()
         self.discriminator_step(x, y)
-        self.writer.add_scalar('discr/iter_time', time() - discr_start_time, self.num_iters_done)
 
     def discriminator_step(self, x: Tensor, y: Tensor):
         with torch.no_grad():
@@ -86,7 +82,7 @@ class GenMemGANTaskTrainer(TaskTrainer):
         self.writer.add_scalar('discr/mean_pred_real', logits_on_real.mean().item(), self.num_iters_done)
         self.writer.add_scalar('discr/mean_pred_fake', logits_on_fake.mean().item(), self.num_iters_done)
         self.writer.add_scalar('discr/grad_penalty', grad_penalty.item(), self.num_iters_done)
-        # self.writer.add_scalar('discr/cls_loss', cls_loss.item(), self.num_iters_done)
+        self.writer.add_scalar('discr/cls_loss', cls_loss.item(), self.num_iters_done)
 
     def generator_step(self, y: Tensor):
         z = self.model.generator.sample_noise(y.size(0)).to(self.device_name)
@@ -94,7 +90,7 @@ class GenMemGANTaskTrainer(TaskTrainer):
         discr_logits_on_fake, cls_logits_on_fake = self.model.discriminator(x_fake)
 
         adv_loss = -discr_logits_on_fake.mean()
-        cls_loss = self.criterion(prune_logits(cls_logits_on_fake, self.output_mask), y)
+        cls_loss = self.criterion(cls_logits_on_fake, y)
         distillation_loss = self.knowledge_distillation_loss()
 
         total_loss = adv_loss \
@@ -118,7 +114,7 @@ class GenMemGANTaskTrainer(TaskTrainer):
         z = self.model.generator.sample_noise(len(y)).to(self.device_name)
         outputs_teacher = self.prev_model.generator(z, y).view(len(y), -1)
         outputs_student = self.model.generator(z, y).view(len(y), -1)
-        loss = torch.norm(outputs_teacher - outputs_student, dim=1).pow(2).mean()
+        loss = torch.norm(outputs_teacher - outputs_student, dim=1).pow(2).sum() / 2
 
         return loss / len(self.learnt_classes)
 

@@ -12,7 +12,6 @@ from src.models.layers import ConditionalBatchNorm2d, Reshape, Flatten
 class GAN(nn.Module):
     def __init__(self, config: Config):
         super(GAN, self).__init__()
-
         self.generator = Generator(config)
         self.discriminator = Discriminator(config)
 
