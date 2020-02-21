@@ -1,7 +1,9 @@
 import random
 
+import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from firelab.base_trainer import BaseTrainer
 from torchvision.datasets import SVHN
@@ -24,8 +26,8 @@ class GANClassifierTrainer(BaseTrainer):
     def init_models(self):
         assert self.config.data.get('source') == 'gan_model'
 
-        self.classifier = ResnetClassifier(num_classes=self.config.lll_setup.num_classes)
-        self.gan = GAN(self.config.hp.gan_config)
+        self.classifier = ResnetClassifier(self.config)
+        self.gan = GAN(self.config)
         self.gan.load_state_dict(torch.load(self.config.hp.gan_checkpoint_path))
 
         self.classifier.to(self.device_name)
@@ -55,29 +57,41 @@ class GANClassifierTrainer(BaseTrainer):
 
         logits = self.classifier(x)
         loss = self.criterion(logits, y)
+        acc = (logits.argmax(dim=1) == y).float().detach().mean().cpu()
 
         self.optim.zero_grad()
         loss.backward()
         self.optim.step()
 
+        self.writer.add_scalar('loss/train', loss.item(), self.num_iters_done)
+        self.writer.add_scalar('acc/train', acc.item(), self.num_iters_done)
+
     def compute_test_accuracy(self):
         guessed = []
+        losses = []
 
-        for x, y in self.test_dataloader:
-            logits = self.classifier(x)
-            guessed.extend((logits.argmax(dim=1) == y).long().cpu().tolist())
+        with torch.no_grad():
+            for x, y in self.test_dataloader:
+                x = torch.from_numpy(np.array(x)).to(self.device_name)
+                y = torch.tensor(y).to(self.device_name)
+                logits = self.classifier(x)
+                loss = F.cross_entropy(logits, y, reduction='none').cpu()
+                losses.extend(loss.tolist())
+                guessed.extend((logits.argmax(dim=1) == y).long().cpu().tolist())
 
-        return np.mean(guessed)
+        return np.mean(losses), np.mean(guessed)
 
     def validate(self):
-        test_acc = self.compute_test_accuracy()
-        self.writer.add_scalar('Test_acc', test_acc, self.num_iters_done)
+        loss, acc = self.compute_test_accuracy()
+
+        self.writer.add_scalar('acc/test', acc, self.num_iters_done)
+        self.writer.add_scalar('loss/test', loss, self.num_iters_done)
 
     def create_gan_dataloader(self):
         def sample_fn():
-            y = torch.randint(low=0, high=self.config.lll_setup.num_classes, size=(self.config.hp.batch_size,))
+            y = torch.randint(low=0, high=self.config.data.num_classes, size=(self.config.hp.batch_size,))
             y = y.to(self.device_name)
 
             return (self.gan.generator.sample(y), y)
 
-        return GANDataloader(sample_fn, self.config.max_num_iters)
+        return GANDataloader(sample_fn, self.config.hp.max_num_iters)

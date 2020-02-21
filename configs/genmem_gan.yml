@@ -1,23 +1,14 @@
 all:
   task_trainer: "genmem_gan"
+
   hp:
     use_class_attrs: false
 
-    model:
-      type: "genmem_gan"
-      z_dim: 128
-      gen_dim: 32
-      discr_dim: 32
-      num_img_channels: 3
-      img_size: 32
+    generator: {dim: 32, z_dim: 128}
+    discriminator: {dim: 32}
 
-    gen_optim:
-      type: "adam"
-      kwargs: {lr: 0.0001, betas: [0.0, 0.9]}
-
-    discr_optim:
-      type: "adam"
-      kwargs: {lr: 0.0001, betas: [0.0, 0.9]}
+    gen_optim: {type: "adam", kwargs: {lr: 0.0001, betas: [0.0, 0.9]}}
+    discr_optim: {type: "adam", kwargs: {lr: 0.0001, betas: [0.0, 0.9]}}
 
     num_discr_steps_per_gen_step: 5
     gp_coef: 10
@@ -34,8 +25,6 @@ svhn:
   hp:
     img_target_shape: [32, 32]
     num_iters_per_task: 40000
-    model:
-      num_classes: 10
 
 cub:
   plotting:
@@ -43,8 +32,6 @@ cub:
     num_samples_per_class: 5
   hp:
     num_iters_per_task: 100000
-    model:
-      num_classes: 200
 
 awa:
   data:
@@ -52,6 +39,7 @@ awa:
     num_classes: 4
     num_classes_per_task: 1
     num_tasks: 4
+    img_size: 64
 
   plotting:
     # samples_freq: 5
@@ -65,6 +53,5 @@ awa:
 
     model:
       type: "genmem_gan_64x64"
-      num_classes: 4
       emb_dim: 256
       z_dim: 128

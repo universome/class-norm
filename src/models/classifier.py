@@ -10,19 +10,19 @@ from src.utils.constants import INPUT_DIMS
 from src.models.layers import ResNetLastBlock, GaussianDropout
 
 
-RESNET_CLS = {
-    'resnet18_feat': resnet18,
-    'resnet34_feat': resnet34,
-    'resnet50_feat': resnet50
-}
+RESNET_CLS = {18: resnet18, 34: resnet34, 50: resnet50}
 
 
 class ResnetClassifier(nn.Module):
     def __init__(self, config: Config, attrs: np.ndarray=None):
         super(ResnetClassifier, self).__init__()
 
-        self.embedder = ResnetEmbedder(config.input_type, config.pretrained)
-        self.head = ClassifierHead(config, attrs)
+        self.embedder = ResnetEmbedder(
+            config.hp.classifier.resnet_n_layers,
+            config.hp.classifier.pretrained)
+        self.head = ClassifierHead(
+            INPUT_DIMS[f'resnet{config.hp.classifier.resnet_n_layers}_feat'],
+            config.data.num_classes, attrs)
 
     def compute_pruned_predictions(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
         return prune_logits(self.forward(x), output_mask)
@@ -35,10 +35,10 @@ class ResnetClassifier(nn.Module):
 
 
 class ResnetEmbedder(nn.Module):
-    def __init__(self, input_type: int=18, pretrained: bool=True):
+    def __init__(self, resnet_n_layers: int=18, pretrained: bool=True):
         super(ResnetEmbedder, self).__init__()
 
-        self.resnet = RESNET_CLS[input_type](pretrained=pretrained)
+        self.resnet = RESNET_CLS[resnet_n_layers](pretrained=pretrained)
 
         del self.resnet.fc # So it's not included in parameters
 
@@ -52,7 +52,7 @@ class FeatClassifier(nn.Module):
 
         self.config = config
         self.body = self.create_body()
-        self.head = ClassifierHead(config, attrs)
+        self.head = ClassifierHead(config.hp.classifier.hid_dim, config.data.num_classes, attrs)
 
     def create_body(self) -> nn.Module:
         return nn.Sequential(
@@ -69,17 +69,17 @@ class FeatClassifier(nn.Module):
 
 
 class ClassifierHead(nn.Module):
-    def __init__(self, config: Config, attrs: np.ndarray = None):
+    def __init__(self, hid_dim: int, num_classes: int, attrs: np.ndarray = None):
         super(ClassifierHead, self).__init__()
 
         self.use_attrs = not attrs is None
 
         if self.use_attrs:
             self.register_buffer('attrs', torch.tensor(attrs))
-            self.cls_attr_emb = nn.Linear(attrs.shape[1], config.hp.classifier.hid_dim)
+            self.cls_attr_emb = nn.Linear(attrs.shape[1], hid_dim)
             self.biases = nn.Parameter(torch.zeros(attrs.shape[0]))
         else:
-            self.head = nn.Linear(config.hp.classifier.hid_dim, config.data.num_classes)
+            self.head = nn.Linear(hid_dim, num_classes)
 
     def forward(self, feats: Tensor) -> Tensor:
         if self.use_attrs:

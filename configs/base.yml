@@ -73,6 +73,8 @@ svhn:
     name: "SVHN"
     dir: "data/SVHN"
     num_classes: &svhn_num_classes 10
+    num_img_channels: 3
+    img_size: 32
 
   lll_setup:
     num_classes: *svhn_num_classes

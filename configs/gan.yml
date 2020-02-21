@@ -47,9 +47,7 @@ hp:
     num_discr_steps_per_gen_step: 10
     loss_coefs:
         gp: 10
-        gen_cls: 1
-        discr_cls: 1
-        proto: 1
+        proto: 5
 
     grad_clipping:
         generator: 100

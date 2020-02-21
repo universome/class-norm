@@ -1,18 +1,21 @@
 trainer: "GANClassifierTrainer"
-max_num_iters: 10
-num_classes: 10
+val_freq_iters: 100
 hp:
-    batch_size: 64
-    gan_checkpoint_path: "experiments/genmem_gan-42-00123/checkpoints/model-task-9.pt"
-    gan_config:
-        z_dim: 128
-        gen_dim: 32
-        discr_dim: 32
-        num_img_channels: 3
-        img_size: 32
-        num_classes: 10
+    max_num_iters: 1000
+    batch_size: 128
+    gan_checkpoint_path: "experiments/genmem_gan--svhn--1-00001/checkpoints/model-task-9.pt"
+    gan_config_path: "experiments/genmem_gan--svhn--1-00001/config.yml"
+
+    classifier:
+        pretrained: false
+        resnet_n_layers: 18
+    generator: {dim: 32, z_dim: 128}
+    discriminator: {dim: 32}
+
 data:
     name: "SVHN"
     dir: "data/SVHN"
     num_classes: 10
+    num_img_channels: 3
+    img_size: 32
     source: "gan_model"
