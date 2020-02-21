@@ -1,35 +1,47 @@
 trainer: "GANTrainer"
+# data:
+#     name: "CUB_EMBEDDED"
+#     dir: "data/CUB_EMBEDDED"
+#     num_classes: 200
+#     input_type: "resnet18_feat"
+val_freq_epochs: 10
+
 data:
-    name: "CUB_EMBEDDED"
-    dir: "data/CUB_EMBEDDED"
-    num_classes: 200
-    input_type: "resnet18_feat"
+    name: "MNIST"
+    dir: "data/mnist"
+    num_classes: 10
+    input_type: "mnist_1d"
 
 hp:
-    max_num_epochs: 200
-    batch_size: 256
-    gen_batch_size: 600
+    max_num_epochs: 300
+    batch_size: 512
+    gen_batch_size: 1000
 
-    model:
+    generator:
+        hid_dim: 2048
         z_dim: 512
-        hid_dim: 1024
-        emb_dim: 512
-        use_attrs_in_gen: false
-        use_attrs_in_discr: false
-        input_type: "resnet18_feat"
-        share_body_in_discr: false
-        gan_type: "cgan"
-        cls_hid_dim: 1024
-        num_classes: 200
+        emb_dim: &emb_dim 1024
+        num_layers: 2
+        use_tanh: true
+        use_attrs: false
 
-    clf:
-        max_num_steps: 300
-        batch_size: 256
+    discriminator:
+        type: "cgan"
+        hid_dim: 2048
+        num_layers: 2
+        emb_dim: *emb_dim
+        use_attrs: false
 
-    # gen_optim: {type: "adam", kwargs: {lr: 0.0001, betas: [0.0, 0.999]}}
-    # discr_optim: {type: "adam", kwargs: {lr: 0.0001, betas: [0.0, 0.999]}}
-    gen_optim: {type: "adam", kwargs: {lr: 0.001}}
-    discr_optim: {type: "adam", kwargs: {lr: 0.001}}
+    classifier:
+        hid_dim: 2048
+        max_num_steps: 500
+        val_freq_steps: 50
+        batch_size: 512
+
+    gen_optim: {type: "adam", kwargs: {lr: 0.0001, betas: [0.0, 0.999]}}
+    discr_optim: {type: "adam", kwargs: {lr: 0.0001, betas: [0.0, 0.999]}}
+    # gen_optim: {type: "adam", kwargs: {lr: 0.001}}
+    # discr_optim: {type: "adam", kwargs: {lr: 0.001}}
     cls_optim: {type: "adam", kwargs: {lr: 0.001}}
 
     num_discr_steps_per_gen_step: 10
@@ -43,4 +55,3 @@ hp:
         generator: 100
         discriminator: 100
         classifier: 100
-

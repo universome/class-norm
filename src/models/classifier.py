@@ -56,8 +56,8 @@ class FeatClassifier(nn.Module):
 
     def create_body(self) -> nn.Module:
         return nn.Sequential(
-            GaussianDropout(self.config.get('cls_gaussian_dropout_sigma', 0.)),
-            nn.Linear(INPUT_DIMS[self.config.input_type], self.config.cls_hid_dim),
+            # GaussianDropout(self.config.get('cls_gaussian_dropout_sigma', 0.)),
+            nn.Linear(INPUT_DIMS[self.config.data.input_type], self.config.hp.classifier.hid_dim),
             nn.ReLU(),
         )
 
@@ -76,10 +76,10 @@ class ClassifierHead(nn.Module):
 
         if self.use_attrs:
             self.register_buffer('attrs', torch.tensor(attrs))
-            self.cls_attr_emb = nn.Linear(attrs.shape[1], config.cls_hid_dim)
+            self.cls_attr_emb = nn.Linear(attrs.shape[1], config.hp.classifier.hid_dim)
             self.biases = nn.Parameter(torch.zeros(attrs.shape[0]))
         else:
-            self.head = nn.Linear(config.cls_hid_dim, config.num_classes)
+            self.head = nn.Linear(config.hp.classifier.hid_dim, config.data.num_classes)
 
     def forward(self, feats: Tensor) -> Tensor:
         if self.use_attrs:

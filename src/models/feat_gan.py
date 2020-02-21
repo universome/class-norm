@@ -16,31 +16,38 @@ class FeatGenerator(nn.Module):
     def __init__(self, config: Config, attrs: np.ndarray=None):
         super(FeatGenerator, self).__init__()
 
-        if config.get('use_attrs_in_gen'):
+        if config.hp.generator.use_attrs:
             assert not attrs is None
 
             self.register_buffer('attrs', torch.tensor(attrs))
-            self.attr_emb = nn.Linear(attrs.shape[1], config.emb_dim)
+            self.attr_emb = nn.Linear(attrs.shape[1], config.hp.generator.emb_dim)
         else:
-            self.cls_emb = nn.Embedding(config.num_classes, config.emb_dim)
+            self.cls_emb = nn.Embedding(config.data.num_classes, config.hp.generator.emb_dim)
 
         self.config = config
         self.init_model()
 
     def init_model(self):
-        self.model = nn.Sequential(
-            nn.Linear(self.config.z_dim + self.config.emb_dim, self.config.hid_dim),
+        layers = [
+            nn.Linear(self.config.hp.generator.z_dim + self.config.hp.generator.emb_dim, self.config.hp.generator.hid_dim),
             nn.LeakyReLU(),
-            nn.Linear(self.config.hid_dim, self.config.hid_dim),
-            nn.LeakyReLU(),
-            nn.Linear(self.config.hid_dim, INPUT_DIMS[self.config.input_type]),
-            #nn.Tanh()
-        )
+        ]
+
+        for _ in range(self.config.hp.generator.num_layers - 1):
+            layers.append(nn.Linear(self.config.hp.generator.hid_dim, self.config.hp.generator.hid_dim))
+            layers.append(nn.LeakyReLU())
+
+        layers.append(nn.Linear(self.config.hp.generator.hid_dim, INPUT_DIMS[self.config.data.input_type]))
+
+        if self.config.get('use_tanh_in_gen'):
+            layers.append(nn.Tanh())
+
+        self.model = nn.Sequential(*layers)
 
     def forward(self, z: Tensor, y: Tensor) -> Tensor:
         assert z.size(0) == y.size(0), "You should specify necessary y label for each z"
 
-        if self.config.use_attrs_in_gen:
+        if self.config.hp.generator.use_attrs:
             embs = self.attr_emb(self.attrs[y])
         else:
             embs = self.cls_emb(y)
@@ -60,7 +67,7 @@ class FeatGenerator(nn.Module):
         return x
 
     def sample_noise(self, batch_size: int) -> Tensor:
-        return torch.randn(batch_size, self.config.z_dim)
+        return torch.randn(batch_size, self.config.hp.generator.z_dim)
 
     def sample(self, y: Tensor) -> Tensor:
         return self.forward(self.sample_noise(len(y)).to(y.device), y)
@@ -71,26 +78,30 @@ class FeatDiscriminator(nn.Module):
         super(FeatDiscriminator, self).__init__()
 
         self.config = config
-        if self.config.use_attrs_in_discr:
+        if self.config.hp.discriminator.use_attrs:
             assert (not attrs is None)
 
         self.adv_body = self.init_body()
 
-        if self.config.share_body_in_discr:
+        if self.config.hp.discriminator.share_body:
             self.cls_body = self.adv_body
         else:
             self.cls_body = self.init_body()
 
-        self.adv_head = nn.Linear(self.config.hid_dim, 1)
-        self.cls_head = ClassifierHead(self.config, attrs)
+        self.adv_head = nn.Linear(self.config.hp.discriminator.hid_dim, 1)
+        self.cls_head = ClassifierHead(self.config.hp.classifier, attrs)
 
     def init_body(self, conditional:bool=False) -> nn.Module:
-        return nn.Sequential(
-            nn.Linear(INPUT_DIMS[self.config.input_type], self.config.hid_dim),
+        layers = [
+            nn.Linear(INPUT_DIMS[self.config.data.input_type], self.config.hp.discriminator.hid_dim),
             nn.ReLU(),
-            # nn.Linear(self.config.hid_dim, self.config.hid_dim),
-            # nn.ReLU(),
-        )
+        ]
+
+        for _ in range(self.config.hp.discriminator.num_layers - 1):
+            layers.append(nn.Linear(self.config.hp.discriminator.hid_dim, self.config.hp.discriminator.hid_dim))
+            layers.append(nn.ReLU())
+
+        return nn.Sequential(*layers)
 
     def get_adv_parameters(self) -> Iterable[nn.Parameter]:
         return chain(self.adv_body.parameters(), self.adv_head.parameters())
@@ -129,11 +140,11 @@ class ConditionalFeatDiscriminator(FeatDiscriminator):
     def __init__(self, config):
         nn.Module.__init__(self)
 
-        self.embedder = nn.Embedding(config.num_classes, config.emb_dim)
+        self.embedder = nn.Embedding(config.data.num_classes, config.hp.discriminator.emb_dim)
         self.model = nn.Sequential(
-            nn.Linear(config.emb_dim + INPUT_DIMS[config.input_type], config.hid_dim),
+            nn.Linear(config.hp.discriminator.emb_dim + INPUT_DIMS[config.data.input_type], config.hp.discriminator.hid_dim),
             nn.ReLU(),
-            nn.Linear(config.hid_dim, 1)
+            nn.Linear(config.hp.discriminator.hid_dim, 1)
         )
 
     def forward(self, x, y):
@@ -145,11 +156,10 @@ class FeatDiscriminatorWithoutClsHead(nn.Module):
     def __init__(self, config: Config):
         super(FeatDiscriminatorWithoutClsHead, self).__init__()
 
-        self.config = config
         self.model = nn.Sequential(
-            nn.Linear(INPUT_DIMS[self.config.input_type], config.hid_dim),
+            nn.Linear(INPUT_DIMS[config.data.input_type], config.hp.discriminator.hid_dim),
             nn.ReLU(),
-            nn.Linear(config.hid_dim, 1)
+            nn.Linear(config.hp.discriminator.hid_dim, 1)
         )
 
     def forward(self, x: Tensor) -> Tensor:
