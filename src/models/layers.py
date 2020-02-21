@@ -109,12 +109,27 @@ class Identity(nn.Module):
         return x
 
 
+class ConvBNReLU(nn.Module):
+    def __init__(self, num_in_c: int, num_out_c: int, kernel_size: int, maxpool: bool=False, *conv_args, **conv_kwargs):
+        super(ConvBNReLU, self).__init__()
+
+        self.block = nn.Sequential(
+            nn.Conv2d(num_in_c, num_out_c, kernel_size, *conv_args, **conv_kwargs),
+            (nn.MaxPool2d(2, 2) if maxpool else Identity()),
+            nn.BatchNorm2d(num_out_c),
+            nn.ReLU()
+        )
+
+    def forward(self, x: Tensor) -> Tensor:
+        return self.block(x)
+
+
 class ConvTransposeBNReLU(nn.Module):
-    def __init__(self, num_in_c: int, num_out_c: int, kernel_size: int, *conv_args):
+    def __init__(self, num_in_c: int, num_out_c: int, kernel_size: int, *conv_args, **conv_kwargs):
         super(ConvTransposeBNReLU, self).__init__()
 
         self.block = nn.Sequential(
-            nn.ConvTranspose2d(num_in_c, num_out_c, kernel_size, *conv_args),
+            nn.ConvTranspose2d(num_in_c, num_out_c, kernel_size, *conv_args, **conv_kwargs),
             nn.BatchNorm2d(num_out_c),
             nn.ReLU(),
         )
