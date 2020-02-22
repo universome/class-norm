@@ -8,7 +8,10 @@ from src.trainers.task_trainer import TaskTrainer
 
 class LifeLongAETaskTrainer(TaskTrainer):
     def _after_init_hook(self):
-        self.log_img_idx = random.sample(range(len(self.task_ds_test)), 10)
+        if self.task_idx == 0:
+            self.log_img_idx = random.sample(range(len(self.task_ds_test)), 10)
+        else:
+            self.log_img_idx = self.get_previous_trainer().log_img_idx
 
     def train_on_batch(self, batch):
         self.model.train()
@@ -20,6 +23,12 @@ class LifeLongAETaskTrainer(TaskTrainer):
         self.optim.step()
 
         self.writer.add_scalar('loss/train', loss.item(), self.num_iters_done)
+
+    def construct_optimizer(self):
+        if self.task_idx == 0:
+            return super(LifeLongAETaskTrainer, self).construct_optimizer()
+        else:
+            return self.get_previous_trainer().optim
 
     def validate_ae(self, dataloader):
         all_losses = []
