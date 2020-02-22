@@ -7,16 +7,15 @@ all:
 #    ausuc: true
   logging:
     save_logits: true
+    print_accuracy_after_task: true
     save_frequency: "iter"
   hp:
     max_num_epochs: 5
     img_target_shape: [224, 224]
-    use_class_attrs: true
     batch_size: 10
     model:
       input_type: "resnet18_feat"
       pretrained: false
-      type: "simple_classifier"
       hid_dim: 512
     optim: {type: "sgd", kwargs: {lr: 0.03}}
     # optim: {type: "adam", kwargs: {lr: 0.001, betas: [0.0, 0.9]}}
@@ -104,5 +103,5 @@ cifar100:
 
   lll_setup:
     num_classes: *cifar100_num_classes
-    num_tasks: 100
+    num_tasks: 10
     num_classes_per_task: 10

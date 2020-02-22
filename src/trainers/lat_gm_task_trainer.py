@@ -1,4 +1,3 @@
-import os
 import random
 from typing import Tuple, Iterable
 from copy import deepcopy
@@ -8,7 +7,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-from torch.utils.tensorboard import SummaryWriter
 from torch.nn.utils.clip_grad import clip_grad_norm_
 from tqdm import tqdm
 from firelab.config import Config
@@ -40,7 +38,7 @@ class LatGMTaskTrainer(TaskTrainer):
         self.learned_classes_mask = construct_output_mask(self.learned_classes, self.config.lll_setup.num_classes)
         self.seen_classes = np.unique(flatten(self.main_trainer.class_splits[:self.task_idx + 1])).tolist()
         self.seen_classes_mask = construct_output_mask(self.seen_classes, self.config.lll_setup.num_classes)
-        self.writer = SummaryWriter(os.path.join(self.main_trainer.paths.logs_path, f'task_{self.task_idx}'), flush_secs=5)
+        self.init_writer()
 
         if not prev_trainer is None:
             self.weights_prev = torch.cat([p.data.view(-1) for p in self.model.embedder.parameters()])

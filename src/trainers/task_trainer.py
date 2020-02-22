@@ -1,7 +1,11 @@
+import os
+from typing import List, Tuple, Any
+
 import torch
 import torch.nn as nn
 from torch import optim
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 from tqdm import tqdm
 from firelab.config import Config
@@ -16,13 +20,13 @@ class TaskTrainer:
         self.main_trainer = main_trainer
         self.config = main_trainer.config
         self.model = main_trainer.model
+        self.init_writer()
 
         if self.config.hp.get('reinit_after_each_task'):
             self.model.load_state_dict(main_trainer.create_model().state_dict())
 
         self.device_name = main_trainer.device_name
         self.criterion = nn.CrossEntropyLoss()
-        self.writer = main_trainer.writer
         self.optim = self.construct_optimizer()
 
         self.task_ds_train, self.task_ds_test = main_trainer.data_splits[task_idx]
@@ -35,12 +39,22 @@ class TaskTrainer:
 
         self._after_init_hook()
 
+    def init_writer(self):
+        self.writer = SummaryWriter(os.path.join(self.main_trainer.paths.logs_path, f'task_{self.task_idx}'), flush_secs=5)
+
     def construct_optimizer(self):
         return construct_optimizer(self.model.parameters(), self.config.hp.optim)
 
     def init_dataloaders(self):
-        self.train_dataloader = DataLoader(self.task_ds_train, batch_size=self.config.hp.batch_size, collate_fn=lambda b: list(zip(*b)))
-        self.test_dataloader = DataLoader(self.task_ds_test, batch_size=self.config.hp.batch_size, collate_fn=lambda b: list(zip(*b)))
+        self.train_dataloader = self.create_dataloader(self.task_ds_train, shuffle=True)
+        self.test_dataloader = self.create_dataloader(self.task_ds_test, shuffle=False)
+
+    def create_dataloader(self, dataset: List[Tuple[Any, int]], shuffle: bool):
+        return DataLoader(
+            dataset,
+            batch_size=self.config.hp.batch_size,
+            shuffle=shuffle,
+            collate_fn=lambda b: list(zip(*b)))
 
     def _after_init_hook(self):
         pass

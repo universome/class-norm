@@ -6,20 +6,17 @@ from firelab.config import Config
 from src.models.layers import ConvBNReLU, ConvTransposeBNReLU, Reshape
 
 
-import torch
-import torch.nn as nn
-from torch import Tensor
-from firelab.config import Config
-
-from src.models.layers import ConvBNReLU, ConvTransposeBNReLU, Reshape
-
-
 class AutoEncoder(nn.Module):
     def __init__(self, config: Config):
         super(AutoEncoder, self).__init__()
 
         self.encoder = Encoder(config)
         self.decoder = Decoder(config)
+        # self.encoder = nn.Conv2d(3, 16, 3, padding=1)
+        # self.decoder = nn.Sequential(
+        #     nn.Conv2d(16, 3, 3, padding=1),
+        #     nn.Sigmoid()
+        # )
 
     def forward(self, x: Tensor) -> Tensor:
         return self.decoder(self.encoder(x))
@@ -30,11 +27,14 @@ class Encoder(nn.Module):
         super(Encoder, self).__init__()
 
         self.model = nn.Sequential(
-            ConvBNReLU(3, 16, 3, False),
-            ConvBNReLU(16, 64, 3, False, stride=2),
-            ConvBNReLU(64, 256, 3, False, stride=2),
-            ConvBNReLU(256, 512, 3, False, stride=2),
-            Reshape([-1, 2048])
+            nn.Conv2d(3, 16, 4, stride=2, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(16, 64, 4, stride=2, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(64, 256, 4, stride=2, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(256, 512, 3, stride=2, padding=1),
+            nn.ReLU(),
         )
 
     def forward(self, x: Tensor) -> Tensor:
@@ -46,11 +46,14 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
 
         self.model = nn.Sequential(
-            Reshape([-1, 512, 2, 2]),
-            ConvTransposeBNReLU(512, 256, 3, stride=2, output_padding=1),
-            ConvTransposeBNReLU(256, 256, 3, stride=2, output_padding=1),
-            ConvTransposeBNReLU(256, 256, 3, stride=2, output_padding=1),
-            ConvTransposeBNReLU(256, 3, 3),
+            nn.ConvTranspose2d(512, 256, 4, stride=2, padding=1),
+            nn.ReLU(),
+            nn.ConvTranspose2d(256, 128, 4, stride=2, padding=1),
+            nn.ReLU(),
+            nn.ConvTranspose2d(128, 64, 4, stride=2, padding=1),
+            nn.ReLU(),
+            nn.ConvTranspose2d(64, 3, 4, stride=2, padding=1),
+            nn.Sigmoid(),
         )
 
     def forward(self, x: Tensor) -> Tensor:

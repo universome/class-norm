@@ -1,0 +1,13 @@
+all:
+  logging:
+    save_logits: false
+    print_accuracy_after_task: false
+  task_trainer: "lifelong_ae"
+  hp:
+    max_num_epochs: 100
+    batch_size: 256
+    optim: {type: "adam", kwargs: {}}
+    model:
+      type: "autoencoder"
+
+cifar100: {}

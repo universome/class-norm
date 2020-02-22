@@ -2,6 +2,9 @@ Our setup:
 - Our main model is discriminator, which performs classification. The setup is very similar to CIZSL paper in that sense.
 - Next, we have an additional A-GEM loss, which makes discriminator not to forget older examples.
 
+TODO:
+- Looks like I forgot to shuffle train data?????
+
 Ideas:
 - We can use class prototypes as task descriptors. To get a prototype we can just compute average VGG feature. Of course, this will be cheating, but will be a good PoC.
 - Like in editable neural networks, but we can make outputs to be unchanged for just some random inputs.

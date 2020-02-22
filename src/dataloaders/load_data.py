@@ -7,8 +7,8 @@ from src.dataloaders.utils import extract_resnet_features_for_dataset
 
 
 SIMPLE_LOADERS = {
-    'SVHN': svhn,
-    'MNIST': mnist,
+    'SVHN': svhn.load_dataset,
+    'MNIST': mnist.load_dataset,
     'CIFAR10': lambda *args, **kwargs: cifar.load_dataset(*args, **kwargs, num_classes=10),
     'CIFAR100': lambda *args, **kwargs: cifar.load_dataset(*args, **kwargs, num_classes=100),
 }
@@ -28,8 +28,8 @@ def load_data(config: Config, img_target_shape: Tuple[int, int]=None,
         ds_test = awa.load_dataset(config.dir, split='test', target_shape=img_target_shape)
         class_attributes = awa.load_class_attributes(config.dir).astype(np.float32)
     elif config.name in SIMPLE_LOADERS.keys():
-        ds_train = SIMPLE_LOADERS[config.name].load_dataset(config.dir, split='train')
-        ds_test = SIMPLE_LOADERS[config.name].load_dataset(config.dir, split='test')
+        ds_train = SIMPLE_LOADERS[config.name](config.dir, split='train')
+        ds_test = SIMPLE_LOADERS[config.name](config.dir, split='test')
         class_attributes = None
     else:
         raise NotImplementedError(f'Unkown dataset: {config.name}')

@@ -15,6 +15,7 @@ from src.models.gan import GAN
 from src.models.gan_64x64 import GAN64x64
 from src.models.lat_gm import LatGM
 from src.models.lat_gm_vae import LatGMVAE
+from src.models.autoencoder import AutoEncoder
 
 from src.dataloaders.load_data import load_data
 from src.dataloaders.utils import imagenet_normalization
@@ -30,16 +31,9 @@ from src.trainers.genmem_gan_task_trainer import GenMemGANTaskTrainer
 from src.trainers.lat_gm_task_trainer import LatGMTaskTrainer
 from src.trainers.lat_gm_vae_task_trainer import LatGMVAETaskTrainer
 from src.trainers.lat_gm_aegan_task_trainer import LatGMAEGANTaskTrainer
+from src.trainers.lifelong_ae_task_trainer import LifeLongAETaskTrainer
 
 from src.utils.data_utils import construct_output_mask, filter_out_classes
-
-from src.utils.metrics import (
-    compute_average_accuracy,
-    compute_forgetting_measure,
-    compute_learning_curve_area,
-    compute_ausuc,
-    compute_acc_for_classes,
-)
 
 TASK_TRAINERS = {
     'basic': BasicTaskTrainer,
@@ -51,7 +45,8 @@ TASK_TRAINERS = {
     'genmem_gan': GenMemGANTaskTrainer,
     'lat_gm': LatGMTaskTrainer,
     'lat_gm_vae': LatGMVAETaskTrainer,
-    'lat_gm_aegan': LatGMAEGANTaskTrainer
+    'lat_gm_aegan': LatGMAEGANTaskTrainer,
+    'lifelong_ae': LifeLongAETaskTrainer,
 }
 
 MODELS = {
@@ -62,6 +57,7 @@ MODELS = {
     'feat_classifier': FeatClassifier,
     'genmem_gan': GAN,
     'genmem_gan_64x64': GAN64x64,
+    'autoencoder': AutoEncoder
 }
 
 class LLLTrainer(BaseTrainer):
@@ -131,8 +127,10 @@ class LLLTrainer(BaseTrainer):
                 task_trainer.start()
 
             self.num_tasks_learnt += 1
-            print(f'Train accuracy: {task_trainer.compute_train_accuracy()}')
-            print(f'Test accuracy: {task_trainer.compute_test_accuracy()}')
+
+            if self.config.get('logging.print_accuracy_after_task'):
+                print(f'Train accuracy: {task_trainer.compute_train_accuracy()}')
+                print(f'Test accuracy: {task_trainer.compute_test_accuracy()}')
 
             if self.config.task_trainer == 'agem':
                 task_trainer.extend_episodic_memory()
