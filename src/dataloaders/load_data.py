@@ -2,7 +2,7 @@ from typing import Tuple
 import numpy as np
 from firelab.config import Config
 
-from src.dataloaders import cub, cub_embedded, awa, svhn, mnist, cifar
+from src.dataloaders import cub, feats, awa, svhn, mnist, cifar
 from src.dataloaders.utils import extract_resnet_features_for_dataset
 
 
@@ -19,9 +19,9 @@ def load_data(config: Config, img_target_shape: Tuple[int, int]=None,
         ds_train = cub.load_dataset(config.dir, split='train', target_shape=img_target_shape, preprocess=preprocess)
         ds_test = cub.load_dataset(config.dir, split='test', target_shape=img_target_shape, preprocess=preprocess)
         class_attributes = cub.load_class_attributes(config.dir).astype(np.float32)
-    elif config.name == 'CUB_EMBEDDED':
-        ds_train = cub_embedded.load_dataset(config.dir, config.input_type, split='train')
-        ds_test = cub_embedded.load_dataset(config.dir, config.input_type, split='test')
+    elif config.name == 'CUB_EMBEDDINGS':
+        ds_train = feats.load_dataset(config.dir, config.input_type, split='train')
+        ds_test = feats.load_dataset(config.dir, config.input_type, split='test')
         class_attributes = cub.load_class_attributes(config.dir).astype(np.float32)
     elif config.name == 'AWA':
         ds_train = awa.load_dataset(config.dir, split='train', target_shape=img_target_shape)
@@ -30,6 +30,10 @@ def load_data(config: Config, img_target_shape: Tuple[int, int]=None,
     elif config.name in SIMPLE_LOADERS.keys():
         ds_train = SIMPLE_LOADERS[config.name](config.dir, split='train')
         ds_test = SIMPLE_LOADERS[config.name](config.dir, split='test')
+        class_attributes = None
+    elif config.name.endswith('EMBEDDINGS'):
+        ds_train = feats.load_dataset(config.dir, config.input_type, split='train')
+        ds_test = feats.load_dataset(config.dir, config.input_type, split='test')
         class_attributes = None
     else:
         raise NotImplementedError(f'Unkown dataset: {config.name}')

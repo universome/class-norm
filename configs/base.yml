@@ -33,10 +33,10 @@ cub:
   hp:
     model: {pretrained: true}
 
-cub_embedded:
+cub_embeddings:
   data:
-    name: "CUB_EMBEDDED"
-    dir: "data/CUB_EMBEDDED"
+    name: "CUB_EMBEDDINGS"
+    dir: "data/CUB_EMBEDDINGS"
     num_classes: 200
     input_type: "resnet18_feat"
     feat_level: "fc"
@@ -47,8 +47,8 @@ cub_embedded:
 
 cub_conv_feats:
   data:
-    name: "CUB_EMBEDDED"
-    dir: "data/CUB_EMBEDDED"
+    name: "CUB_EMBEDDINGS"
+    dir: "data/CUB_EMBEDDINGS"
     num_classes: 200
     input_type: "resnet50_conv"
     feat_level: "conv"

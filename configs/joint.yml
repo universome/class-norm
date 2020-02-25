@@ -6,7 +6,7 @@ all:
     # optim: {type: "adam", kwargs: {lr: 0.001, betas: [0.0, 0.9]}}
     reinit_after_each_task: false
 
-cub_embedded:
+cub_embeddings:
   hp:
     max_num_epochs: 50
     model:

@@ -1,6 +1,6 @@
 all:
     task_trainer: "lat_gm"
-    # load_from_checkpoint: "experiments/lat_gm--cub_embedded--42-00019/checkpoints/model-task-0.pt"
+    # load_from_checkpoint: "experiments/lat_gm--cub_embeddings--42-00019/checkpoints/model-task-0.pt"
     # start_task: 1
     hp:
         max_num_epochs: 200
@@ -59,7 +59,7 @@ all:
             adv_coef: 0.
             entropy_coef: 0.
 
-cub_embedded:
+cub_embeddings:
     hp:
         model:
             num_classes: 200

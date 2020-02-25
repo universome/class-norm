@@ -1,7 +1,7 @@
 trainer: "GANTrainer"
 # data:
-#     name: "CUB_EMBEDDED"
-#     dir: "data/CUB_EMBEDDED"
+#     name: "CUB_EMBEDDINGS"
+#     dir: "data/CUB_EMBEDDINGS"
 #     num_classes: 200
 #     input_type: "resnet18_feat"
 val_freq_epochs: 10

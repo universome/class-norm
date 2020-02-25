@@ -57,7 +57,7 @@ all:
             adv_coef: 0.
             entropy_coef: 0.
 
-cub_embedded:
+cub_embeddings:
     hp:
         model:
             num_classes: 200

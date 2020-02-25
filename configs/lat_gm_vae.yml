@@ -39,7 +39,7 @@ all:
     synaptic_strength: 0.01
     fisher_prob: 0.5
 
-cub_embedded:
+cub_embeddings:
   data:
     input_type: "resnet18_feat"
 

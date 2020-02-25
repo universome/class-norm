@@ -60,7 +60,7 @@ class ClassifierTrainer(BaseTrainer):
 
             ds_train = CUB(self.config.data.dir, train=True, transform=train_transform)
             ds_test = CUB(self.config.data.dir, train=False, transform=test_transform)
-        elif self.config.data.name == 'CUB_EMBEDDED':
+        elif self.config.data.name == 'CUB_EMBEDDINGS':
             ds_train, ds_test, _ = load_data(self.config.data)
             ds_train = [(torch.tensor(x), y) for x, y in ds_train]
             ds_test = [(torch.tensor(x), y) for x, y in ds_test]

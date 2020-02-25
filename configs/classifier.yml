@@ -23,6 +23,6 @@ hp:
                 gamma: 0.1
                 step_size: 100
 data:
-    name: "CUB_EMBEDDED"
-    dir: "data/CUB_EMBEDDED"
+    name: "CUB_EMBEDDINGS"
+    dir: "data/CUB_EMBEDDINGS"
     num_classes: 200
