@@ -13,7 +13,7 @@ from firelab.config import Config
 
 from src.utils.losses import compute_gradient_penalty
 from src.utils.lll import prune_logits
-from src.models.lat_gm import LatGM
+from src.models.lgm import LGM
 from src.trainers.task_trainer import TaskTrainer
 from src.utils.weights_importance import compute_mse_grad, compute_diagonal_fisher
 from src.utils.model_utils import get_number_of_parameters
@@ -21,17 +21,17 @@ from src.utils.data_utils import construct_output_mask, flatten
 from src.utils.training_utils import construct_optimizer
 
 
-class LatGMTaskTrainer(TaskTrainer):
-    BaseModel = LatGM
+class LGMTaskTrainer(TaskTrainer):
+    BaseModel = LGM
 
     def _after_init_hook(self):
         prev_trainer = self.get_previous_trainer()
 
         attrs = self.model.attrs if hasattr(self.model, 'attrs') else None
-        self.prev_model = self.BaseModel(self.config.hp.model, attrs).to(self.device_name)
+        self.prev_model = self.BaseModel(self.config, attrs).to(self.device_name)
         self.prev_model.load_state_dict(deepcopy(self.model.state_dict()))
 
-        if self.config.hp.get('reset_head_before_each_task'):
+        if self.config.hp.get('reset_discr_before_each_task'):
             self.model.reset_discriminator()
 
         self.learned_classes = np.unique(flatten(self.main_trainer.class_splits[:self.task_idx])).tolist()
@@ -71,14 +71,14 @@ class LatGMTaskTrainer(TaskTrainer):
     def train_on_batch(self, batch: Tuple[np.ndarray, np.ndarray]):
         self.model.train()
 
-        x = torch.tensor(batch[0]).to(self.device_name)
+        x = torch.from_numpy(np.array(batch[0])).to(self.device_name)
         y = torch.tensor(batch[1]).to(self.device_name)
 
-        if self.num_epochs_done < self.config.hp.num_gan_epochs:
+        if self.num_epochs_done < self.config.hp.num_clf_epochs:
+            self.classifier_step(x, y)
+        else:
             self.generator_step(y)
             self.discriminator_step(x, y)
-        else:
-            self.classifier_step(x, y)
 
         # self.creativity_step()
 
@@ -154,14 +154,15 @@ class LatGMTaskTrainer(TaskTrainer):
         # self.perform_optim_step(loss, 'embedder')
         if self.task_idx > 0:
             distill_loss, distill_acc = self.compute_cls_distill_loss()
-            total_loss = curr_loss + self.config.hp.cls_distill.loss_coef * distill_loss
+            total_loss = curr_loss + self.config.hp.classifier.distill.loss_coef * distill_loss
 
             self.writer.add_scalar('cls/distill_loss', distill_loss.item(), self.num_iters_done)
             self.writer.add_scalar('cls/distill_acc', distill_acc.item(), self.num_iters_done)
         else:
             total_loss = curr_loss
 
-        self.perform_optim_step(total_loss, 'classifier')
+        self.perform_optim_step(total_loss, 'classifier', retain_graph=True)
+        self.perform_optim_step(total_loss, 'embedder')
 
         self.writer.add_scalar('cls/curr_oss', curr_loss.item(), self.num_iters_done)
         self.writer.add_scalar('cls/curr_acc', curr_acc.item(), self.num_iters_done)
@@ -218,13 +219,16 @@ class LatGMTaskTrainer(TaskTrainer):
 
     def compute_cls_distill_loss(self) -> Tuple[Tensor, Tensor]:
         with torch.no_grad():
-            y = random.choices(self.learned_classes, k=self.config.hp.cls_distill.batch_size)
+            y = random.choices(self.learned_classes, k=self.config.hp.classifier.distill.batch_size)
             y = torch.tensor(y).to(self.device_name)
             x_fake = self.model.sample(y)
-            logits_prev = self.prev_model.compute_pruned_predictions(x_fake, self.seen_classes_mask)
+            logits_prev = self.prev_model.discriminator.run_cls_head(x_fake)
+            logits_prev = prune_logits(logits_prev, self.learned_classes_mask)
 
-        logits_curr = self.model.compute_pruned_predictions(x_fake, self.seen_classes_mask)
-        loss = F.mse_loss(logits_curr, logits_prev)
+        logits_curr = self.model.discriminator.run_cls_head(x_fake)
+        # logits_curr = prune_logits(logits_curr, self.learned_classes_mask)
+        #loss = F.mse_loss(logits_curr, logits_prev)
+        loss = F.mse_loss(logits_curr[:, self.learned_classes], logits_prev[:, self.learned_classes])
         acc = (logits_curr.argmax(dim=1) == y).float().mean().detach().cpu()
 
         return loss, acc

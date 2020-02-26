@@ -13,16 +13,16 @@ from tqdm import tqdm
 
 from src.utils.losses import compute_kld_with_standard_gaussian, compute_kld_between_diagonal_gaussians
 from src.trainers.task_trainer import TaskTrainer
-from src.trainers.lat_gm_task_trainer import LatGMTaskTrainer
-from src.models.lat_gm_vae import LatGMVAE
+from src.trainers.lgm_task_trainer import LGMTaskTrainer
+from src.models.lgm_vae import LGMVAE
 from src.dataloaders.utils import extract_features
 
 
-class LatGMVAETaskTrainer(LatGMTaskTrainer):
+class LGMVAETaskTrainer(LGMTaskTrainer):
     """
     Training generative memory until it overfits completely on each task
     """
-    BaseModel = LatGMVAE
+    BaseModel = LGMVAE
 
     def construct_optimizer(self) -> Dict:
         return {

@@ -5,7 +5,7 @@ num_runs=$1
 # # Checking how creativity loss is working
 # for creativity_loss_coef in 0 0.001 0.01 0.1 1 10; do
 #     for (( random_seed=1; random_seed<=num_runs; random_seed++ )); do
-#         cli_args="-c lat_gm -d cub -s $random_seed\
+#         cli_args="-c lgm -d cub -s $random_seed\
 #             --config.hp.num_iters_per_task 250\
 #             --config.hp.creativity.enabled true\
 #             --config.hp.creativity.adv_coef $creativity_loss_coef\
@@ -15,10 +15,10 @@ num_runs=$1
 #     done
 # done
 
-# # Running lat_gm on CUB
+# # Running lgm on CUB
 # for synaptic_strength in 0.1 0.01; do
 #     for (( random_seed=1; random_seed<=num_runs; random_seed++ )); do
-#         cli_args="-c lat_gm -d cub -s $random_seed\
+#         cli_args="-c lgm -d cub -s $random_seed\
 #             --config.hp.num_iters_per_task 250\
 #             --config.hp.creativity.enabled false\
 #             --config.hp.reg_strategy ewc\
@@ -30,7 +30,7 @@ num_runs=$1
 
 # for synaptic_strength in 0.1 0.01 0.001; do
 #     for (( random_seed=1; random_seed<=num_runs; random_seed++ )); do
-#         cli_args="-c lat_gm -d cub -s $random_seed\
+#         cli_args="-c lgm -d cub -s $random_seed\
 #             --config.hp.num_iters_per_task 250\
 #             --config.hp.creativity.enabled false\
 #             --config.hp.reg_strategy mas\
@@ -40,10 +40,10 @@ num_runs=$1
 #     done
 # done
 
-# # Running lat_gm on AWA
+# # Running lgm on AWA
 # for synaptic_strength in 0.1 0.01; do
 #     for (( random_seed=1; random_seed<=num_runs; random_seed++ )); do
-#         cli_args="-c lat_gm -d awa -s $random_seed\
+#         cli_args="-c lgm -d awa -s $random_seed\
 #             --config.hp.num_iters_per_task 5000\
 #             --config.hp.creativity.enabled false\
 #             --config.hp.reg_strategy ewc\
@@ -55,7 +55,7 @@ num_runs=$1
 
 # for synaptic_strength in 0.1 0.01 0.001; do
 #     for (( random_seed=1; random_seed<=num_runs; random_seed++ )); do
-#         cli_args="-c lat_gm -d awa -s $random_seed\
+#         cli_args="-c lgm -d awa -s $random_seed\
 #             --config.hp.num_iters_per_task 5000\
 #             --config.hp.creativity.enabled false\
 #             --config.hp.reg_strategy mas\
@@ -68,7 +68,7 @@ num_runs=$1
 # Running Latent GM
 # for num_iters in 100 500 2500; do
 #     for (( random_seed=1; random_seed<=num_runs; random_seed++ )); do
-#         cli_args="-c lat_gm -d cub -s $random_seed\
+#         cli_args="-c lgm -d cub -s $random_seed\
 #             --config.hp.num_iters_per_task $num_iters"
 #         sbatch --export=ALL,cli_args="$cli_args" slurm/slurm_job.sh;
 #     done

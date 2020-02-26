@@ -1,9 +1,15 @@
 all:
   task_trainer: "basic"
   hp: {}
+
 cub:
   hp:
     pretrained: true
+
 awa:
+  hp:
+    pretrained: false
+
+cifar100:
   hp:
     pretrained: false

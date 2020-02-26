@@ -10,9 +10,9 @@ from src.utils.lll import prune_logits
 from src.models.layers import Identity, ResNetConvEmbedder
 
 
-class LatGMVAE(nn.Module):
+class LGMVAE(nn.Module):
     def __init__(self, config, attrs: np.ndarray=None):
-        super(LatGMVAE, self).__init__()
+        super(LGMVAE, self).__init__()
 
         self.config = config
         if self.config.get('feat_level', 'fc') == 'conv':
@@ -29,7 +29,7 @@ class LatGMVAE(nn.Module):
         if not attrs is None: self.register_buffer('attrs', torch.tensor(attrs))
         self.vae = VAEClass(self.config, attrs)
 
-        if self.config.get('identity_embedder'):
+        if self.config.get('use_identity_embedder'):
             self.embedder = Identity()
         else:
             self.embedder = EmbedderClass(config.input_type, config.pretrained)

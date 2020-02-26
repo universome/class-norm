@@ -1,5 +1,5 @@
 all:
-    task_trainer: "lat_gm_aegan"
+    task_trainer: "lgm_aegan"
     hp:
         max_num_epochs: 200
         num_gan_epochs: 100
@@ -7,7 +7,7 @@ all:
         reset_head_before_each_task: true
 
         model:
-            type: "lat_gm"
+            type: "lgm"
             z_dim: 256
             hid_dim: 1024
             emb_dim: 512
@@ -62,7 +62,7 @@ cub_embeddings:
         model:
             num_classes: 200
             pretrained: true
-            identity_embedder: true
+            use_identity_embedder: true
 
 cub:
     hp:

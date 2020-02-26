@@ -13,8 +13,8 @@ from src.models.classifier import ResnetClassifier, FeatClassifier
 from src.models.feat_gan_classifier import FeatGANClassifier
 from src.models.gan import GAN
 from src.models.gan_64x64 import GAN64x64
-from src.models.lat_gm import LatGM
-from src.models.lat_gm_vae import LatGMVAE
+from src.models.lgm import LGM
+from src.models.lgm_vae import LGMVAE
 from src.models.autoencoder import AutoEncoder
 
 from src.dataloaders.load_data import load_data
@@ -28,9 +28,9 @@ from src.trainers.mas_task_trainer import MASTaskTrainer
 from src.trainers.mergazsl_task_trainer import MeRGAZSLTaskTrainer
 from src.trainers.joint_task_trainer import JointTaskTrainer
 from src.trainers.genmem_gan_task_trainer import GenMemGANTaskTrainer
-from src.trainers.lat_gm_task_trainer import LatGMTaskTrainer
-from src.trainers.lat_gm_vae_task_trainer import LatGMVAETaskTrainer
-from src.trainers.lat_gm_aegan_task_trainer import LatGMAEGANTaskTrainer
+from src.trainers.lgm_task_trainer import LGMTaskTrainer
+from src.trainers.lgm_vae_task_trainer import LGMVAETaskTrainer
+from src.trainers.lgm_aegan_task_trainer import LGMAEGANTaskTrainer
 from src.trainers.lifelong_ae_task_trainer import LifeLongAETaskTrainer
 
 from src.utils.data_utils import construct_output_mask, filter_out_classes
@@ -43,17 +43,17 @@ TASK_TRAINERS = {
     'mergazsl': MeRGAZSLTaskTrainer,
     'joint': JointTaskTrainer,
     'genmem_gan': GenMemGANTaskTrainer,
-    'lat_gm': LatGMTaskTrainer,
-    'lat_gm_vae': LatGMVAETaskTrainer,
-    'lat_gm_aegan': LatGMAEGANTaskTrainer,
+    'lgm': LGMTaskTrainer,
+    'lgm_vae': LGMVAETaskTrainer,
+    'lgm_aegan': LGMAEGANTaskTrainer,
     'lifelong_ae': LifeLongAETaskTrainer,
 }
 
 MODELS = {
     'simple_classifier': ResnetClassifier,
     'feat_gan_classifier': FeatGANClassifier,
-    'lat_gm': LatGM,
-    'lat_gm_vae': LatGMVAE,
+    'lgm': LGM,
+    'lgm_vae': LGMVAE,
     'feat_classifier': FeatClassifier,
     'genmem_gan': GAN,
     'genmem_gan_64x64': GAN64x64,

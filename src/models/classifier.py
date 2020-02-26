@@ -57,7 +57,7 @@ class FeatClassifier(nn.Module):
     def create_body(self) -> nn.Module:
         return nn.Sequential(
             # GaussianDropout(self.config.get('cls_gaussian_dropout_sigma', 0.)),
-            nn.Linear(INPUT_DIMS[self.config.data.input_type], self.config.hp.classifier.hid_dim),
+            nn.Linear(self.config.hp.classifier.data_dim, self.config.hp.classifier.hid_dim),
             nn.ReLU(),
         )
 

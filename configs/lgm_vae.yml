@@ -1,5 +1,5 @@
 all:
-  task_trainer: "lat_gm_vae"
+  task_trainer: "lgm_vae"
   hp:
     base_task_max_num_epochs: 500
     base_task_vae_num_epochs: 300
@@ -15,7 +15,7 @@ all:
     use_class_attrs: false
     model:
       cls_gaussian_dropout_sigma: 0.5
-      type: "lat_gm_vae"
+      type: "lgm_vae"
       use_attrs_in_vae: false
       z_dim: 512
       emb_dim: 512
@@ -50,7 +50,7 @@ cub_embeddings:
   hp:
     model:
       num_classes: 200
-      identity_embedder: true
+      use_identity_embedder: true
 
 cub_conv_feats:
   data:

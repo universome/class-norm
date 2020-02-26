@@ -15,15 +15,15 @@ from firelab.config import Config
 from src.utils.losses import compute_gradient_penalty
 from src.utils.lll import prune_logits
 from src.utils.model_utils import get_number_of_parameters
-from src.models.lat_gm import LatGM
-from src.trainers.lat_gm_task_trainer import LatGMTaskTrainer
+from src.models.lgm import LGM
+from src.trainers.lgm_task_trainer import LGMTaskTrainer
 from src.utils.weights_importance import compute_mse_grad, compute_diagonal_fisher
 from src.utils.data_utils import construct_output_mask
 
 
-class LatGMAEGANTaskTrainer(LatGMTaskTrainer):
+class LGMAEGANTaskTrainer(LGMTaskTrainer):
     def _after_init_hook(self):
-        super(LatGMAEGANTaskTrainer, self)._after_init_hook()
+        super(LGMAEGANTaskTrainer, self)._after_init_hook()
 
         if self.task_idx > 0:
             self.statistics = self.get_previous_trainer().statistics

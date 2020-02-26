@@ -37,7 +37,7 @@ class FeatGenerator(nn.Module):
             layers.append(nn.Linear(self.config.hp.generator.hid_dim, self.config.hp.generator.hid_dim))
             layers.append(nn.LeakyReLU())
 
-        layers.append(nn.Linear(self.config.hp.generator.hid_dim, INPUT_DIMS[self.config.data.input_type]))
+        layers.append(nn.Linear(self.config.hp.generator.hid_dim, self.config.hp.generator.data_dim))
 
         if self.config.get('use_tanh_in_gen'):
             layers.append(nn.Tanh())
@@ -83,17 +83,22 @@ class FeatDiscriminator(nn.Module):
 
         self.adv_body = self.init_body()
 
-        if self.config.hp.discriminator.share_body:
+        if self.config.hp.discriminator.get('share_body'):
             self.cls_body = self.adv_body
         else:
             self.cls_body = self.init_body()
 
         self.adv_head = nn.Linear(self.config.hp.discriminator.hid_dim, 1)
-        self.cls_head = ClassifierHead(self.config.hp.classifier, attrs)
+
+        if self.config.hp.discriminator.type == 'acgan':
+            self.cls_head = ClassifierHead(
+                self.config.hp.classifier.hid_dim,
+                self.config.data.num_classes,
+                attrs)
 
     def init_body(self, conditional:bool=False) -> nn.Module:
         layers = [
-            nn.Linear(INPUT_DIMS[self.config.data.input_type], self.config.hp.discriminator.hid_dim),
+            nn.Linear(self.config.hp.discriminator.data_dim, self.config.hp.discriminator.hid_dim),
             nn.ReLU(),
         ]
 
@@ -119,7 +124,7 @@ class FeatDiscriminator(nn.Module):
     def compute_feats(self, x: Tensor) -> Tuple[Tensor, Tensor]:
         adv_feats = self.adv_body(x)
 
-        if self.config.share_body_in_discr:
+        if self.config.hp.discriminator.get('share_body'):
             cls_feats = adv_feats
         else:
             cls_feats = self.cls_body(x)

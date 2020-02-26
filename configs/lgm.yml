@@ -1,0 +1,104 @@
+all:
+  task_trainer: "lgm"
+  # load_from_checkpoint: "experiments/lgm--cub_embeddings--42-00019/checkpoints/model-task-0.pt"
+  # start_task: 1
+  hp:
+    max_num_epochs: 50
+    num_clf_epochs: 5
+    use_class_attrs: true
+    reset_discr_before_each_task: false
+
+    model:
+      type: "lgm"
+      feat_level: "fc"
+      share_body_in_discr: false
+
+    embedder:
+      resnet_n_layers: 18
+      pretrained: false
+
+    generator:
+      z_dim: 256
+      hid_dim: 1024
+      num_layers: 2
+      emb_dim: 512
+      use_attrs: false
+      data_dim: 512
+
+    discriminator:
+      type: "acgan"
+      hid_dim: 512
+      num_layers: 2
+      emb_dim: 512
+      use_attrs: false
+      share_body: false
+      data_dim: 512
+
+    classifier:
+      hid_dim: 512
+      use_attrs: false
+      data_dim: 512
+
+      distill:
+        batch_size: 256
+        loss_coef: 1.
+
+    gen_optim: {type: "adam", kwargs: {lr: 0.0001, betas: [0.0, 0.999]}}
+    discr_optim: {type: "adam", kwargs: {lr: 0.0001, betas: [0.0, 0.999]}}
+    embedder_optim: {type: "adam", kwargs: {lr: 0.001}}
+    cls_optim: {type: "adam", kwargs: {lr: 0.001}}
+
+    num_discr_steps_per_gen_step: 5
+    loss_coefs:
+      gp: 10
+      distill: 30.
+      gen_cls: 0.1
+
+    grad_clipping:
+      generator: 100
+      discriminator: 100
+      classifier: 100
+      embedder: 100
+
+    batch_size: 256
+    distill_batch_size: 500
+
+    # Regularizing feature extractor
+    synaptic_strength: 10
+    fisher_keep_prob: 0.5
+    reg_strategy: "ewc"
+
+    # Creativity losses
+    creativity:
+      enabled: false
+      start_iter: -1
+      hall_batch_size: 300
+      adv_coef: 0.
+      entropy_coef: 0.
+
+cub_embeddings:
+  hp:
+    model:
+      num_classes: 200
+      pretrained: true
+      use_identity_embedder: true
+
+cub:
+  hp:
+    model:
+      num_classes: 200
+      pretrained: true
+
+awa:
+  hp:
+    model:
+      num_classes: 50
+      pretrained: false
+
+cifar100:
+  data:
+    feat_dims: [512]
+  hp:
+    model:
+      num_classes: 100
+      pretrained: false

@@ -14,9 +14,10 @@ all:
     img_target_shape: [224, 224]
     batch_size: 10
     model:
-      input_type: "resnet18_feat"
+      type: "simple_classifier"
+    classifier:
       pretrained: false
-      hid_dim: 512
+      resnet_n_layers: 18
     optim: {type: "sgd", kwargs: {lr: 0.03}}
     # optim: {type: "adam", kwargs: {lr: 0.001, betas: [0.0, 0.9]}}
 
