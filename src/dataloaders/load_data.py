@@ -14,7 +14,7 @@ SIMPLE_LOADERS = {
 }
 
 def load_data(config: Config, img_target_shape: Tuple[int, int]=None,
-              embed_data: bool=False, preprocess: bool=True) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+              preprocess: bool=True) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     if config.name == 'CUB':
         ds_train = cub.load_dataset(config.dir, split='train', target_shape=img_target_shape, preprocess=preprocess)
         ds_test = cub.load_dataset(config.dir, split='test', target_shape=img_target_shape, preprocess=preprocess)
@@ -38,9 +38,9 @@ def load_data(config: Config, img_target_shape: Tuple[int, int]=None,
     else:
         raise NotImplementedError(f'Unkown dataset: {config.name}')
 
-    if embed_data:
-        ds_train = extract_resnet_features_for_dataset(ds_train, input_type=18)
-        ds_test = extract_resnet_features_for_dataset(ds_test, input_type=18)
+    # if embed_data:
+    #     ds_train = extract_resnet_features_for_dataset(ds_train, input_type=18)
+    #     ds_test = extract_resnet_features_for_dataset(ds_test, input_type=18)
 
     # np.save(f'/tmp/{config.name}_train', ds_train)
     # np.save(f'/tmp/{config.name}_test', ds_test)

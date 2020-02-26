@@ -11,3 +11,8 @@ cub:
   hp:
     num_mem_samples_per_class: 5
     pretrained: true
+
+# cifar100_embeddings:
+#   hp:
+#     pretrained: true
+#     num_mem_samples_per_class: 10

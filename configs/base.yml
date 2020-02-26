@@ -106,3 +106,16 @@ cifar100:
     num_classes: *cifar100_num_classes
     num_tasks: 10
     num_classes_per_task: 10
+
+cifar100_embeddings:
+  data:
+    name: "CIFAR100_EMBEDDINGS"
+    dir: "data/CIFAR100_EMBEDDINGS"
+    num_classes: *cifar100_num_classes
+    input_type: "resnet18_feat"
+    feat_level: "fc"
+
+  lll_setup:
+    num_tasks: 10
+    num_classes_per_task: 10
+    num_classes: *cifar100_num_classes

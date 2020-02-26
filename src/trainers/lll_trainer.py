@@ -94,7 +94,7 @@ class LLLTrainer(BaseTrainer):
 
     def init_dataloaders(self):
         self.ds_train, self.ds_test, self.class_attributes = load_data(
-            self.config.data, self.config.hp.get('img_target_shape'), self.config.hp.get('embed_data', False))
+            self.config.data, self.config.hp.get('img_target_shape'))
 
         if self.config.data.has('classes_to_use'):
             self.ds_train = filter_out_classes(self.ds_train, self.config.data.classes_to_use)

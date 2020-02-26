@@ -81,12 +81,12 @@ class FeatDiscriminator(nn.Module):
         if self.config.hp.discriminator.use_attrs:
             assert (not attrs is None)
 
-        self.adv_body = self.init_body()
+        self.adv_body = self.init_body(self.config.hp.discriminator.num_layers)
 
         if self.config.hp.discriminator.get('share_body'):
             self.cls_body = self.adv_body
         else:
-            self.cls_body = self.init_body()
+            self.cls_body = self.init_body(self.config.hp.classifier.num_layers)
 
         self.adv_head = nn.Linear(self.config.hp.discriminator.hid_dim, 1)
 
@@ -96,7 +96,7 @@ class FeatDiscriminator(nn.Module):
                 self.config.data.num_classes,
                 attrs)
 
-    def init_body(self, conditional:bool=False) -> nn.Module:
+    def init_body(self, num_layers: int, conditional:bool=False) -> nn.Module:
         layers = [
             nn.Linear(self.config.hp.discriminator.data_dim, self.config.hp.discriminator.hid_dim),
             nn.ReLU(),

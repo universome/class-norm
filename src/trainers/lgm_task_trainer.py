@@ -74,11 +74,11 @@ class LGMTaskTrainer(TaskTrainer):
         x = torch.from_numpy(np.array(batch[0])).to(self.device_name)
         y = torch.tensor(batch[1]).to(self.device_name)
 
-        if self.num_epochs_done < self.config.hp.num_clf_epochs:
-            self.classifier_step(x, y)
-        else:
+        if self.num_epochs_done < self.config.hp.num_gan_epochs:
             self.generator_step(y)
             self.discriminator_step(x, y)
+        else:
+            self.classifier_step(x, y)
 
         # self.creativity_step()
 
@@ -94,7 +94,7 @@ class LGMTaskTrainer(TaskTrainer):
         adv_loss = -adv_logits_on_real.mean() + adv_logits_on_fake.mean()
         grad_penalty = compute_gradient_penalty(self.model.discriminator.run_adv_head, x, x_fake)
 
-        total_loss = adv_loss + self.config.hp.loss_coefs.gp * grad_penalty
+        total_loss = adv_loss + self.config.hp.discriminator.gp_loss_coef * grad_penalty
 
         self.perform_optim_step(total_loss, 'discriminator')
 
@@ -104,7 +104,7 @@ class LGMTaskTrainer(TaskTrainer):
         self.writer.add_scalar('discr/grad_penalty', grad_penalty.item(), self.num_iters_done)
 
     def generator_step(self, y: Tensor):
-        if self.num_iters_done % self.config.hp.num_discr_steps_per_gen_step != 0: return
+        if self.num_iters_done % self.config.hp.discriminator.num_steps_per_gen_step != 0: return
 
         z = self.model.generator.sample_noise(y.size(0)).to(self.device_name)
         x_fake = self.model.generator(z, y)
@@ -117,8 +117,8 @@ class LGMTaskTrainer(TaskTrainer):
         cls_acc = (pruned_logits_on_fake.argmax(dim=1) == y).float().mean().detach().cpu()
 
         total_loss = adv_loss \
-            + self.config.hp.loss_coefs.distill * distillation_loss \
-            + self.config.hp.loss_coefs.gen_cls * cls_loss
+            + self.config.hp.generator.distill.loss_coef * distillation_loss \
+            + self.config.hp.generator.cls_loss_coef * cls_loss
 
         self.perform_optim_step(total_loss, 'generator')
 
@@ -130,7 +130,7 @@ class LGMTaskTrainer(TaskTrainer):
     def gen_knowledge_distillation_loss(self) -> Tensor:
         if len(self.learned_classes) == 0: return torch.tensor(0.)
 
-        num_samples_per_class = self.config.hp.distill_batch_size // len(self.learned_classes)
+        num_samples_per_class = self.config.hp.generator.distill.batch_size // len(self.learned_classes)
         assert num_samples_per_class >= 0, "Distillation batch size is too small to capture all the classes."
         y = np.tile(np.array(self.learned_classes), num_samples_per_class)
         y = torch.tensor(y).to(self.device_name)
@@ -219,16 +219,17 @@ class LGMTaskTrainer(TaskTrainer):
 
     def compute_cls_distill_loss(self) -> Tuple[Tensor, Tensor]:
         with torch.no_grad():
-            y = random.choices(self.learned_classes, k=self.config.hp.classifier.distill.batch_size)
+            y = random.choices(self.seen_classes, k=self.config.hp.classifier.distill.batch_size)
             y = torch.tensor(y).to(self.device_name)
             x_fake = self.model.sample(y)
-            logits_prev = self.prev_model.discriminator.run_cls_head(x_fake)
-            logits_prev = prune_logits(logits_prev, self.learned_classes_mask)
+            # logits_prev = self.prev_model.discriminator.run_cls_head(x_fake)
+            # logits_prev = prune_logits(logits_prev, self.learned_classes_mask)
 
         logits_curr = self.model.discriminator.run_cls_head(x_fake)
-        # logits_curr = prune_logits(logits_curr, self.learned_classes_mask)
+        logits_curr = prune_logits(logits_curr, self.seen_classes_mask)
         #loss = F.mse_loss(logits_curr, logits_prev)
-        loss = F.mse_loss(logits_curr[:, self.learned_classes], logits_prev[:, self.learned_classes])
+        # loss = F.mse_loss(logits_curr[:, self.learned_classes], logits_prev[:, self.learned_classes])
+        loss = F.cross_entropy(logits_curr, y)
         acc = (logits_curr.argmax(dim=1) == y).float().mean().detach().cpu()
 
         return loss, acc

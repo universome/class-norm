@@ -20,7 +20,7 @@ class LGM(nn.Module):
             self.register_buffer('attrs', torch.tensor(attrs))
 
         if len(self.config.data.feat_dims) == 1:
-            if self.config.hp.get('use_use_identity_embedder'):
+            if self.config.hp.embedder.get('use_identity_embedder'):
                 self.embedder = Identity()
             else:
                 self.embedder = ResnetEmbedder(
