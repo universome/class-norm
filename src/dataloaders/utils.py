@@ -11,6 +11,7 @@ from tqdm import tqdm
 from torchvision import transforms
 from firelab.utils.training_utils import get_module_device
 from torch.utils.data import Dataset
+import torchvision.transforms.functional as TVF
 
 from src.models.classifier import ResnetEmbedder
 from src.models.layers import ResNetConvEmbedder
@@ -55,7 +56,7 @@ def load_img(img_path: PathLike, target_shape: Tuple[int, int]=None):
 
 
 def preprocess_imgs(imgs: List[np.ndarray]) -> List[np.ndarray]:
-    imgs = [img.transpose(2, 0, 1) for img in tqdm(imgs, desc='[Reshaping]')]
+    imgs = [img.transpose(2, 0, 1) for img in tqdm(imgs, desc='[Transposing]')]
     imgs = [imagenet_normalization(torch.tensor(img) / 255).numpy() for img in tqdm(imgs, desc='[Normalizing]')]
 
     return imgs
@@ -123,3 +124,13 @@ class CustomDataset(Dataset):
 
     def __len__(self) -> int:
         return len(self.dataset)
+
+
+class CenterCropToMin(object):
+    """
+    CenterCrops an image to a min size
+    """
+    def __call__(self, img):
+        assert TVF._is_pil_image(img)
+
+        return TVF.center_crop(img, min(img.size))

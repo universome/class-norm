@@ -8,7 +8,12 @@ import numpy as np
 from .utils import read_column, shuffle_dataset, load_imgs, preprocess_imgs
 
 
-def load_dataset(data_dir: PathLike, split: str='train', target_shape=(224, 224)) -> List[Tuple[np.ndarray, int]]:
+def load_dataset(
+        data_dir: PathLike,
+        split: str='train',
+        target_shape: Tuple[int, int]=None,
+        preprocess: bool=False) -> List[Tuple[np.ndarray, int]]:
+
     assert split in ['train', 'val', 'test'], f"Unknown dataset split: {split}"
 
     filename = os.path.join(data_dir, f'AWA_{split}_list.txt')
@@ -25,9 +30,8 @@ def load_dataset(data_dir: PathLike, split: str='train', target_shape=(224, 224)
     # labels = [0, 1, 2, 3] * 2
 
     imgs = load_imgs(data_dir, img_paths, target_shape)
-    imgs = preprocess_imgs(imgs)
-    if split == 'train':
-        imgs, labels = shuffle_dataset(imgs, labels)
+    if preprocess: imgs = preprocess_imgs(imgs)
+    if split == 'train': imgs, labels = shuffle_dataset(imgs, labels)
 
     return list(zip(imgs, labels))
 

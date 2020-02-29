@@ -4,10 +4,15 @@ val_freq_epochs: 1
 hp:
     batch_size: 256
     pretrained: true
+    img_target_shape: 448
+    # model:
+    #     type: "resnet-head"
+    #     hid_dim: 512
+    #     input_type: "resnet18_feat"
     model:
-        type: "resnet-head"
-        hid_dim: 512
-        input_type: "resnet18_feat"
+        type: "resnet"
+        n_resnet_layers: 18
+        pretrained: true
     optim:
         type: "adam"
         kwargs:
@@ -22,7 +27,11 @@ hp:
             kwargs:
                 gamma: 0.1
                 step_size: 100
+# data:
+#     name: "CUB_EMBEDDINGS"
+#     dir: "data/CUB_EMBEDDINGS"
+#     num_classes: 200
 data:
-    name: "CUB_EMBEDDINGS"
-    dir: "data/CUB_EMBEDDINGS"
+    name: "CUB"
+    dir: "data/CUB_200_2011"
     num_classes: 200

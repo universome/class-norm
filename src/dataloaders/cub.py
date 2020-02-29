@@ -13,7 +13,7 @@ def load_dataset(
         data_dir: PathLike,
         split: str='train',
         target_shape: Tuple[int, int]=None,
-        preprocess: bool=True) -> List[Tuple[np.ndarray, int]]:
+        preprocess: bool=False) -> List[Tuple[np.ndarray, int]]:
 
     filename = os.path.join(data_dir, 'images.txt')
     img_paths = read_column(filename, 1)

@@ -4,18 +4,21 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim.lr_scheduler import ExponentialLR, StepLR
 from torch.utils.data import Dataset, DataLoader
-from torchvision.models.resnet import resnet50
+from torchvision.models.resnet import resnet18, resnet50
 import torchvision.transforms as T
 from firelab.base_trainer import BaseTrainer
 from firelab.config import Config
 
 from src.dataloaders import cub, awa
 from src.dataloaders.load_data import load_data
-from src.dataloaders.utils import CustomDataset
+from src.dataloaders.utils import CustomDataset, CenterCropToMin
 from src.utils.losses import LabelSmoothingLoss
 from src.models.classifier import resnet_embedder_forward
 from src.utils.model_utils import filter_params
 from src.utils.constants import INPUT_DIMS
+
+
+RESNETS = {18: resnet18, 50: resnet50}
 
 
 class ClassifierTrainer(BaseTrainer):
@@ -26,16 +29,22 @@ class ClassifierTrainer(BaseTrainer):
         super(ClassifierTrainer, self).__init__(config)
 
     def init_models(self):
-        if self.config.hp.model.type == 'resnet50':
-            self.model = resnet50(pretrained=self.config.hp.get('pretrained'))
-            self.model.fc = nn.Linear(self.model.fc.weight.shape[1], self.config.lll_setup.num_classes)
+        if self.config.hp.model.type == 'resnet':
+            # self.model = nn.Sequential(
+            #     ResnetEmbedder(
+            #         self.config.hp.model.n_resnet_layers,
+            #         self.config.hp.model.pretrained),
+            #     nn.Linear(INPUT_DIMS[f'resnet{self.config.hp.model.n_resnet_layers}_feat'], self.config.data.num_classes)
+            # )
+            self.model = RESNETS[self.config.hp.model.n_resnet_layers](pretrained=self.config.hp.model.pretrained)
+            self.model.fc = nn.Linear(self.model.fc.weight.shape[1], self.config.data.num_classes)
             nn.init.kaiming_normal_(self.model.fc.weight.data)
         elif self.config.hp.model.type == 'resnet-head':
             self.model = nn.Sequential(
                 nn.Dropout(0.5),
                 nn.Linear(INPUT_DIMS[self.config.hp.model.input_type], self.config.hp.model.hid_dim),
                 nn.ReLU(),
-                nn.Linear(self.config.hp.model.hid_dim, self.config.lll_setup.num_classes)
+                nn.Linear(self.config.hp.model.hid_dim, self.config.data.num_classes)
             )
         else:
             raise NotImplementedError(f'Unknown model: {self.config.hp.model.type}')
@@ -45,22 +54,25 @@ class ClassifierTrainer(BaseTrainer):
     def init_dataloaders(self):
         img_train_transform = T.Compose([
             T.ToPILImage(),
-            T.RandomResizedCrop(self.config.hp.img_target_shape),
+            #T.RandomResizedCrop(self.config.hp.img_target_shape, scale=(0.2, 1.0)),
+            CenterCropToMin(),
             T.RandomHorizontalFlip(),
+            T.Resize(self.config.hp.img_target_shape),
             T.ToTensor(),
             T.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
         ])
         img_test_transform = T.Compose([
             T.ToPILImage(),
+            CenterCropToMin(),
             T.Resize(self.config.hp.img_target_shape),
-            T.CenterCrop(self.config.hp.img_target_shape),
+            #T.CenterCrop(self.config.hp.img_target_shape),
             T.ToTensor(),
             T.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
         ])
 
         if self.config.data.name == 'CUB':
-            ds_train = cub.load_dataset(self.config.data.dir, split='train', preprocess=False)
-            ds_test = cub.load_dataset(self.config.data.dir, split='test', preprocess=False)
+            ds_train = cub.load_dataset(self.config.data.dir, split='train')
+            ds_test = cub.load_dataset(self.config.data.dir, split='test')
             ds_train = CustomDataset(ds_train, img_train_transform)
             ds_test = CustomDataset(ds_test, img_test_transform)
         elif self.config.data.name == 'AWA':
@@ -88,7 +100,7 @@ class ClassifierTrainer(BaseTrainer):
         else:
             raise NotImplementedError(f'Unknown optimizer: {self.config.hp.optim.type}')
 
-        if self.config.hp.model.type == 'resnet50':
+        if self.config.hp.model.type == 'resnet':
             self.optim = OptimClass([
                 {'params': filter_params(self.model, 'fc'), 'lr': 0.0005},
                 {'params': self.model.fc.parameters(), 'lr': 0.005},

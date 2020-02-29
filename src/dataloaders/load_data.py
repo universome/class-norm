@@ -24,8 +24,8 @@ def load_data(config: Config, img_target_shape: Tuple[int, int]=None,
         ds_test = feats.load_dataset(config.dir, config.input_type, split='test')
         class_attributes = cub.load_class_attributes(config.dir).astype(np.float32)
     elif config.name == 'AWA':
-        ds_train = awa.load_dataset(config.dir, split='train', target_shape=img_target_shape)
-        ds_test = awa.load_dataset(config.dir, split='test', target_shape=img_target_shape)
+        ds_train = awa.load_dataset(config.dir, split='train', target_shape=img_target_shape, preprocess=preprocess)
+        ds_test = awa.load_dataset(config.dir, split='test', target_shape=img_target_shape, preprocess=preprocess)
         class_attributes = awa.load_class_attributes(config.dir).astype(np.float32)
     elif config.name in SIMPLE_LOADERS.keys():
         ds_train = SIMPLE_LOADERS[config.name](config.dir, split='train')
