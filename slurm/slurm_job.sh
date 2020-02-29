@@ -7,6 +7,6 @@
 #SBATCH -o logs/output-%j.out
 
 cd /home/skoroki/zslll
-python src/run.py $cli_args
+# python src/run.py $cli_args
 # python src/run.py
-# firelab start configs/classifier.yml
+firelab start configs/classifier.yml $cli_args

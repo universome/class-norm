@@ -28,6 +28,8 @@ class ClassifierTrainer(BaseTrainer):
     def __init__(self, config: Config):
         super(ClassifierTrainer, self).__init__(config)
 
+        self.config.set('data', Config.load('configs/base.yml').get(self.config.dataset).data)
+
     def init_models(self):
         if self.config.hp.model.type == 'resnet':
             # self.model = nn.Sequential(
@@ -85,7 +87,7 @@ class ClassifierTrainer(BaseTrainer):
             ds_train = [(torch.from_numpy(x), y) for x, y in ds_train]
             ds_test = [(torch.from_numpy(x), y) for x, y in ds_test]
         else:
-            raise NotImplementedError('Unknwon')
+            raise NotImplementedError(f'Unknwon dataset: {self.config.data.name}')
 
         self.train_dataloader = DataLoader(ds_train, batch_size=self.config.hp.batch_size, shuffle=True)
         self.val_dataloader = DataLoader(ds_test, batch_size=self.config.hp.batch_size, shuffle=False)
