@@ -3,8 +3,11 @@ val_freq_iters: 100
 hp:
     max_num_iters: 1000
     batch_size: 128
-    gan_checkpoint_path: "experiments/genmem_gan--svhn--1-00001/checkpoints/model-task-9.pt"
-    gan_config_path: "experiments/genmem_gan--svhn--1-00001/config.yml"
+    # gan_checkpoint_path: "experiments/genmem_gan--svhn--1-00001/checkpoints/model-task-9.pt"
+    # gan_config_path: "experiments/genmem_gan--svhn--1-00001/config.yml"
+    gan_checkpoint_path: "experiments/genmem_gan--cifar100--1-00002/checkpoints/model-task-9.pt"
+    gan_config_path: "experiments/genmem_gan--cifar100--1-00002/config.yml"
+
 
     classifier:
         pretrained: true
@@ -13,9 +16,9 @@ hp:
     discriminator: {dim: 32}
 
 data:
-    name: "SVHN"
-    dir: "data/SVHN"
-    num_classes: 10
+    name: "CIFAR100"
+    dir: "data/CIFAR100"
+    num_classes: 100
     num_img_channels: 3
     img_size: 32
     source: "gan_model"

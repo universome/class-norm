@@ -6,9 +6,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from firelab.base_trainer import BaseTrainer
-from torchvision.datasets import SVHN
 
-from src.dataloaders import svhn
+from src.dataloaders import svhn, cifar
 from src.models.classifier import ResnetClassifier
 from src.models.gan import GAN
 from src.dataloaders.utils import shuffle_dataset
@@ -40,16 +39,18 @@ class GANClassifierTrainer(BaseTrainer):
         self.optim = torch.optim.Adam(self.classifier.parameters())
 
     def init_dataloaders(self):
-        if self.config.data.name == 'SVHN':
-            # Train dataloader
-            assert self.config.data.get('source') == 'gan_model'
-            self.train_dataloader = self.create_gan_dataloader()
+        # Train dataloader
+        assert self.config.data.get('source') == 'gan_model'
+        self.train_dataloader = self.create_gan_dataloader()
 
-            # Test dataloader
+        if self.config.data.name == 'SVHN':
             ds_test = svhn.load_dataset(self.config.data.dir, 'test')
-            self.test_dataloader = DataLoader(ds_test, batch_size=self.config.hp.batch_size, shuffle=False)
+        elif self.config.data.name == 'CIFAR100':
+            ds_test = cifar.load_dataset(self.config.data.dir, 'test', num_classes=100)
         else:
             raise NotImplementedError(f'Unknown dataset: {self.config.data.name}')
+
+        self.test_dataloader = DataLoader(ds_test, batch_size=self.config.hp.batch_size, shuffle=False)
 
     def train_on_batch(self, batch):
         x = batch[0].to(self.device_name)

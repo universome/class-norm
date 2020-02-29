@@ -10,8 +10,8 @@ dataset_classes = {10: CIFAR10, 100: CIFAR100}
 
 def load_dataset(data_dir: os.PathLike, split: str, num_classes: int=10):
     ds = dataset_classes[num_classes](data_dir, train=(split == 'train'))
-    # imgs = [(x / 127.5 - 1).astype(np.float32).transpose(2, 0, 1) for x in ds.data]
-    imgs = [(x / 255).astype(np.float32).transpose(2, 0, 1) for x in ds.data]
+    imgs = [(x / 127.5 - 1).astype(np.float32).transpose(2, 0, 1) for x in ds.data]
+    # imgs = [(x / 255).astype(np.float32).transpose(2, 0, 1) for x in ds.data]
     ds = list(zip(*shuffle_dataset(imgs, ds.targets)))
 
     return ds

@@ -32,7 +32,7 @@ cub:
     num_tasks: 10
 
   hp:
-    model: {pretrained: true}
+    classifier: {pretrained: true}
 
 cub_embeddings:
   data:

@@ -12,7 +12,7 @@ awa:
 
 cifar100:
   hp:
-    pretrained: false
+    pretrained: true
 
 cifar100_embeddings:
   hp:

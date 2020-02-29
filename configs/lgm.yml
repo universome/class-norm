@@ -12,6 +12,7 @@ all:
     model:
       type: "lgm"
       feat_level: "fc"
+      use_static_memory: true
 
     embedder:
       resnet_n_layers: 18

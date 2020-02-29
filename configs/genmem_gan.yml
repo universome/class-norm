@@ -27,13 +27,13 @@ svhn:
     img_target_shape: [32, 32]
     num_iters_per_task: 40000
 
-cifar10:
+cifar100:
   plotting:
     samples_freq: 10000
-    num_samples_per_class: 10
+    num_samples_per_class: 1
   hp:
     img_target_shape: [32, 32]
-    num_iters_per_task: 40000
+    num_iters_per_task: 100000
 
 # cub:
 #   plotting:

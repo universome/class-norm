@@ -65,6 +65,9 @@ class LifeLongAETaskTrainer(TaskTrainer):
             imgs = imgs.permute(0, 2, 3, 1).numpy()
             recs = recs.permute(0, 2, 3, 1).numpy()
 
+            imgs = imgs / 2 + 0.5
+            recs = recs / 2 + 0.5
+
         fig = plt.figure(figsize=(20, 5))
         plt.subplot(211)
         plt.title('[val] Ground Truth')

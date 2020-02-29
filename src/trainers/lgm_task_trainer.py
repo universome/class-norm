@@ -19,6 +19,7 @@ from src.utils.weights_importance import compute_mse_grad, compute_diagonal_fish
 from src.utils.model_utils import get_number_of_parameters
 from src.utils.data_utils import construct_output_mask, flatten
 from src.utils.training_utils import construct_optimizer
+from src.dataloaders.utils import extract_features_for_dataset
 
 
 class LGMTaskTrainer(TaskTrainer):
@@ -40,7 +41,10 @@ class LGMTaskTrainer(TaskTrainer):
         self.seen_classes_mask = construct_output_mask(self.seen_classes, self.config.lll_setup.num_classes)
         self.init_writer()
 
-        if not prev_trainer is None:
+        if prev_trainer is None:
+            self.memory = []
+        else:
+            self.memory = prev_trainer.memory
             self.weights_prev = torch.cat([p.data.view(-1) for p in self.model.embedder.parameters()])
 
             if self.config.hp.reg_strategy == 'mas':
@@ -49,6 +53,12 @@ class LGMTaskTrainer(TaskTrainer):
                 self.fisher = compute_diagonal_fisher(self.model, self.train_dataloader, prev_trainer.output_mask)
             else:
                 raise NotImplementedError(f'Unknown regularization strategy: {self.config.hp.reg_strategy}')
+
+    def _after_train_hook(self):
+        self.memory.extend(extract_features_for_dataset(
+            self.task_ds_train, self.model.embedder,
+            self.device_name, batch_size=256
+        ))
 
     def construct_optimizer(self):
         return {
@@ -75,8 +85,11 @@ class LGMTaskTrainer(TaskTrainer):
         y = torch.tensor(batch[1]).to(self.device_name)
 
         if self.num_epochs_done < self.config.hp.num_gan_epochs:
-            self.generator_step(y)
-            self.discriminator_step(x, y)
+            if self.config.hp.model.use_static_memory:
+                pass
+            else:
+                self.generator_step(y)
+                self.discriminator_step(x, y)
         else:
             self.classifier_step(x, y)
 
@@ -146,18 +159,17 @@ class LGMTaskTrainer(TaskTrainer):
         curr_loss = self.criterion(pruned, y)
         curr_acc = (pruned.argmax(dim=1) == y).float().mean().detach().cpu()
 
-        # if self.task_idx > 0:
-        #     reg = self.compute_classifier_reg()
-        #     loss += self.config.hp.synaptic_strength * reg
-
-        # self.perform_optim_step(loss, 'classifier', retain_graph=True)
-        # self.perform_optim_step(loss, 'embedder')
         if self.task_idx > 0:
             distill_loss, distill_acc = self.compute_cls_distill_loss()
-            total_loss = curr_loss + self.config.hp.classifier.distill.loss_coef * distill_loss
+            reg_loss = self.compute_classifier_reg()
+
+            total_loss = curr_loss \
+                + self.config.hp.classifier.distill.loss_coef * distill_loss \
+                + self.config.hp.synaptic_strength * reg_loss
 
             self.writer.add_scalar('cls/distill_loss', distill_loss.item(), self.num_iters_done)
             self.writer.add_scalar('cls/distill_acc', distill_acc.item(), self.num_iters_done)
+            self.writer.add_scalar('cls/reg', reg_loss.item(), self.num_iters_done)
         else:
             total_loss = curr_loss
 
@@ -219,14 +231,17 @@ class LGMTaskTrainer(TaskTrainer):
 
     def compute_cls_distill_loss(self) -> Tuple[Tensor, Tensor]:
         with torch.no_grad():
-            y = random.choices(self.seen_classes, k=self.config.hp.classifier.distill.batch_size)
-            y = torch.tensor(y).to(self.device_name)
-            x_fake = self.model.sample(y)
-            # logits_prev = self.prev_model.discriminator.run_cls_head(x_fake)
-            # logits_prev = prune_logits(logits_prev, self.learned_classes_mask)
+            if self.config.hp.model.use_static_memory:
+                x, y = self.sample_from_memory(self.config.hp.classifier.distill.batch_size)
+            else:
+                y = random.choices(self.seen_classes, k=self.config.hp.classifier.distill.batch_size)
+                y = torch.tensor(y).to(self.device_name)
+                x = self.model.sample(y)
+                logits_prev = self.prev_model.discriminator.run_cls_head(x)
+                logits_prev = prune_logits(logits_prev, self.learned_classes_mask)
 
-        logits_curr = self.model.discriminator.run_cls_head(x_fake)
-        logits_curr = prune_logits(logits_curr, self.seen_classes_mask)
+        logits_curr = self.model.discriminator.run_cls_head(x)
+        logits_curr = prune_logits(logits_curr, self.learned_classes_mask)
         #loss = F.mse_loss(logits_curr, logits_prev)
         # loss = F.mse_loss(logits_curr[:, self.learned_classes], logits_prev[:, self.learned_classes])
         loss = F.cross_entropy(logits_curr, y)
@@ -266,3 +281,11 @@ class LGMTaskTrainer(TaskTrainer):
             self.writer.add_scalar(f'grad_norms/{module_name}', grad_norm, self.num_iters_done)
 
         self.optim[module_name].step()
+
+    def sample_from_memory(self, batch_size: int) -> Tuple[Tensor, Tensor]:
+        samples = random.choices(self.memory, k=batch_size)
+        x, y = zip(*samples)
+        x = torch.from_numpy(np.array(x)).to(self.device_name)
+        y = torch.tensor(y).to(self.device_name)
+
+        return x, y
