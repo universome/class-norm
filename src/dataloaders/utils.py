@@ -1,6 +1,6 @@
 import os
 from os import PathLike
-from typing import List, Tuple, Any
+from typing import List, Tuple, Any, Callable
 
 import cv2
 import torch
@@ -10,6 +10,7 @@ import numpy as np
 from tqdm import tqdm
 from torchvision import transforms
 from firelab.utils.training_utils import get_module_device
+from torch.utils.data import Dataset
 
 from src.models.classifier import ResnetEmbedder
 from src.models.layers import ResNetConvEmbedder
@@ -103,3 +104,22 @@ def extract_features(imgs: List[np.ndarray], embedder: nn.Module, batch_size: in
             result.extend(feats)
 
     return result
+
+
+class CustomDataset(Dataset):
+    def __init__(self, dataset: List, transform: Callable=None):
+        # self.dataset = load_dataset(data_dir, split=('train' if train else 'test'))
+        self.dataset = dataset
+        self.transform = transform
+
+    def __getitem__(self, index):
+        x, y = self.dataset[index]
+        x = x.astype(np.uint8)
+
+        if not self.transform is None:
+            x = self.transform(x)
+
+        return x, y
+
+    def __len__(self) -> int:
+        return len(self.dataset)
