@@ -20,11 +20,11 @@ from src.utils.plotting import plot_samples
 from src.utils.data_utils import flatten
 
 
-class GenMemGANTaskTrainer(TaskTrainer):
+class GMGANTaskTrainer(TaskTrainer):
     def _after_init_hook(self):
-        assert self.config.hp.model.type in ['genmem_gan', 'genmem_gan_64x64']
+        assert self.config.hp.model.type in ['gm_gan', 'gm_gan_64x64']
 
-        ModelClass = GAN if self.config.hp.model.type == 'genmem_gan' else GAN64x64
+        ModelClass = GAN if self.config.hp.model.type == 'gm_gan' else GAN64x64
 
         self.prev_model = ModelClass(self.config).to(self.device_name)
         self.prev_model.load_state_dict(deepcopy(self.model.state_dict()))

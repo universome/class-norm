@@ -1,10 +1,10 @@
 all:
-  task_trainer: "genmem_gan"
+  task_trainer: "gm_gan"
 
   hp:
     use_class_attrs: false
 
-    model: {type: "genmem_gan"}
+    model: {type: "gm_gan"}
     generator: {dim: 32, z_dim: 128}
     discriminator: {dim: 32, reset_after_each_task: true}
 
@@ -61,6 +61,6 @@ cifar100:
 #     num_iters_per_task: 100000
 
 #     model:
-#       type: "genmem_gan_64x64"
+#       type: "gm_gan_64x64"
 #       emb_dim: 256
 #       z_dim: 128

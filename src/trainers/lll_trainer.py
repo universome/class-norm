@@ -27,7 +27,7 @@ from src.trainers.ewc_task_trainer import EWCTaskTrainer
 from src.trainers.mas_task_trainer import MASTaskTrainer
 from src.trainers.mergazsl_task_trainer import MeRGAZSLTaskTrainer
 from src.trainers.joint_task_trainer import JointTaskTrainer
-from src.trainers.genmem_gan_task_trainer import GenMemGANTaskTrainer
+from src.trainers.gm_gan_task_trainer import GMGANTaskTrainer
 from src.trainers.lgm_task_trainer import LGMTaskTrainer
 from src.trainers.lgm_vae_task_trainer import LGMVAETaskTrainer
 from src.trainers.lgm_aegan_task_trainer import LGMAEGANTaskTrainer
@@ -42,7 +42,7 @@ TASK_TRAINERS = {
     'mas': MASTaskTrainer,
     'mergazsl': MeRGAZSLTaskTrainer,
     'joint': JointTaskTrainer,
-    'genmem_gan': GenMemGANTaskTrainer,
+    'gm_gan': GMGANTaskTrainer,
     'lgm': LGMTaskTrainer,
     'lgm_vae': LGMVAETaskTrainer,
     'lgm_aegan': LGMAEGANTaskTrainer,
@@ -55,8 +55,8 @@ MODELS = {
     'lgm': LGM,
     'lgm_vae': LGMVAE,
     'feat_classifier': FeatClassifier,
-    'genmem_gan': GAN,
-    'genmem_gan_64x64': GAN64x64,
+    'gm_gan': GAN,
+    'gm_gan_64x64': GAN64x64,
     'autoencoder': AutoEncoder
 }
 
