@@ -18,7 +18,7 @@ def load_dataset(
     filename = os.path.join(data_dir, 'images.txt')
     img_paths = read_column(filename, 1)
     train_test_split = load_train_test_split(data_dir)
-    img_paths = [p for (p, train) in zip(img_paths, train_test_split) if split == 'train']
+    img_paths = [p for (p, img_split) in zip(img_paths, train_test_split) if split == img_split]
 
     # import random
     # img_paths = random.sample(img_paths, 100)
@@ -31,10 +31,10 @@ def load_dataset(
     return list(zip(imgs, labels))
 
 
-def load_train_test_split(data_dir: PathLike) -> List[bool]:
+def load_train_test_split(data_dir: PathLike) -> List[str]:
     filepath = os.path.join(data_dir, 'train_test_split.txt')
     train_test_split = read_column(filepath, 1)
-    train_test_split = [int(f) > 0 for f in train_test_split]
+    train_test_split = [('train' if int(f) > 0 else 'test') for f in train_test_split]
 
     return train_test_split
 
