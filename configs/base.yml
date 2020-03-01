@@ -25,10 +25,11 @@ cub:
   data:
     name: "CUB"
     dir: "data/CUB_200_2011"
+    num_classes: &cub_num_classes 200
 
   lll_setup:
     num_classes_per_task: 20
-    num_classes: 200
+    num_classes: *cub_num_classes
     num_tasks: 10
 
   hp:
@@ -38,7 +39,7 @@ cub_embeddings:
   data:
     name: "CUB_EMBEDDINGS"
     dir: "data/CUB_EMBEDDINGS"
-    num_classes: 200
+    num_classes: *cub_num_classes
     input_type: "resnet18_feat"
     feat_level: "fc"
 
@@ -50,7 +51,7 @@ cub_conv_feats:
   data:
     name: "CUB_EMBEDDINGS"
     dir: "data/CUB_EMBEDDINGS"
-    num_classes: 200
+    num_classes: *cub_num_classes
     input_type: "resnet50_conv"
     feat_level: "conv"
 
@@ -62,11 +63,12 @@ awa:
   data:
     name: "AWA"
     dir: "data/Animals_with_Attributes2"
-    num_classes: 50
+    num_classes: &awa_num_classes 50
 
   lll_setup:
     num_tasks: 5
     num_classes_per_task: 10
+    num_classes: *awa_num_classes
 
 svhn:
   data:

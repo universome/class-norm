@@ -17,7 +17,6 @@ from src.models.lgm import LGM
 from src.trainers.task_trainer import TaskTrainer
 from src.utils.weights_importance import compute_mse_grad, compute_diagonal_fisher
 from src.utils.model_utils import get_number_of_parameters
-from src.utils.data_utils import construct_output_mask, flatten
 from src.utils.training_utils import construct_optimizer
 from src.dataloaders.utils import extract_features_for_dataset
 
@@ -28,18 +27,11 @@ class LGMTaskTrainer(TaskTrainer):
     def _after_init_hook(self):
         prev_trainer = self.get_previous_trainer()
 
-        attrs = self.model.attrs if hasattr(self.model, 'attrs') else None
-        self.prev_model = self.BaseModel(self.config, attrs).to(self.device_name)
+        self.prev_model = self.BaseModel(self.config, self.attrs).to(self.device_name)
         self.prev_model.load_state_dict(deepcopy(self.model.state_dict()))
 
         if self.config.hp.get('reset_discr_before_each_task'):
             self.model.reset_discriminator()
-
-        self.learned_classes = np.unique(flatten(self.main_trainer.class_splits[:self.task_idx])).tolist()
-        self.learned_classes_mask = construct_output_mask(self.learned_classes, self.config.lll_setup.num_classes)
-        self.seen_classes = np.unique(flatten(self.main_trainer.class_splits[:self.task_idx + 1])).tolist()
-        self.seen_classes_mask = construct_output_mask(self.seen_classes, self.config.lll_setup.num_classes)
-        self.init_writer()
 
         if prev_trainer is None:
             self.weights_prev = torch.cat([p.data.view(-1) for p in self.model.embedder.parameters()])
@@ -278,11 +270,3 @@ class LGMTaskTrainer(TaskTrainer):
             self.writer.add_scalar(f'grad_norms/{module_name}', grad_norm, self.num_iters_done)
 
         self.optim[module_name].step()
-
-    def sample_from_memory(self, batch_size: int) -> Tuple[Tensor, Tensor]:
-        samples = random.choices(self.episodic_memory, k=batch_size)
-        x, y = zip(*samples)
-        x = torch.from_numpy(np.array(x)).to(self.device_name)
-        y = torch.tensor(y).to(self.device_name)
-
-        return x, y

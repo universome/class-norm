@@ -108,7 +108,8 @@ for dataset in cub awa; do
     for img_size in 448 256 228 175 128 100 64 32; do
         cli_args="--config.hp.img_target_shape $img_size\
                   --config.dataset $dataset\
-                  --exp_name classifier_$dataset_$img_size"
+                  --exp_name classifier_${dataset}_${img_size}"
         sbatch --export=ALL,cli_args="$cli_args" slurm/slurm_job.sh;
+        # echo $cli_args
     done
 done

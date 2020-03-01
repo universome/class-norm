@@ -1,7 +1,7 @@
 trainer: "ClassifierTrainer"
-max_num_epochs: 300
 val_freq_epochs: 1
 hp:
+    max_num_epochs: 300
     batch_size: 256
     pretrained: true
     img_target_shape: 228

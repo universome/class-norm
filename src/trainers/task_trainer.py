@@ -1,22 +1,23 @@
 import os
+import random
 from typing import List, Tuple, Any
 
+import numpy as np
 import torch
 import torch.nn as nn
-from torch import optim
+from torch import optim, Tensor
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 from tqdm import tqdm
 from firelab.config import Config
 
-from src.utils.data_utils import construct_output_mask
+from src.utils.data_utils import construct_output_mask, flatten
 from src.utils.training_utils import construct_optimizer
 
 
 class TaskTrainer:
     def __init__(self, main_trainer: "LLLTrainer", task_idx:int):
-
         self.task_idx = task_idx
         self.main_trainer = main_trainer
         self.config = main_trainer.config
@@ -29,9 +30,13 @@ class TaskTrainer:
         self.device_name = main_trainer.device_name
         self.criterion = nn.CrossEntropyLoss()
         self.optim = self.construct_optimizer()
-
+        self.attrs = self.model.attrs if hasattr(self.model, 'attrs') else None
         self.task_ds_train, self.task_ds_test = main_trainer.data_splits[task_idx]
         self.output_mask = construct_output_mask(main_trainer.class_splits[task_idx], self.config.lll_setup.num_classes)
+        self.learned_classes = np.unique(flatten(self.main_trainer.class_splits[:self.task_idx])).tolist()
+        self.learned_classes_mask = construct_output_mask(self.learned_classes, self.config.data.num_classes)
+        self.seen_classes = np.unique(flatten(self.main_trainer.class_splits[:self.task_idx + 1])).tolist()
+        self.seen_classes_mask = construct_output_mask(self.seen_classes, self.config.data.num_classes)
         self.init_dataloaders()
         self.init_episodic_memory()
         self.test_acc_batch_history = []
@@ -151,3 +156,11 @@ class TaskTrainer:
 
     def _should_tqdm_epochs(self) -> bool:
         return self.config.hp.max_num_epochs > 10
+
+    def sample_from_memory(self, batch_size: int) -> Tuple[Tensor, Tensor]:
+        samples = random.choices(self.episodic_memory, k=batch_size)
+        x, y = zip(*samples)
+        x = torch.from_numpy(np.array(x)).to(self.device_name)
+        y = torch.tensor(y).to(self.device_name)
+
+        return x, y

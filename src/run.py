@@ -3,7 +3,7 @@ import sys; sys.path.append('.')
 from typing import List, Dict, Any
 
 import numpy as np
-from firelab.config import Config, process_cli_config_args
+from firelab.config import Config
 from firelab.utils.training_utils import fix_random_seed
 
 from src.trainers.lll_trainer import LLLTrainer
@@ -41,9 +41,10 @@ def load_config(args: argparse.Namespace, config_cli_args: List[str]) -> Config:
     config.set('random_seed', args.random_seed)
 
     # Overwriting with CLI arguments
-    config = config.overwrite(Config.read_from_cli())
+    config_from_cli = Config.read_from_cli()
+    config = config.overwrite(config_from_cli)
 
-    config_cli_args_prefix = cli_config_args_to_exp_name(config_cli_args)
+    config_cli_args_prefix = cli_config_args_to_exp_name(config_from_cli.to_dict())
     exp_name = f'{args.config_name}-{args.exp_name}-{args.dataset}-{config_cli_args_prefix}-{config.random_seed}'
     config.set('exp_name', exp_name)
 
