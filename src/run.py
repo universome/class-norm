@@ -41,18 +41,19 @@ def load_config(args: argparse.Namespace, config_cli_args: List[str]) -> Config:
     config.set('random_seed', args.random_seed)
 
     # Overwriting with CLI arguments
-    config_from_cli = Config.read_from_cli()
-    config = config.overwrite(config_from_cli)
+    config = config.overwrite(Config.read_from_cli())
 
-    config_cli_args_prefix = cli_config_args_to_exp_name(config_from_cli.to_dict())
+    config_cli_args_prefix = cli_config_args_to_exp_name(config_cli_args)
     exp_name = f'{args.config_name}-{args.exp_name}-{args.dataset}-{config_cli_args_prefix}-{config.random_seed}'
     config.set('exp_name', exp_name)
 
     return config
 
 
-def cli_config_args_to_exp_name(cli_config_args: Dict) -> str:
-    return '_'.join([f'{key}={value}' for key, value in cli_config_args.items()])
+def cli_config_args_to_exp_name(args: List) -> str:
+    # TODO: parse args in a better format... And explain these weird manipulations...
+    # Explanation: check parser.parse_known_args() format
+    return '_'.join([f'{args[i][len("--config."):]}={args[i + 1]}' for i in range(0, len(args) - 1, 2)])
 
 
 if __name__ == '__main__':
