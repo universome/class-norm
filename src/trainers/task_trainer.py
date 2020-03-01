@@ -16,6 +16,7 @@ from src.utils.training_utils import construct_optimizer
 
 class TaskTrainer:
     def __init__(self, main_trainer: "LLLTrainer", task_idx:int):
+
         self.task_idx = task_idx
         self.main_trainer = main_trainer
         self.config = main_trainer.config
@@ -32,6 +33,7 @@ class TaskTrainer:
         self.task_ds_train, self.task_ds_test = main_trainer.data_splits[task_idx]
         self.output_mask = construct_output_mask(main_trainer.class_splits[task_idx], self.config.lll_setup.num_classes)
         self.init_dataloaders()
+        self.init_episodic_memory()
         self.test_acc_batch_history = []
         self.after_iter_done_callbacks = []
         self.num_iters_done = 0
@@ -78,6 +80,15 @@ class TaskTrainer:
         else:
             return self.main_trainer.task_trainers[self.task_idx - 1]
 
+    def init_episodic_memory(self):
+        if self.get_previous_trainer() is None:
+            self.episodic_memory = []
+        else:
+            self.episodic_memory = self.get_previous_trainer().episodic_memory
+
+    def extend_episodic_memory(self):
+        pass
+
     @property
     def is_trainable(self) -> bool:
         return True
@@ -111,6 +122,7 @@ class TaskTrainer:
             self.num_epochs_done += 1
             self.on_epoch_done()
 
+        self.extend_episodic_memory()
         self._after_train_hook()
 
     def train_on_batch(self, batch):

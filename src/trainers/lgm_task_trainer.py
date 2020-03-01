@@ -42,9 +42,6 @@ class LGMTaskTrainer(TaskTrainer):
         self.init_writer()
 
         if prev_trainer is None:
-            self.memory = []
-        else:
-            self.memory = prev_trainer.memory
             self.weights_prev = torch.cat([p.data.view(-1) for p in self.model.embedder.parameters()])
 
             if self.config.hp.reg_strategy == 'mas':
@@ -54,8 +51,8 @@ class LGMTaskTrainer(TaskTrainer):
             else:
                 raise NotImplementedError(f'Unknown regularization strategy: {self.config.hp.reg_strategy}')
 
-    def _after_train_hook(self):
-        self.memory.extend(extract_features_for_dataset(
+    def extend_episodic_memory(self):
+        self.episodic_memory.extend(extract_features_for_dataset(
             self.task_ds_train, self.model.embedder,
             self.device_name, batch_size=256
         ))
@@ -283,7 +280,7 @@ class LGMTaskTrainer(TaskTrainer):
         self.optim[module_name].step()
 
     def sample_from_memory(self, batch_size: int) -> Tuple[Tensor, Tensor]:
-        samples = random.choices(self.memory, k=batch_size)
+        samples = random.choices(self.episodic_memory, k=batch_size)
         x, y = zip(*samples)
         x = torch.from_numpy(np.array(x)).to(self.device_name)
         y = torch.tensor(y).to(self.device_name)
