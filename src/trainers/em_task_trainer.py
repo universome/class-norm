@@ -22,7 +22,7 @@ class EMTaskTrainer(TaskTrainer):
 
         total_loss = cls_loss
 
-        if self.config.hp.lowres_training.enabled or self.config.hp.lowres_training.distill:
+        if self.config.hp.lowres_training.loss_coef > 0 or self.config.hp.lowres_training.distill_loss_coef > 0:
             x_lowres = self.transform_em_sample(x)
             logits_lowres = self.model(x_lowres)
             pruned_logits_lowres = prune_logits(logits_lowres, self.output_mask)
@@ -32,10 +32,10 @@ class EMTaskTrainer(TaskTrainer):
             self.writer.add_scalar('train/cls_loss_lowres', cls_loss_lowres.item(), self.num_iters_done)
             self.writer.add_scalar('train/cls_acc_lowres', cls_acc_lowres.item(), self.num_iters_done)
 
-        if self.config.hp.lowres_training.enabled:
+        if self.config.hp.lowres_training.loss_coef > 0:
             total_loss += self.config.hp.lowres_training.loss_coef * cls_loss
 
-        if self.config.hp.lowres_training.distill:
+        if self.config.hp.lowres_training.distill_loss_coef > 0:
             distill_lowres_loss = F.mse_loss(logits, logits_lowres)
             total_loss += self.config.hp.lowres_training.distill_coef * distill_lowres_loss
 

@@ -5,12 +5,10 @@ all:
     batch_size: 128
     memory:
       batch_size: 128
-      downsample_size: 64
+      # downsample_size: 64
       loss_coef: 1.
     lowres_training:
-      enabled: true
       loss_coef: 1.
-      distill: false
       distill_loss_coef: 1.
     optim: {"type": "adam", "kwargs": {"lr": 0.001}}
 
