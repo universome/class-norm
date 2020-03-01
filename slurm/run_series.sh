@@ -103,7 +103,7 @@ num_runs=$1
 #     done
 # done
 
-# Running classifier with different
+# Running classifier with different resolutions
 for dataset in cub awa; do
     for img_size in 448 256 200 128 64; do
         cli_args="--config.hp.img_target_shape $img_size\
@@ -113,3 +113,18 @@ for dataset in cub awa; do
         # echo $cli_args
     done
 done
+
+# for distill_loss_coef in 0 1; do
+#     for em_resolution in 228 128 64; do
+#         for dataset in cub awa; do
+#             for loss_coef in 0 0.1 1 10; do
+#                 cli_args="--config.hp.memory.downsample_size $em_resolution\
+#                           --config.hp.lowres_training.loss_coef $loss_coef\
+#                           --config.hp.lowres_training.distill_loss_coef $distill_loss_coef\
+#                           -d $dataset"
+#                 # sbatch --export=ALL,cli_args="$cli_args" slurm/slurm_lll_job.sh;
+#                 echo $cli_args
+#             done
+#         done
+#     done
+# done
