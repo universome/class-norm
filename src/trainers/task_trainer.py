@@ -20,14 +20,12 @@ class TaskTrainer:
     def __init__(self, main_trainer: "LLLTrainer", task_idx:int):
         self.task_idx = task_idx
         self.main_trainer = main_trainer
+        self.device_name = main_trainer.device_name
         self.config = main_trainer.config
-        self.model = main_trainer.model
+
+        self.init_models()
         self.init_writer()
 
-        if self.config.hp.get('reinit_after_each_task'):
-            self.model.load_state_dict(main_trainer.create_model().state_dict())
-
-        self.device_name = main_trainer.device_name
         self.criterion = nn.CrossEntropyLoss()
         self.optim = self.construct_optimizer()
         self.attrs = self.model.attrs if hasattr(self.model, 'attrs') else None
@@ -45,6 +43,12 @@ class TaskTrainer:
         self.num_epochs_done = 0
 
         self._after_init_hook()
+
+    def init_models(self):
+        self.model = main_trainer.model
+
+        if self.config.hp.get('reinit_after_each_task'):
+            self.model.load_state_dict(self.main_trainer.create_model().state_dict())
 
     def init_writer(self):
         self.writer = SummaryWriter(os.path.join(self.main_trainer.paths.logs_path, f'task_{self.task_idx}'), flush_secs=5)

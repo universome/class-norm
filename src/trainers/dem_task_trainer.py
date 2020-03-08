@@ -7,9 +7,15 @@ from src.utils.lll import prune_logits
 from src.utils.training_utils import compute_accuracy, construct_optimizer
 from src.models.upsampler import Upsampler
 
+
 class DEMTaskTrainer(TaskTrainer):
-    def _after_init_hook(self):
-        self.upsampler = Upsampler(self.config)
+    def init_models(self):
+        self.model = self.main_trainer.model
+
+        if self.task_idx == 0:
+            self.upsampler = Upsampler(self.config).to(self.device_name)
+        else:
+            self.upsampler = self.get_previous_trainer().upsampler
 
     def construct_optimizer(self):
         if self.config.hp.upsampler.mode == 'learnable':
