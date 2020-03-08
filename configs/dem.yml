@@ -1,0 +1,25 @@
+all:
+  task_trainer: "dem"
+  hp:
+    img_target_shape: [256, 256]
+    max_num_epochs: 5
+    batch_size: 10
+    memory:
+      batch_size: 10
+      downsample_size: 64
+      loss_coef: 1.
+    upsampler:
+      mode: "node"
+    lowres_training:
+      loss_coef: 0.
+      logits_matching_loss_coef: 0.
+    # optim: {"type": "adam", "kwargs": {"lr": 0.001}}
+    optim: {"type": "sgd", "kwargs": {"lr": 0.03}}
+
+cub:
+  hp:
+    pretrained: true
+
+awa:
+  hp:
+    pretrained: false

@@ -22,4 +22,3 @@ cifar100_embeddings:
     classifier:
       data_dim: 512
       hid_dim: 1024
-

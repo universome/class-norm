@@ -4,10 +4,21 @@ import torch.nn.functional as F
 
 from src.trainers.task_trainer import TaskTrainer
 from src.utils.lll import prune_logits
-from src.utils.training_utils import compute_accuracy
+from src.utils.training_utils import compute_accuracy, construct_optimizer
+from src.models.upsampler import Upsampler
 
+class DEMTaskTrainer(TaskTrainer):
+    def _after_init_hook(self):
+        self.upsampler = Upsampler(self.config)
 
-class EMTaskTrainer(TaskTrainer):
+    def construct_optimizer(self):
+        if self.config.hp.upsampler.mode == 'learnable':
+            parameters = list(self.model.parameters()) + list(self.upsampler.parameters())
+        else:
+            parameters = self.model.parameters()
+
+        return construct_optimizer(parameters, self.config.hp.optim)
+
     def train_on_batch(self, batch):
         self.model.train()
 
@@ -22,7 +33,7 @@ class EMTaskTrainer(TaskTrainer):
 
         total_loss = cls_loss
 
-        if self.config.hp.lowres_training.loss_coef > 0 or self.config.hp.lowres_training.distill_loss_coef > 0:
+        if self.config.hp.lowres_training.loss_coef > 0 or self.config.hp.lowres_training.logits_matching_loss_coef > 0:
             x_lowres = self.transform_em_sample(x)
             logits_lowres = self.model(x_lowres)
             pruned_logits_lowres = prune_logits(logits_lowres, self.output_mask)
@@ -35,11 +46,11 @@ class EMTaskTrainer(TaskTrainer):
         if self.config.hp.lowres_training.loss_coef > 0:
             total_loss += self.config.hp.lowres_training.loss_coef * cls_loss
 
-        if self.config.hp.lowres_training.distill_loss_coef > 0:
-            distill_lowres_loss = F.mse_loss(logits, logits_lowres)
-            total_loss += self.config.hp.lowres_training.distill_coef * distill_lowres_loss
+        if self.config.hp.lowres_training.logits_matching_loss_coef > 0:
+            logits_matching_loss = F.mse_loss(logits, logits_lowres)
+            total_loss += self.config.hp.lowres_training.logits_matching_loss_coef * logits_matching_loss
 
-            self.writer.add_scalar('train/distill_lowres_loss', distill_lowres_loss.item(), self.num_iters_done)
+            self.writer.add_scalar('train/logits_matching_loss', logits_matching_loss.item(), self.num_iters_done)
 
         if self.task_idx > 0:
             rehearsal_loss, rehearsal_acc = self.compute_rehearsal_loss()
@@ -47,7 +58,6 @@ class EMTaskTrainer(TaskTrainer):
 
             self.writer.add_scalar('train/rehearsal_loss', rehearsal_loss.item(), self.num_iters_done)
             self.writer.add_scalar('train/rehearsal_acc', rehearsal_acc.item(), self.num_iters_done)
-
 
         self.optim.zero_grad()
         total_loss.backward()
@@ -58,7 +68,10 @@ class EMTaskTrainer(TaskTrainer):
 
     def transform_em_sample(self, x):
         assert x.ndim == 4
-        return F.interpolate(x, size=self.config.hp.memory.downsample_size)
+        downsampled = F.interpolate(x, size=self.config.hp.memory.downsample_size)
+        upsampled = self.upsampler(downsampled)
+
+        return upsampled
 
     def compute_rehearsal_loss(self):
         x, y = self.sample_from_memory(self.config.hp.memory.batch_size)

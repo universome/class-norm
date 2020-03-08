@@ -104,24 +104,24 @@ num_runs=$1
 # done
 
 # Running classifier with different resolutions
-for dataset in cub awa; do
-    for img_size in 448 256 200 128 64; do
-        cli_args="--config.hp.img_target_shape $img_size\
-                  --config.dataset $dataset\
-                  --exp_name classifier_${dataset}_${img_size}"
-        # sbatch --export=ALL,cli_args="$cli_args" slurm/slurm_firelab_job.sh;
-        echo $cli_args
-    done
-done
+# for dataset in cub awa; do
+#     for img_size in 448 256 200 128 64; do
+#         cli_args="--config.hp.img_target_shape $img_size\
+#                   --config.dataset $dataset\
+#                   --exp_name classifier_${dataset}_${img_size}"
+#         # sbatch --export=ALL,cli_args="$cli_args" slurm/slurm_firelab_job.sh;
+#         echo $cli_args
+#     done
+# done
 
-for distill_loss_coef in 0 1; do
-    for em_resolution in 128 64; do
-        for dataset in cub awa; do
-            for loss_coef in 0 0.1 1; do
+for dataset in cub awa; do
+    for logits_matching_loss_coef in 0 1; do
+        for em_resolution in 128 64; do
+            for em_loss_coef in 0 0.1 1; do
                 cli_args="--config.hp.memory.downsample_size $em_resolution\
-                          --config.hp.lowres_training.loss_coef $loss_coef\
-                          --config.hp.lowres_training.distill_loss_coef $distill_loss_coef\
-                          -c em -d $dataset"
+                          --config.hp.lowres_training.loss_coef $em_loss_coef\
+                          --config.hp.lowres_training.logits_matching_loss_coef $logits_matching_loss_coef\
+                          -c dem -d $dataset"
                 # sbatch --export=ALL,cli_args="$cli_args" slurm/slurm_lll_job.sh;
                 echo $cli_args
             done

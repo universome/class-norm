@@ -32,7 +32,7 @@ from src.trainers.lgm_task_trainer import LGMTaskTrainer
 from src.trainers.lgm_vae_task_trainer import LGMVAETaskTrainer
 from src.trainers.lgm_aegan_task_trainer import LGMAEGANTaskTrainer
 from src.trainers.lifelong_ae_task_trainer import LifeLongAETaskTrainer
-from src.trainers.em_task_trainer import EMTaskTrainer
+from src.trainers.dem_task_trainer import DEMTaskTrainer
 
 from src.utils.data_utils import construct_output_mask, filter_out_classes
 
@@ -48,7 +48,7 @@ TASK_TRAINERS = {
     'lgm_vae': LGMVAETaskTrainer,
     'lgm_aegan': LGMAEGANTaskTrainer,
     'lifelong_ae': LifeLongAETaskTrainer,
-    'em': EMTaskTrainer
+    'dem': DEMTaskTrainer
 }
 
 MODELS = {
@@ -87,6 +87,7 @@ class LLLTrainer(BaseTrainer):
         if self.config.hp.get('use_class_attrs'):
             model = MODELS[self.config.hp.model.type](self.config, self.class_attributes)
         else:
+            print('Class attributes are switched off.')
             model = MODELS[self.config.hp.model.type](self.config)
 
         if self.config.has('load_from_checkpoint'):
