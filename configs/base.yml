@@ -11,7 +11,7 @@ all:
     save_frequency: "iter"
   hp:
     max_num_epochs: 5
-    img_target_shape: [224, 224]
+    img_target_shape: [256, 256]
     batch_size: 10
     model:
       type: "simple_classifier"

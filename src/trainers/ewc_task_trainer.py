@@ -23,7 +23,7 @@ class EWCTaskTrainer(TaskTrainer):
     def train_on_batch(self, batch:Tuple[Tensor, Tensor]):
         self.model.train()
 
-        x = torch.tensor(batch[0]).to(self.device_name)
+        x = torch.from_numpy(batch[0]).to(self.device_name)
         y = torch.tensor(batch[1]).to(self.device_name)
 
         pruned_logits = self.model.compute_pruned_predictions(x, self.output_mask)

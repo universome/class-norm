@@ -45,7 +45,7 @@ class TaskTrainer:
         self._after_init_hook()
 
     def init_models(self):
-        self.model = main_trainer.model
+        self.model = self.main_trainer.model
 
         if self.config.hp.get('reinit_after_each_task'):
             self.model.load_state_dict(self.main_trainer.create_model().state_dict())
@@ -143,8 +143,8 @@ class TaskTrainer:
 
         with torch.no_grad():
             for x, y in dataloader:
-                x = torch.tensor(x).to(self.device_name)
-                y = torch.tensor(y).to(self.device_name)
+                x = torch.from_numpy(np.array(x)).to(self.device_name)
+                y = torch.from_numpy(np.array(y)).to(self.device_name)
 
                 pruned_logits = self.model.compute_pruned_predictions(x, self.output_mask)
 

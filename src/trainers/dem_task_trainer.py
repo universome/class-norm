@@ -40,7 +40,7 @@ class DEMTaskTrainer(TaskTrainer):
         total_loss = cls_loss
 
         if self.config.hp.lowres_training.loss_coef > 0 or self.config.hp.lowres_training.logits_matching_loss_coef > 0:
-            x_lowres = self.transform_em_sample(x)
+            x_lowres = self.transform_em_sample(x, no_grad=False)
             logits_lowres = self.model(x_lowres)
             pruned_logits_lowres = prune_logits(logits_lowres, self.output_mask)
             cls_loss_lowres = F.cross_entropy(pruned_logits_lowres, y)
@@ -72,16 +72,21 @@ class DEMTaskTrainer(TaskTrainer):
         self.writer.add_scalar('train/cls_loss', cls_loss.item(), self.num_iters_done)
         self.writer.add_scalar('train/cls_acc', cls_acc.item(), self.num_iters_done)
 
-    def transform_em_sample(self, x):
+    def transform_em_sample(self, x, no_grad=False):
         assert x.ndim == 4
         downsampled = F.interpolate(x, size=self.config.hp.memory.downsample_size)
-        upsampled = self.upsampler(downsampled)
+
+        if no_grad:
+            with torch.no_grad():
+                upsampled = self.upsampler(downsampled)
+        else:
+            upsampled = self.upsampler(downsampled)
 
         return upsampled
 
     def compute_rehearsal_loss(self):
         x, y = self.sample_from_memory(self.config.hp.memory.batch_size)
-        x = self.transform_em_sample(x)
+        x = self.transform_em_sample(x, no_grad=True)
         pruned_logits = prune_logits(self.model(x), self.learned_classes_mask)
         cls_loss = F.cross_entropy(pruned_logits, y)
         cls_acc = compute_accuracy(pruned_logits, y)

@@ -114,17 +114,44 @@ num_runs=$1
 #     done
 # done
 
-for dataset in cub awa; do
-    for logits_matching_loss_coef in 0 1; do
-        for em_resolution in 128 64; do
-            for em_loss_coef in 0 0.1 1; do
-                cli_args="--config.hp.memory.downsample_size $em_resolution\
-                          --config.hp.lowres_training.loss_coef $em_loss_coef\
-                          --config.hp.lowres_training.logits_matching_loss_coef $logits_matching_loss_coef\
-                          -c dem -d $dataset"
-                # sbatch --export=ALL,cli_args="$cli_args" slurm/slurm_lll_job.sh;
-                echo $cli_args
-            done
+# for dataset in cub awa; do
+#     for logits_matching_loss_coef in 0 1; do
+#         for upsampler_mode in "none" "nearest" "learnable"; do
+#             for em_loss_coef in 0 0.1 1; do
+#                 for use_class_attrs in "true" "false"; do
+#                     cli_args="--config.hp.upsampler.mode $upsampler_mode\
+#                             --config.hp.lowres_training.loss_coef $em_loss_coef\
+#                             --config.hp.lowres_training.logits_matching_loss_coef $logits_matching_loss_coef\
+#                             --config.hp.use_class_attrs $use_class_attrs\
+#                             -c dem -d $dataset"
+#                     # sbatch --export=ALL,cli_args="$cli_args" slurm/slurm_lll_job.sh;
+#                     echo $cli_args
+#                 done
+#             done
+#         done
+#     done
+# done
+
+# DEM training
+for upsampler_mode in "none" "nearest" "learnable"; do
+    for use_class_attrs in "true" "false"; do
+        for dataset in cub awa; do
+            cli_args="--config.hp.upsampler.mode $upsampler_mode\
+                    --config.hp.use_class_attrs $use_class_attrs\
+                    -c dem -d $dataset"
+            # sbatch --export=ALL,cli_args="$cli_args" slurm/slurm_lll_job.sh;
+            echo $cli_args
+        done
+    done
+done
+
+# Baselines
+for method in "joint" "basic"; do
+    for use_class_attrs in "true" "false"; do
+        for dataset in cub awa; do
+            cli_args="--config.hp.use_class_attrs $use_class_attrs -c $method -d $dataset"
+            # sbatch --export=ALL,cli_args="$cli_args" slurm/slurm_lll_job.sh;
+            echo $cli_args
         done
     done
 done

@@ -12,7 +12,7 @@ def validate_clf(clf_model: nn.Module, dataloader, device: str='cpu'):
 
     with torch.no_grad():
         for x, y in dataloader:
-            x = torch.tensor(x).to(device)
+            x = torch.from_numpy(x).to(device)
             y = torch.tensor(y).to(device)
 
             logits = clf_model(x)

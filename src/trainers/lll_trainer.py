@@ -84,10 +84,11 @@ class LLLTrainer(BaseTrainer):
         self.model = self.create_model()
 
     def create_model(self):
+        print(f'Class attributes are switched {"on" if self.config.hp.get("use_class_attrs") else "off"}.')
+
         if self.config.hp.get('use_class_attrs'):
             model = MODELS[self.config.hp.model.type](self.config, self.class_attributes)
         else:
-            print('Class attributes are switched off.')
             model = MODELS[self.config.hp.model.type](self.config)
 
         if self.config.has('load_from_checkpoint'):

@@ -57,7 +57,7 @@ def load_img(img_path: PathLike, target_shape: Tuple[int, int]=None):
 
 def preprocess_imgs(imgs: List[np.ndarray]) -> List[np.ndarray]:
     imgs = [img.transpose(2, 0, 1) for img in tqdm(imgs, desc='[Transposing]')]
-    imgs = [imagenet_normalization(torch.tensor(img) / 255).numpy() for img in tqdm(imgs, desc='[Normalizing]')]
+    imgs = [imagenet_normalization(torch.from_numpy(img) / 255).numpy() for img in tqdm(imgs, desc='[Normalizing]')]
 
     return imgs
 
