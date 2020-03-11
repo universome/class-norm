@@ -132,24 +132,38 @@ num_runs=$1
 #     done
 # done
 
-# DEM training
-for upsampler_mode in "none" "nearest" "learnable"; do
-    for use_class_attrs in "true" "false"; do
-        for dataset in cub awa; do
-            cli_args="--config.hp.upsampler.mode $upsampler_mode\
-                    --config.hp.use_class_attrs $use_class_attrs\
-                    -c dem -d $dataset"
-            sbatch --export=ALL,cli_args="$cli_args" slurm/slurm_lll_job.sh;
-            # echo $cli_args
-        done
-    done
-done
+# # DEM training
+# for upsampler_mode in "none" "nearest" "learnable"; do
+#     for use_class_attrs in "true" "false"; do
+#         for dataset in cub awa; do
+#             cli_args="--config.hp.upsampler.mode $upsampler_mode\
+#                     --config.hp.use_class_attrs $use_class_attrs\
+#                     -c dem -d $dataset"
+#             sbatch --export=ALL,cli_args="$cli_args" slurm/slurm_lll_job.sh;
+#             # echo $cli_args
+#         done
+#     done
+# done
 
-# Baselines
-for method in "joint" "basic"; do
-    for use_class_attrs in "true" "false"; do
+# # Baselines
+# for method in "joint" "basic"; do
+#     for use_class_attrs in "true" "false"; do
+#         for dataset in cub awa; do
+#             cli_args="--config.hp.use_class_attrs $use_class_attrs -c $method -d $dataset"
+#             sbatch --export=ALL,cli_args="$cli_args" slurm/slurm_lll_job.sh;
+#             # echo $cli_args
+#         done
+#     done
+# done
+
+# DEM training
+for downsample_size in 64 128 256; do
+    for num_samples_per_class in 1 2 3 5 10 50 100 "all"; do
         for dataset in cub awa; do
-            cli_args="--config.hp.use_class_attrs $use_class_attrs -c $method -d $dataset"
+            cli_args="--config.hp.memory.num_samples_per_class $num_samples_per_class\
+                      --config.hp.memory.downsample_size $downsample_size\
+                      --experiments_dir experiments-memory-degradation\
+                    -c dem -d $dataset"
             sbatch --export=ALL,cli_args="$cli_args" slurm/slurm_lll_job.sh;
             # echo $cli_args
         done

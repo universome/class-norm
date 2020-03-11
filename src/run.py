@@ -37,7 +37,7 @@ def load_config(args: argparse.Namespace, config_cli_args: List[str]) -> Config:
     config = config.overwrite(curr_config.get(args.dataset))
 
     # Setting experiment-specific properties
-    config.set('experiments_dir', 'experiments')
+    config.set('experiments_dir', args.experiments_dir)
     config.set('random_seed', args.random_seed)
 
     # Overwriting with CLI arguments
@@ -63,6 +63,7 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--config_name', type=str, default='lgm', help='Which config to run?')
     parser.add_argument('-n', '--num_runs', type=int, default=1, help='How many times we should run the experiment?')
     parser.add_argument('-e', '--exp_name', type=str, default='', help='Postfix to add to experiment name.')
+    parser.add_argument('--experiments_dir', type=str, default='experiments', help='Directory where all the experiments reside.')
 
     args, config_args = parser.parse_known_args()
 
