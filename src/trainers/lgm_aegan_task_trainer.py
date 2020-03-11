@@ -13,7 +13,7 @@ from tqdm import tqdm
 from firelab.config import Config
 
 from src.utils.losses import compute_gradient_penalty
-from src.utils.lll import prune_logits
+from src.utils.training_utils import prune_logits
 from src.utils.model_utils import get_number_of_parameters
 from src.models.lgm import LGM
 from src.trainers.lgm_task_trainer import LGMTaskTrainer

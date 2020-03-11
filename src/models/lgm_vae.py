@@ -6,7 +6,7 @@ from torch import Tensor
 from src.models.feat_vae import FeatVAE
 from src.models.conv_feat_vae import ConvFeatVAE
 from src.models.classifier import ResnetEmbedder, FeatClassifier, ConvFeatClassifier
-from src.utils.lll import prune_logits
+from src.utils.training_utils import prune_logits
 from src.models.layers import Identity, ResNetConvEmbedder
 
 

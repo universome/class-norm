@@ -6,7 +6,7 @@ from torch import Tensor
 import numpy as np
 
 from src.trainers.task_trainer import TaskTrainer
-from src.utils.lll import prune_logits
+from src.utils.training_utils import prune_logits
 from src.utils.constants import NEG_INF
 from src.utils.data_utils import construct_output_mask, flatten
 

@@ -30,9 +30,9 @@ class GANTrainer(BaseTrainer):
     def init_dataloaders(self):
         self.ds_train, self.ds_test, _ = load_data(self.config.data)
 
-        train_imgs = np.array([d[0] for d in self.ds_train])
-        train_mean = train_imgs.mean(axis=0, keepdims=True)
-        train_std = train_imgs.std(axis=0, keepdims=True)
+        # train_imgs = np.array([d[0] for d in self.ds_train])
+        # train_mean = train_imgs.mean(axis=0, keepdims=True)
+        # train_std = train_imgs.std(axis=0, keepdims=True)
         # train_imgs /= np.abs(train_imgs).max(axis=0, keepdims=True)
         # train_imgs -= train_imgs.mean(axis=0, keepdims=True)
 

@@ -139,8 +139,8 @@ for upsampler_mode in "none" "nearest" "learnable"; do
             cli_args="--config.hp.upsampler.mode $upsampler_mode\
                     --config.hp.use_class_attrs $use_class_attrs\
                     -c dem -d $dataset"
-            # sbatch --export=ALL,cli_args="$cli_args" slurm/slurm_lll_job.sh;
-            echo $cli_args
+            sbatch --export=ALL,cli_args="$cli_args" slurm/slurm_lll_job.sh;
+            # echo $cli_args
         done
     done
 done
@@ -150,8 +150,8 @@ for method in "joint" "basic"; do
     for use_class_attrs in "true" "false"; do
         for dataset in cub awa; do
             cli_args="--config.hp.use_class_attrs $use_class_attrs -c $method -d $dataset"
-            # sbatch --export=ALL,cli_args="$cli_args" slurm/slurm_lll_job.sh;
-            echo $cli_args
+            sbatch --export=ALL,cli_args="$cli_args" slurm/slurm_lll_job.sh;
+            # echo $cli_args
         done
     done
 done

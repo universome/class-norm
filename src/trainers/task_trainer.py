@@ -31,6 +31,7 @@ class TaskTrainer:
         self.attrs = self.model.attrs if hasattr(self.model, 'attrs') else None
         self.task_ds_train, self.task_ds_test = main_trainer.data_splits[task_idx]
         self.output_mask = construct_output_mask(main_trainer.class_splits[task_idx], self.config.lll_setup.num_classes)
+        self.classes = self.main_trainer.class_splits[self.task_idx]
         self.learned_classes = np.unique(flatten(self.main_trainer.class_splits[:self.task_idx])).tolist()
         self.learned_classes_mask = construct_output_mask(self.learned_classes, self.config.data.num_classes)
         self.seen_classes = np.unique(flatten(self.main_trainer.class_splits[:self.task_idx + 1])).tolist()

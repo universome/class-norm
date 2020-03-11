@@ -8,8 +8,9 @@ all:
       batch_size: 10
       downsample_size: 64
       loss_coef: 1.
+      num_samples_per_class: "all"
     upsampler:
-      mode: "none"
+      mode: "nearest"
     lowres_training:
       loss_coef: 0.
       logits_matching_loss_coef: 0.

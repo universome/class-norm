@@ -7,7 +7,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from firelab.utils.training_utils import get_module_device
 
-from src.utils.lll import prune_logits
+from src.utils.training_utils import prune_logits
 from src.utils.constants import NEG_INF
 
 
