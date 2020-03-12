@@ -96,7 +96,7 @@ class TaskTrainer:
         else:
             self.episodic_memory = self.get_previous_trainer().episodic_memory
 
-    def extend_episodic_memory(self):
+    def update_episodic_memory(self):
         pass
 
     @property
@@ -132,7 +132,7 @@ class TaskTrainer:
             self.num_epochs_done += 1
             self.on_epoch_done()
 
-        self.extend_episodic_memory()
+        self.update_episodic_memory()
         self._after_train_hook()
 
     def train_on_batch(self, batch):

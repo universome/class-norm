@@ -86,7 +86,7 @@ class AgemTaskTrainer(TaskTrainer):
 
         assert len(grad) == 0, "Not all weights were used!"
 
-    def extend_episodic_memory(self):
+    def update_episodic_memory(self):
         """
         Adds examples from own data to episodic memory
 

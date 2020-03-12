@@ -93,7 +93,7 @@ class DEMTaskTrainer(TaskTrainer):
 
         return cls_loss, cls_acc
 
-    def extend_episodic_memory(self):
+    def update_episodic_memory(self):
         if self.config.hp.memory.num_samples_per_class == "all":
             self.episodic_memory.extend(self.task_ds_train)
         else:

@@ -18,7 +18,7 @@ all:
     classifier:
       pretrained: false
       resnet_n_layers: 18
-    optim: {type: "sgd", kwargs: {lr: 0.03}}
+    optim: {type: "sgd", kwargs: {lr: 0.003}}
     # optim: {type: "adam", kwargs: {lr: 0.001, betas: [0.0, 0.9]}}
 
 cub:

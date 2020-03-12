@@ -43,7 +43,7 @@ class LGMTaskTrainer(TaskTrainer):
             else:
                 raise NotImplementedError(f'Unknown regularization strategy: {self.config.hp.reg_strategy}')
 
-    def extend_episodic_memory(self):
+    def update_episodic_memory(self):
         self.episodic_memory.extend(extract_features_for_dataset(
             self.task_ds_train, self.model.embedder,
             self.device_name, batch_size=256

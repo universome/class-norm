@@ -33,6 +33,7 @@ from src.trainers.lgm_vae_task_trainer import LGMVAETaskTrainer
 from src.trainers.lgm_aegan_task_trainer import LGMAEGANTaskTrainer
 from src.trainers.lifelong_ae_task_trainer import LifeLongAETaskTrainer
 from src.trainers.dem_task_trainer import DEMTaskTrainer
+from src.trainers.icarl_task_trainer import iCarlTaskTrainer
 
 from src.utils.data_utils import construct_output_mask, filter_out_classes
 
@@ -48,7 +49,8 @@ TASK_TRAINERS = {
     'lgm_vae': LGMVAETaskTrainer,
     'lgm_aegan': LGMAEGANTaskTrainer,
     'lifelong_ae': LifeLongAETaskTrainer,
-    'dem': DEMTaskTrainer
+    'dem': DEMTaskTrainer,
+    'icarl': iCarlTaskTrainer
 }
 
 MODELS = {
@@ -137,7 +139,7 @@ class LLLTrainer(BaseTrainer):
                 print(f'Test accuracy: {task_trainer.compute_test_accuracy()}')
 
             if self.config.task_trainer == 'agem':
-                task_trainer.extend_episodic_memory()
+                task_trainer.update_episodic_memory()
 
             self.checkpoint(task_idx)
 

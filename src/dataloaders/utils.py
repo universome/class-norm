@@ -94,13 +94,14 @@ def extract_features_for_dataset(
     return list(zip(features, [y for _, y in dataset]))
 
 
-def extract_features(imgs: List[np.ndarray], embedder: nn.Module, batch_size: int=64) -> List[np.ndarray]:
+def extract_features(imgs: List[np.ndarray], embedder: nn.Module, batch_size: int=64, verbose: bool=True) -> List[np.ndarray]:
     dataloader = DataLoader(imgs, batch_size=batch_size)
     device = get_module_device(embedder)
     result = []
 
     with torch.no_grad():
-        for x in tqdm(dataloader, desc='[Extracting features]'):
+        batches = tqdm(dataloader, desc='[Extracting features]') if verbose else dataloader
+        for x in batches:
             feats = embedder(x.to(device)).cpu().numpy()
             result.extend(feats)
 

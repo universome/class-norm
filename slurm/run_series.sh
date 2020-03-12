@@ -157,13 +157,13 @@ num_runs=$1
 # done
 
 # DEM training
-for downsample_size in 64 128 256; do
+for downsample_size in 32 64 128 256; do
     for num_samples_per_class in 1 2 3 5 10 50 100 "all"; do
         for dataset in cub awa; do
             cli_args="--config.hp.memory.num_samples_per_class $num_samples_per_class\
                       --config.hp.memory.downsample_size $downsample_size\
                       --experiments_dir experiments-memory-degradation\
-                    -c dem -d $dataset"
+                      -c dem -d $dataset"
             sbatch --export=ALL,cli_args="$cli_args" slurm/slurm_lll_job.sh;
             # echo $cli_args
         done
