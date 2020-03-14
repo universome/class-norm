@@ -10,17 +10,10 @@ all:
       normalize_feats: false
       scale_value: 1.
 
-cub:
-  hp:
-    pretrained: true
-
-awa:
-  hp:
-    pretrained: false
-
-cifar100:
-  hp:
-    pretrained: true
+cub: {hp: {pretrained: true}}
+awa: {}
+tiny_imagenet: {}
+cifar100: {}
 
 cifar100_embeddings:
   hp:

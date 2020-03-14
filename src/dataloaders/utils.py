@@ -22,9 +22,9 @@ imagenet_normalization = transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_S
 imagenet_denormalization = lambda x: x * torch.tensor(IMAGENET_STD)[:, None, None] + torch.tensor(IMAGENET_MEAN)[:, None, None]
 
 
-def read_column(filename:PathLike, column_idx:int) -> List[str]:
+def read_column(filename:PathLike, column_idx:int, sep: str=' ') -> List[str]:
     with open(filename) as f:
-        column = [line.split(' ')[column_idx] for line in f.read().splitlines()]
+        column = [line.split(sep)[column_idx] for line in f.read().splitlines()]
 
     return column
 
@@ -39,11 +39,14 @@ def shuffle_dataset(imgs: List[Any], labels: List[int]) -> Tuple[List[Any], List
     return imgs, labels
 
 
-def load_imgs(image_folder: PathLike, img_paths: List[PathLike], target_shape=None) -> List[np.ndarray]:
+def load_imgs_from_folder(image_folder: PathLike, img_paths: List[PathLike], *args, **kwargs) -> List[np.ndarray]:
     full_img_paths = [os.path.join(image_folder, p) for p in img_paths]
-    images = [load_img(p, target_shape) for p in tqdm(full_img_paths, desc='[Loading dataset]')]
 
-    return images
+    return load_imgs(full_img_paths, *args, **kwargs)
+
+
+def load_imgs(img_paths: List[PathLike], target_shape=None) -> List[np.ndarray]:
+    return [load_img(p, target_shape) for p in tqdm(img_paths, desc='[Loading dataset]')]
 
 
 def load_img(img_path: PathLike, target_shape: Tuple[int, int]=None):

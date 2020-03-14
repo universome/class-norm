@@ -5,7 +5,7 @@ from typing import List, Tuple
 
 import numpy as np
 
-from .utils import read_column, shuffle_dataset, load_imgs, preprocess_imgs
+from .utils import read_column, shuffle_dataset, load_imgs_from_folder, preprocess_imgs
 
 
 def load_dataset(
@@ -29,7 +29,7 @@ def load_dataset(
     # img_paths = img_paths[:8]
     # labels = [0, 1, 2, 3] * 2
 
-    imgs = load_imgs(data_dir, img_paths, target_shape)
+    imgs = load_imgs_from_folder(data_dir, img_paths, target_shape)
     if preprocess: imgs = preprocess_imgs(imgs)
     if split == 'train': imgs, labels = shuffle_dataset(imgs, labels)
 

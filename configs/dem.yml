@@ -1,7 +1,6 @@
 all:
   task_trainer: "dem"
   hp:
-    img_target_shape: [256, 256]
     max_num_epochs: 5
     batch_size: 10
     memory:
@@ -20,7 +19,13 @@ all:
 cub:
   hp:
     pretrained: true
+    img_target_shape: [256, 256]
 
 awa:
   hp:
     pretrained: false
+    img_target_shape: [256, 256]
+
+tiny_imagenet:
+  hp:
+    img_target_shape: [64, 64]

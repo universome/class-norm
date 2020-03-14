@@ -4,7 +4,7 @@ hp:
     max_num_epochs: 300
     batch_size: 256
     pretrained: true
-    img_target_shape: 228
+    img_target_shape: 224
     # model:
     #     type: "resnet-head"
     #     hid_dim: 512
