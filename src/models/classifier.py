@@ -22,7 +22,9 @@ class ResnetClassifier(nn.Module):
             config.hp.classifier.pretrained)
         self.head = ClassifierHead(
             INPUT_DIMS[f'resnet{config.hp.classifier.resnet_n_layers}_feat'],
-            config.data.num_classes, attrs)
+            config.data.num_classes,
+            attrs,
+            **config.hp.get('attrs_head', {}))
 
     def compute_pruned_predictions(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
         return prune_logits(self.forward(x), output_mask)
@@ -69,27 +71,104 @@ class FeatClassifier(nn.Module):
 
 
 class ClassifierHead(nn.Module):
-    def __init__(self, hid_dim: int, num_classes: int, attrs: np.ndarray = None):
+    def __init__(self, hid_dim: int, num_classes: int, attrs: np.ndarray = None, **attrs_head_kwargs):
         super(ClassifierHead, self).__init__()
 
         self.use_attrs = not attrs is None
 
         if self.use_attrs:
-            self.register_buffer('attrs', torch.tensor(attrs))
-            self.cls_attr_emb = nn.Linear(attrs.shape[1], hid_dim)
-            self.biases = nn.Parameter(torch.zeros(attrs.shape[0]))
+            if len(attrs_head_kwargs) == 0:
+                self.head = SimpleAttrsHead(attrs, hid_dim)
+            else:
+                self.head = AttrsHead(attrs, Config({'hid_dim': hid_dim, **attrs_head_kwargs}))
         else:
             self.head = nn.Linear(hid_dim, num_classes)
 
     def forward(self, feats: Tensor) -> Tensor:
-        if self.use_attrs:
-            attr_embs = self.cls_attr_emb(self.attrs)
-            return torch.mm(feats, attr_embs.t()) + self.biases
-        else:
-            return self.head(feats)
+        return self.head(feats)
 
     def compute_pruned_predictions(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
         return prune_logits(self.forward(x), output_mask)
+
+
+class SimpleAttrsHead(nn.Module):
+    def __init__(self, attrs: np.ndarray, hid_dim: int):
+        self.register_buffer('attrs', torch.from_numpy(attrs))
+        self.cls_attr_emb = nn.Linear(attrs.shape[1], hid_dim)
+        self.biases = nn.Parameter(torch.zeros(attrs.shape[0]))
+
+    def forward(self, feats: Tensor) -> Tensor:
+        attr_embs = self.cls_attr_emb(self.attrs)
+        logits = torch.mm(feats, attr_embs.t()) + self.biases
+
+        return logits
+
+
+class AttrsHead(nn.Module):
+    """
+    This head implements the following strategies to produce an label embedding matrix:
+        - just a normal attrs head with/without biases
+        - attrs head with normalized attribute embeddings
+        - attribute is [original attribute] + [one-hot class representation] concatenated
+        - learned attributes
+
+        TODO: several layers for attributes embeddings
+    """
+    def __init__(self, attrs: np.ndarray, attrs_config: Config):
+        super().__init__()
+
+        print('Running with a "complex" attrs head.')
+
+        self.config = attrs_config
+        self.attrs_to_proj_matrix = nn.Linear(attrs.shape[1], self.config.hid_dim)
+
+        if self.config.learnable_attrs:
+            self.attrs = nn.Parameter(torch.from_numpy(attrs))
+        else:
+            self.register_buffer('attrs', torch.from_numpy(attrs))
+
+        if self.config.use_cls_proj:
+            self.cls_proj_matrix = nn.Linear(attrs.shape[0], self.config.hid_dim, bias=False)
+
+            if self.config.combine_strategy == 'learnable':
+                self.attrs_weight = nn.Parameter(torch.tensor(0.))
+            elif self.config.combine_strategy == 'concat':
+                self.register_buffer('attrs_weight', torch.tensor(0.))
+
+            if self.config.use_biases:
+                self.cls_proj_biases = nn.Parameter(torch.zeros(attrs.shape[0]))
+
+        if self.config.use_biases:
+            self.attrs_proj_biases = nn.Parameter(torch.zeros(attrs.shape[0]))
+
+    def forward(self, x_feats: Tensor) -> Tensor:
+        if self.config.normalize_feats:
+            x_feats = self.normalize(x_feats)
+
+        # Computing logits from attrs
+        attrs_proj_matrix = self.attrs_to_proj_matrix(self.attrs)
+        if self.config.normalize: attrs_proj_matrix = self.normalize(attrs_proj_matrix)
+        attrs_logits = torch.mm(x_feats, attrs_proj_matrix.t())
+        if self.config.use_biases: attrs_logits += self.attrs_proj_biases
+
+        if self.config.use_cls_proj:
+            cls_proj_matrix = self.cls_proj_matrix.weight.t()
+            if self.config.normalize: cls_proj_matrix = self.normalize(cls_proj_matrix)
+            cls_logits = torch.mm(x_feats, cls_proj_matrix.t())
+            if self.config.use_biases: cls_logits += self.cls_proj_biases
+
+            alpha = self.attrs_weight.sigmoid()
+            logits = alpha * attrs_logits + (1 - alpha) * cls_logits
+
+            if self.config.combine_strategy == 'concat':
+                logits = 2 * logits # Since our weights were equal to 0.5
+        else:
+            logits = attrs_logits
+
+        return logits
+
+    def normalize(self, data: Tensor) -> Tensor:
+        return data / data.norm(dim=1, keepdim=True).detach()
 
 
 class ConvFeatClassifier(FeatClassifier):

@@ -1,13 +1,21 @@
 all:
   task_trainer: "joint"
   hp:
-    optim: {type: "sgd", kwargs: {lr: 0.03}}
-    # optim: {type: "adam", kwargs: {lr: 0.001}}
+    optim: {type: "sgd", kwargs: {lr: 0.003}}
+    # optim: {type: "adam", kwargs: {lr: 0.003}}
     # optim: {type: "adam", kwargs: {lr: 0.001, betas: [0.0, 0.9]}}
     reinit_after_each_task: false
     model: {type: "simple_classifier"}
     classifier:
       resnet_n_layers: 18
+
+    use_class_attrs: true
+    attrs_head:
+      learnable_attrs: false
+      use_cls_proj: false
+      use_biases: true
+      normalize: false
+      normalize_feats: false
 
 cub_embeddings:
   hp:
