@@ -95,9 +95,8 @@ class AgemTaskTrainer(TaskTrainer):
             - num_samples_per_class — max number of samples of each class to add
         """
         num_samples_per_class = self.config.hp.num_mem_samples_per_class
-        ds_train, _ = self.main_trainer.data_splits[self.task_idx]
-        unique_labels = set([y for _,y in ds_train])
-        groups = [[(x,y) for (x,y) in ds_train if y == label] for label in unique_labels] # Slow but concise
+        unique_labels = set([y for _, y in self.load_dataset(self.task_ds_train)])
+        groups = [[(x,y) for (x,y) in self.load_dataset(self.task_ds_train) if y == label] for label in unique_labels] # Slow but concise
         num_samples_to_add = [min(len(g), num_samples_per_class) for g in groups]
         task_memory = [random.sample(g, n) for g, n in zip(groups, num_samples_to_add)]
         task_memory = flatten(task_memory)

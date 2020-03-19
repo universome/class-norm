@@ -21,8 +21,10 @@ def load_dataset_paths(data_dir: PathLike, split: str) -> List[Tuple[os.PathLike
     # chosen_idx = random.sample(chosen_idx, 500)
     # img_paths = [img_paths[i] for i in chosen_idx]
     # labels = [labels[i] for i in chosen_idx]
-    # img_paths = img_paths[:8]
-    # labels = [0, 1, 2, 3] * 2
+    # img_paths = img_paths[:1000]
+    # labels = list(range(50)) * 20
+    # img_paths = img_paths[:16]
+    # labels = [0, 1, 2, 3] * 4
 
     return list(zip(img_paths, labels))
 

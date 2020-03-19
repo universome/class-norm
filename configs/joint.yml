@@ -38,6 +38,7 @@ awa:
   hp:
     max_num_epochs: 5
     pretrained: false
+    optim: {type: "adam", kwargs: {lr: 0.003}}
 
 cifar100:
   hp:

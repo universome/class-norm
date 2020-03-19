@@ -61,7 +61,7 @@ class iCarlTaskTrainer(TaskTrainer):
     def extend_episodic_memory(self, num_samples_per_class: int):
         for c in self.classes:
             selected_idx = []
-            imgs = [x for (x, y) in self.task_ds_train if y == c]
+            imgs = [x for (x, y) in self.load_dataset(self.task_ds_train) if y == c]
             feats = torch.from_numpy(np.array(extract_features(imgs, self.model.embedder, 256, verbose=False)))
             feats = feats / feats.norm(dim=1, keepdim=True)
             prototype_gold = torch.from_numpy(np.array(feats).mean(axis=0))

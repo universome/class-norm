@@ -15,7 +15,7 @@ SIMPLE_LOADERS = {
 }
 
 def load_data(config: Config, img_target_shape: Tuple[int, int]=None,
-              preprocess: bool=True) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+              preprocess: bool=True, low_memory: bool=False) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     if config.name == 'CUB':
         ds_train = cub.load_dataset(config.dir, split='train', target_shape=img_target_shape, preprocess=preprocess)
         ds_test = cub.load_dataset(config.dir, split='test', target_shape=img_target_shape, preprocess=preprocess)
@@ -25,8 +25,13 @@ def load_data(config: Config, img_target_shape: Tuple[int, int]=None,
         ds_test = feats.load_dataset(config.dir, config.input_type, split='test')
         class_attributes = cub.load_class_attributes(config.dir).astype(np.float32)
     elif config.name == 'AWA':
-        ds_train = awa.load_dataset(config.dir, split='train', target_shape=img_target_shape, preprocess=preprocess)
-        ds_test = awa.load_dataset(config.dir, split='test', target_shape=img_target_shape, preprocess=preprocess)
+        if low_memory:
+            ds_train = awa.load_dataset_paths(config.dir, split='train')
+            ds_test = awa.load_dataset_paths(config.dir, split='test')
+        else:
+            ds_train = awa.load_dataset(config.dir, split='train', target_shape=img_target_shape, preprocess=preprocess)
+            ds_test = awa.load_dataset(config.dir, split='test', target_shape=img_target_shape, preprocess=preprocess)
+
         class_attributes = awa.load_class_attributes(config.dir).astype(np.float32)
     elif config.name == 'TinyImageNet':
         ds_train = tiny_imagenet.load_dataset(config.dir, split='train', target_shape=img_target_shape, preprocess=preprocess)

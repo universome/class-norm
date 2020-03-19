@@ -70,6 +70,17 @@ def preprocess_img(img: np.ndarray) -> np.ndarray:
     return imagenet_normalization(torch.from_numpy(img.transpose(2, 0, 1)) / 255).numpy()
 
 
+def create_custom_dataset(paths_dataset, target_shape):
+    def preprocessor(img):
+        img = cv2.resize(img, target_shape)
+        img = preprocess_img(img)
+        img = img.astype(np.float32)
+
+        return img
+
+    return CustomDataset(paths_dataset, preprocessor, load_from_disk=True)
+
+
 def extract_resnet_features_for_dataset(
     dataset: List[Tuple[np.ndarray, int]],
     resnet_n_layers: int=18,

@@ -36,6 +36,8 @@ from src.trainers.dem_task_trainer import DEMTaskTrainer
 from src.trainers.icarl_task_trainer import iCarlTaskTrainer
 
 from src.utils.data_utils import construct_output_mask, filter_out_classes
+from src.dataloaders.utils import create_custom_dataset
+
 
 TASK_TRAINERS = {
     'basic': BasicTaskTrainer,
@@ -100,7 +102,7 @@ class LLLTrainer(BaseTrainer):
 
     def init_dataloaders(self):
         self.ds_train, self.ds_test, self.class_attributes = load_data(
-            self.config.data, self.config.hp.get('img_target_shape'))
+            self.config.data, self.config.hp.get('img_target_shape'), low_memory=self.config.get('low_memory', False))
 
         if self.config.data.has('classes_to_use'):
             self.ds_train = filter_out_classes(self.ds_train, self.config.data.classes_to_use)
@@ -151,11 +153,13 @@ class LLLTrainer(BaseTrainer):
     def run_inference(self, dataset: List[Tuple[np.ndarray, int]]):
         self.model.eval()
 
-        examples = [x for x, _ in dataset]
-        dataloader = DataLoader(examples, batch_size=self.config.get('inference_batch_size', self.config.hp.batch_size))
+        if self.config.get('low_memory'):
+            dataset = create_custom_dataset(dataset, self.config.hp.img_target_shape)
+
+        dataloader = DataLoader(dataset, batch_size=self.config.get('inference_batch_size', self.config.hp.batch_size))
 
         with torch.no_grad():
-            logits = [self.model(torch.tensor(b).to(self.device_name)).cpu().numpy() for b in dataloader]
+            logits = [self.model(torch.from_numpy(np.array(b)).to(self.device_name)).cpu().numpy() for b, _ in dataloader]
             logits = np.vstack(logits)
 
         return logits
