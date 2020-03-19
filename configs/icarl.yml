@@ -17,3 +17,5 @@ cub:
 awa:
   hp:
     pretrained: false
+
+tiny_imagenet: {}

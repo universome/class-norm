@@ -43,3 +43,5 @@ cifar100:
   hp:
     max_num_epochs: 3
     pretrained: false
+
+tiny_imagenet: {}

@@ -12,6 +12,8 @@ cub:
     num_mem_samples_per_class: 5
     pretrained: true
 
+tiny_imagenet: {}
+
 # cifar100_embeddings:
 #   hp:
 #     pretrained: true

@@ -29,7 +29,7 @@ class AgemTaskTrainer(TaskTrainer):
     def train_on_batch(self, batch:Tuple[Tensor, Tensor]):
         self.model.train()
 
-        x = torch.from_numpy(batch[0]).to(self.device_name)
+        x = torch.from_numpy(np.array(batch[0])).to(self.device_name)
         y = torch.tensor(batch[1]).to(self.device_name)
 
         pruned_logits = self.model.compute_pruned_predictions(x, self.output_mask)
@@ -57,7 +57,7 @@ class AgemTaskTrainer(TaskTrainer):
         batch = [m for i, m in enumerate(self.episodic_memory) if i in batch_idx]
         output_mask = np.array([m for i, m in enumerate(self.episodic_memory_output_mask) if i in batch_idx])
 
-        x = torch.from_numpy([x for x,_ in batch]).to(self.device_name)
+        x = torch.from_numpy(np.array([x for x,_ in batch])).to(self.device_name)
         y = torch.tensor([y for _, y in batch]).to(self.device_name)
         logits = self.model(x)
         pruned_logits = logits.masked_fill(torch.tensor(~output_mask).to(self.device_name), NEG_INF)
