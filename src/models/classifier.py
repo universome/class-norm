@@ -168,7 +168,7 @@ class AttrsHead(nn.Module):
         return logits
 
     def normalize(self, data: Tensor) -> Tensor:
-        return data / data.norm(dim=1, keepdim=True).detach()
+        return self.config.scale_value * (data / data.norm(dim=1, keepdim=True).detach())
 
 
 class ConvFeatClassifier(FeatClassifier):

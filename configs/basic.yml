@@ -8,6 +8,7 @@ all:
       use_biases: true
       normalize: false
       normalize_feats: false
+      scale_value: 1.
 
 cub:
   hp:
