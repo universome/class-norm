@@ -1,10 +1,10 @@
 trainer: "ClassifierTrainer"
 val_freq_epochs: 1
+random_seed: 42
 hp:
     max_num_epochs: 300
     batch_size: 256
-    pretrained: true
-    img_target_shape: 224
+    # img_target_shape: 224
     # model:
     #     type: "resnet-head"
     #     hid_dim: 512
@@ -12,7 +12,7 @@ hp:
     model:
         type: "resnet"
         n_resnet_layers: 18
-        pretrained: true
+        pretrained: false
     optim:
         type: "adam"
         kwargs:
@@ -26,5 +26,5 @@ hp:
             type: "step"
             kwargs:
                 gamma: 0.1
-                step_size: 100
+                step_size: 50
 

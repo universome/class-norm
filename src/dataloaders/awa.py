@@ -5,19 +5,14 @@ from typing import List, Tuple
 
 import numpy as np
 
-from .utils import read_column, shuffle_dataset, load_imgs_from_folder, preprocess_imgs
+from .utils import read_column, shuffle_dataset, load_imgs, preprocess_imgs
 
 
-def load_dataset(
-        data_dir: PathLike,
-        split: str='train',
-        target_shape: Tuple[int, int]=None,
-        preprocess: bool=False) -> List[Tuple[np.ndarray, int]]:
-
+def load_dataset_paths(data_dir: PathLike, split: str) -> List[Tuple[os.PathLike, int]]:
     assert split in ['train', 'val', 'test'], f"Unknown dataset split: {split}"
 
     filename = os.path.join(data_dir, f'AWA_{split}_list.txt')
-    img_paths = read_column(filename, 0)
+    img_paths = [os.path.join(data_dir, p) for p in read_column(filename, 0)]
     labels = read_column(filename, 1)
     labels = [int(l) for l in labels]
 
@@ -29,7 +24,16 @@ def load_dataset(
     # img_paths = img_paths[:8]
     # labels = [0, 1, 2, 3] * 2
 
-    imgs = load_imgs_from_folder(data_dir, img_paths, target_shape)
+    return list(zip(img_paths, labels))
+
+
+def load_dataset(data_dir: PathLike,
+                 split: str,
+                 target_shape: Tuple[int, int]=None,
+                 preprocess: bool=False) -> List[Tuple[np.ndarray, int]]:
+
+    img_paths, labels = zip(*load_dataset_paths(data_dir, split))
+    imgs = load_imgs(img_paths, target_shape)
     if preprocess: imgs = preprocess_imgs(imgs)
     if split == 'train': imgs, labels = shuffle_dataset(imgs, labels)
 

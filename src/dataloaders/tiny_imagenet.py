@@ -8,6 +8,7 @@ import numpy as np
 from src.dataloaders.utils import shuffle_dataset, load_imgs, load_imgs_from_folder, preprocess_imgs, read_column
 
 DEBUG = False
+# DEBUG = True
 
 def load_dataset(
         data_dir: PathLike,

@@ -49,20 +49,25 @@ def load_imgs(img_paths: List[PathLike], target_shape=None) -> List[np.ndarray]:
     return [load_img(p, target_shape) for p in tqdm(img_paths, desc='[Loading dataset]')]
 
 
-def load_img(img_path: PathLike, target_shape: Tuple[int, int]=None):
+def load_img(img_path: PathLike, target_shape: Tuple[int, int]=None, preprocess: bool=False):
     img = cv2.imread(img_path)
 
     if target_shape != None:
         img = cv2.resize(img, target_shape)
 
+    # TODO: should be first resize and then preprocess or on the contrary?
+    if preprocess:
+        img = preprocess_img(img)
+
     return img.astype(np.float32)
 
 
 def preprocess_imgs(imgs: List[np.ndarray]) -> List[np.ndarray]:
-    imgs = [img.transpose(2, 0, 1) for img in tqdm(imgs, desc='[Transposing]')]
-    imgs = [imagenet_normalization(torch.from_numpy(img) / 255).numpy() for img in tqdm(imgs, desc='[Normalizing]')]
+    return [preprocess_img(img) for img in tqdm(imgs, desc='[Preprocessing]')]
 
-    return imgs
+
+def preprocess_img(img: np.ndarray) -> np.ndarray:
+    return imagenet_normalization(torch.from_numpy(img.transpose(2, 0, 1)) / 255).numpy()
 
 
 def extract_resnet_features_for_dataset(
@@ -112,13 +117,15 @@ def extract_features(imgs: List[np.ndarray], embedder: nn.Module, batch_size: in
 
 
 class CustomDataset(Dataset):
-    def __init__(self, dataset: List, transform: Callable=None):
+    def __init__(self, dataset: List, transform: Callable=None, load_from_disk: bool=False):
         # self.dataset = load_dataset(data_dir, split=('train' if train else 'test'))
         self.dataset = dataset
         self.transform = transform
+        self.load_from_disk = load_from_disk
 
     def __getitem__(self, index):
         x, y = self.dataset[index]
+        if self.load_from_disk: x = load_img(x)
         x = x.astype(np.uint8)
 
         if not self.transform is None:

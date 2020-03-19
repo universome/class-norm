@@ -9,7 +9,7 @@ import torchvision.transforms as T
 from firelab.base_trainer import BaseTrainer
 from firelab.config import Config
 
-from src.dataloaders import cub, awa
+from src.dataloaders import cub, awa, tiny_imagenet
 from src.dataloaders.load_data import load_data
 from src.dataloaders.utils import CustomDataset, CenterCropToMin
 from src.utils.losses import LabelSmoothingLoss
@@ -72,14 +72,22 @@ class ClassifierTrainer(BaseTrainer):
             T.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
         ])
 
+        image_datasets = {'CUB': cub, 'AWA': awa, 'TinyImageNet': tiny_imagenet}
+
         if self.config.data.name == 'CUB':
-            ds_train = cub.load_dataset(self.config.data.dir, split='train')
-            ds_test = cub.load_dataset(self.config.data.dir, split='test')
+            ds_train = image_datasets[self.config.data.name].load_dataset(self.config.data.dir, split='train')
+            ds_test = image_datasets[self.config.data.name].load_dataset(self.config.data.dir, split='test')
             ds_train = CustomDataset(ds_train, img_train_transform)
             ds_test = CustomDataset(ds_test, img_test_transform)
         elif self.config.data.name == 'AWA':
-            ds_train = awa.load_dataset(self.config.data.dir, split='train')
-            ds_test = awa.load_dataset(self.config.data.dir, split='test')
+            ds_train = image_datasets[self.config.data.name].load_dataset_paths(self.config.data.dir, split='train')
+            ds_test = image_datasets[self.config.data.name].load_dataset_paths(self.config.data.dir, split='test')
+            ds_train = CustomDataset(ds_train, img_train_transform, load_from_disk=True)
+            ds_test = CustomDataset(ds_test, img_test_transform, load_from_disk=True)
+        elif self.config.data.name == 'TinyImageNet':
+            ds_train = image_datasets[self.config.data.name].load_dataset(self.config.data.dir, split='train')
+            # Let's test on val since we do not have labels for test split
+            ds_test = image_datasets[self.config.data.name].load_dataset(self.config.data.dir, split='val')
             ds_train = CustomDataset(ds_train, img_train_transform)
             ds_test = CustomDataset(ds_test, img_test_transform)
         elif self.config.data.name == 'CUB_EMBEDDINGS':
@@ -89,8 +97,8 @@ class ClassifierTrainer(BaseTrainer):
         else:
             raise NotImplementedError(f'Unknwon dataset: {self.config.data.name}')
 
-        self.train_dataloader = DataLoader(ds_train, batch_size=self.config.hp.batch_size, shuffle=True)
-        self.val_dataloader = DataLoader(ds_test, batch_size=self.config.hp.batch_size, shuffle=False)
+        self.train_dataloader = DataLoader(ds_train, batch_size=self.config.hp.batch_size, shuffle=True, num_workers=3)
+        self.val_dataloader = DataLoader(ds_test, batch_size=self.config.hp.batch_size, shuffle=False, num_workers=3)
 
     def init_optimizers(self):
         if self.config.hp.optim.type == 'adam':
