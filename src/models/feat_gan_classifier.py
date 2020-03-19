@@ -5,7 +5,7 @@ from torch import Tensor
 from firelab.config import Config
 
 from src.utils.constants import POS_INF
-from src.utils.lll import prune_logits
+from src.utils.training_utils import prune_logits
 from .feat_gan import FeatGenerator, FeatDiscriminatorWithoutClsHead
 from .classifier import FeatClassifier
 

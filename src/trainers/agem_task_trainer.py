@@ -6,7 +6,7 @@ from torch import Tensor
 import numpy as np
 
 from src.trainers.task_trainer import TaskTrainer
-from src.utils.lll import prune_logits
+from src.utils.training_utils import prune_logits
 from src.utils.constants import NEG_INF
 from src.utils.data_utils import construct_output_mask, flatten
 
@@ -86,7 +86,7 @@ class AgemTaskTrainer(TaskTrainer):
 
         assert len(grad) == 0, "Not all weights were used!"
 
-    def extend_episodic_memory(self):
+    def update_episodic_memory(self):
         """
         Adds examples from own data to episodic memory
 

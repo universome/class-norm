@@ -2,7 +2,7 @@ from typing import Tuple
 import numpy as np
 from firelab.config import Config
 
-from src.dataloaders import cub, feats, awa, svhn, mnist, cifar
+from src.dataloaders import cub, feats, awa, svhn, mnist, cifar, tiny_imagenet
 from src.dataloaders.utils import extract_resnet_features_for_dataset
 
 
@@ -11,6 +11,7 @@ SIMPLE_LOADERS = {
     'MNIST': mnist.load_dataset,
     'CIFAR10': lambda *args, **kwargs: cifar.load_dataset(*args, **kwargs, num_classes=10),
     'CIFAR100': lambda *args, **kwargs: cifar.load_dataset(*args, **kwargs, num_classes=100),
+    'TinyImageNet': tiny_imagenet.load_dataset
 }
 
 def load_data(config: Config, img_target_shape: Tuple[int, int]=None,
@@ -27,6 +28,10 @@ def load_data(config: Config, img_target_shape: Tuple[int, int]=None,
         ds_train = awa.load_dataset(config.dir, split='train', target_shape=img_target_shape, preprocess=preprocess)
         ds_test = awa.load_dataset(config.dir, split='test', target_shape=img_target_shape, preprocess=preprocess)
         class_attributes = awa.load_class_attributes(config.dir).astype(np.float32)
+    elif config.name == 'TinyImageNet':
+        ds_train = tiny_imagenet.load_dataset(config.dir, split='train', target_shape=img_target_shape, preprocess=preprocess)
+        ds_test = tiny_imagenet.load_dataset(config.dir, split='val', target_shape=img_target_shape, preprocess=preprocess)
+        class_attributes = None
     elif config.name in SIMPLE_LOADERS.keys():
         ds_train = SIMPLE_LOADERS[config.name](config.dir, split='train')
         ds_test = SIMPLE_LOADERS[config.name](config.dir, split='test')

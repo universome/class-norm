@@ -3,8 +3,8 @@ import torch
 import torch.nn.functional as F
 
 from src.trainers.task_trainer import TaskTrainer
-from src.utils.lll import prune_logits
-from src.utils.training_utils import compute_accuracy, construct_optimizer
+from src.utils.data_utils import sample_instances_for_em
+from src.utils.training_utils import compute_accuracy, construct_optimizer, prune_logits
 from src.models.upsampler import Upsampler
 
 
@@ -93,5 +93,10 @@ class DEMTaskTrainer(TaskTrainer):
 
         return cls_loss, cls_acc
 
-    def extend_episodic_memory(self):
-        self.episodic_memory.extend(self.task_ds_train)
+    def update_episodic_memory(self):
+        if self.config.hp.memory.num_samples_per_class == "all":
+            self.episodic_memory.extend(self.task_ds_train)
+        else:
+            for c in self.classes:
+                mem = sample_instances_for_em(self.task_ds_train, c, self.config.hp.memory.num_samples_per_class)
+                self.episodic_memory.extend(mem)

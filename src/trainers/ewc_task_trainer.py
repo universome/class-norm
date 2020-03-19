@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from torch import Tensor
 
 from src.utils.weights_importance import compute_diagonal_fisher
-from src.utils.lll import prune_logits
+from src.utils.training_utils import prune_logits
 from src.trainers.task_trainer import TaskTrainer
 
 

@@ -12,7 +12,7 @@ from tqdm import tqdm
 from firelab.config import Config
 
 from src.utils.losses import compute_gradient_penalty
-from src.utils.lll import prune_logits
+from src.utils.training_utils import prune_logits
 from src.models.lgm import LGM
 from src.trainers.task_trainer import TaskTrainer
 from src.utils.weights_importance import compute_mse_grad, compute_diagonal_fisher
@@ -43,7 +43,7 @@ class LGMTaskTrainer(TaskTrainer):
             else:
                 raise NotImplementedError(f'Unknown regularization strategy: {self.config.hp.reg_strategy}')
 
-    def extend_episodic_memory(self):
+    def update_episodic_memory(self):
         self.episodic_memory.extend(extract_features_for_dataset(
             self.task_ds_train, self.model.embedder,
             self.device_name, batch_size=256

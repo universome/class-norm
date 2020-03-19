@@ -5,7 +5,7 @@ import torch.nn as nn
 from torch import Tensor
 from firelab.config import Config
 
-from src.utils.lll import prune_logits
+from src.utils.training_utils import prune_logits
 from src.models.layers import ConditionalBatchNorm2d, Reshape, Flatten
 
 

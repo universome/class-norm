@@ -5,7 +5,7 @@ import torch.nn as nn
 from torchvision.models.resnet import resnet18, resnet34, resnet50
 from firelab.config import Config
 
-from src.utils.lll import prune_logits
+from src.utils.training_utils import prune_logits
 from src.utils.constants import INPUT_DIMS
 from src.models.layers import ResNetLastBlock, GaussianDropout
 

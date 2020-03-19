@@ -9,7 +9,7 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.nn.utils import clip_grad_norm_
 
 from src.trainers.task_trainer import TaskTrainer
-from src.utils.lll import prune_logits
+from src.utils.training_utils import prune_logits
 from src.utils.losses import compute_gradient_penalty
 from src.utils.data_utils import compute_class_centroids, flatten
 

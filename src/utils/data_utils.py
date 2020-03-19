@@ -1,3 +1,4 @@
+import random
 import warnings
 from typing import List, Tuple, Any
 
@@ -99,3 +100,10 @@ def filter_out_classes(ds: List[Tuple[np.ndarray, int]], classes_to_keep: List[i
 
 def flatten(list_of_lists: List[List[Any]]) -> List[Any]:
     return [x for list in list_of_lists for x in list]
+
+
+def sample_instances_for_em(ds: List[Tuple[np.ndarray, int]], class_idx: int, size: int) -> List[Tuple[np.ndarray, int]]:
+    class_samples = [(x, y) for x, y in ds if y == class_idx]
+    memory = random.sample(class_samples, min(size, len(class_samples)))
+
+    return memory

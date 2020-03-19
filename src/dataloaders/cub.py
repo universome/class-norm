@@ -6,7 +6,7 @@ from typing import List, Tuple, Callable
 import numpy as np
 from torch.utils.data import Dataset
 
-from .utils import read_column, shuffle_dataset, load_imgs, preprocess_imgs
+from .utils import read_column, shuffle_dataset, load_imgs_from_folder, preprocess_imgs
 
 
 def load_dataset(
@@ -23,7 +23,7 @@ def load_dataset(
     # import random
     # img_paths = random.sample(img_paths, 100)
 
-    imgs = load_imgs(os.path.join(data_dir, 'images'), img_paths, target_shape)
+    imgs = load_imgs_from_folder(os.path.join(data_dir, 'images'), img_paths, target_shape)
     labels = load_labels(img_paths)
     if preprocess: imgs = preprocess_imgs(imgs)
     if split == 'train': imgs, labels = shuffle_dataset(imgs, labels)

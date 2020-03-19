@@ -1,7 +1,6 @@
 all:
   task_trainer: "mas"
   hp:
-    optim: {type: "sgd", kwargs: {lr: 0.03}}
     synaptic_strength: 0.1
 
 cub_embeddings:
