@@ -14,7 +14,7 @@ all:
       loss_coef: 0.
       logits_matching_loss_coef: 0.
     # optim: {"type": "adam", "kwargs": {"lr": 0.001}}
-    optim: {"type": "sgd", "kwargs": {"lr": 0.03}}
+    # optim: {"type": "sgd", "kwargs": {"lr": 0.003}}
 
 cub:
   hp:

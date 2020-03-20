@@ -8,7 +8,7 @@ all:
       batch_size: 10
       loss_coef: 1.
       max_size: 1000
-    optim: {"type": "sgd", "kwargs": {"lr": 0.03}}
+    optim: {"type": "sgd", "kwargs": {"lr": 0.003}}
 
 cub:
   hp:

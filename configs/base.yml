@@ -135,5 +135,8 @@ tiny_imagenet:
 
   lll_setup:
     num_classes: *tiny_magenet_num_classes
-    num_tasks: 20
-    num_classes_per_task: 10
+    num_tasks: 8
+    num_classes_per_task: 25
+
+  hp:
+    optim: {type: "adam", kwargs: {"lr": 0.001}}
