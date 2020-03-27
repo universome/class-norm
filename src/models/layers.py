@@ -180,3 +180,34 @@ class FeatEmbedder(nn.Module):
         inputs = self.attrs[y] if self.use_attrs else y
 
         return self.model(inputs)
+
+
+class MILayer(nn.Module):
+    """
+    A Multiplicative Interaction layer: f(x, z) = z'Wx + z'U + Vx + b
+    The first part (z'Wx) is MI, the second part (z'U + Vx + b) is equivalent to concatenation-based approach
+    Reference: https://openreview.net/forum?id=rylnK6VtDH
+    """
+    def __init__(self, x_dim: int, z_dim: int, out_dim: int, combine_with_concat: bool=True):
+        super().__init__()
+
+        self.x_dim = x_dim
+        self.z_dim = z_dim
+        self.combine_with_concat = combine_with_concat
+
+        self.mi_layer = nn.Linear(z_dim, out_dim * x_dim) # Let's keep the bias since it's soo cheap
+
+        if self.combine_with_concat:
+            self.dense = nn.Linear(x_dim + z_dim, out_dim)
+
+    def forward(self, x, z):
+        assert x.shape[0] == z.shape[0]
+        assert x.size(1) == self.x_dim
+        assert z.size(1) == self.z_dim
+
+        out = x @ self.mi_layer(z).view(x.size(0), self.x_dim, self.out_dim)
+
+        if self.combine_with_concat:
+            out += self.dense(torch.cat([x, z], dim=0))
+
+        return out
