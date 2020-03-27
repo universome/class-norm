@@ -2,13 +2,6 @@ all:
   task_trainer: "basic"
   hp:
     use_class_attrs: true
-    attrs_head:
-      learnable_attrs: false
-      use_cls_proj: false
-      use_biases: true
-      normalize: false
-      normalize_feats: false
-      scale_value: 1.
 
 cub: {hp: {pretrained: true}}
 awa: {}
