@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 from torch import Tensor, autograd
 
+from src.utils.training_utils import normalize
+
 
 def compute_gradient_penalty(discriminator, x_real, x_fake, y: Tensor=None):
     """
@@ -80,3 +82,23 @@ class LabelSmoothingLoss(nn.Module):
             true_dist.scatter_(1, target.data.unsqueeze(1), self.confidence)
 
         return torch.mean(torch.sum(-true_dist * logits, dim=self.dim))
+
+
+def compute_mean_distance(protos: Tensor, metric: str='cosine') -> Tensor:
+    """
+    pass
+    """
+    assert metric == 'cosine', "Other metrics are not implemented"
+    assert protos.ndim == 3, "Dimensionality must be [n_protos x n_classes x feat_dim]"
+
+    n_protos, n_classes, feat_dim = protos.shape
+    protos = normalize(protos) # [n_protos x n_classes x feat_dim]
+    cosines = torch.matmul(protos.permute(1, 0, 2), protos.permute(1, 2, 0))
+
+    assert cosines.shape == (n_classes, n_protos, n_protos)
+
+    # Let's remove the main diag
+    # TODO: do we really need it? Cosine distance with itself would be equal to 1 anyway...
+    cosines = cosines * (1 - torch.eye(n_protos, device=cosines.device)).view(1, n_protos, n_protos)
+
+    return (2 - cosines).mean()

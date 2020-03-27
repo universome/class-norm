@@ -34,6 +34,7 @@ from src.trainers.lgm_aegan_task_trainer import LGMAEGANTaskTrainer
 from src.trainers.lifelong_ae_task_trainer import LifeLongAETaskTrainer
 from src.trainers.dem_task_trainer import DEMTaskTrainer
 from src.trainers.icarl_task_trainer import iCarlTaskTrainer
+from src.trainers.multi_proto_task_trainer import MultiProtoTaskTrainer
 
 from src.utils.data_utils import construct_output_mask, filter_out_classes
 from src.dataloaders.utils import create_custom_dataset
@@ -52,7 +53,8 @@ TASK_TRAINERS = {
     'lgm_aegan': LGMAEGANTaskTrainer,
     'lifelong_ae': LifeLongAETaskTrainer,
     'dem': DEMTaskTrainer,
-    'icarl': iCarlTaskTrainer
+    'icarl': iCarlTaskTrainer,
+    'multi_proto': MultiProtoTaskTrainer
 }
 
 MODELS = {

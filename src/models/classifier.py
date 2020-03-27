@@ -30,8 +30,8 @@ class ResnetClassifier(nn.Module):
     def compute_pruned_predictions(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
         return prune_logits(self.forward(x), output_mask)
 
-    def forward(self, x: Tensor) -> Tensor:
-        return self.head(self.embedder(x))
+    def forward(self, x: Tensor, **head_kwargs) -> Tensor:
+        return self.head(self.embedder(x), **head_kwargs)
 
     def get_head_size(self) -> int:
         return sum(p.numel() for p in self.head.parameters())
@@ -82,8 +82,8 @@ class ClassifierHead(nn.Module):
         else:
             self.head = nn.Linear(hid_dim, num_classes)
 
-    def forward(self, feats: Tensor) -> Tensor:
-        return self.head(feats)
+    def forward(self, feats: Tensor, **head_kwargs) -> Tensor:
+        return self.head(feats, **head_kwargs)
 
     def compute_pruned_predictions(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
         return prune_logits(self.forward(x), output_mask)

@@ -4,7 +4,7 @@ from torch import Tensor
 import numpy as np
 from firelab.config import Config
 
-
+from src.utils.training_utils import normalize
 
 
 class AttrsHead(nn.Module):
@@ -19,8 +19,8 @@ class AttrsHead(nn.Module):
             'deterministic_linear': DeterministicLinearMultiProtoHead
         }[config.type](config, attrs)
 
-    def forward(self, x: Tensor) -> Tensor:
-        return self.model(x)
+    def forward(self, x: Tensor, **kwargs) -> Tensor:
+        return self.model(x, **kwargs)
 
 
 class SimpleAttrsHead(nn.Module):
@@ -36,22 +36,11 @@ class SimpleAttrsHead(nn.Module):
         return logits
 
 
-class ProtoHead(nn.Module):
-    def normalize(self, data: Tensor, detach: bool=True) -> Tensor:
-        assert data.ndim() == 2
-
-        norms = data.norm(dim=1, keepdim=True)
-        norms = norms.detach() if detach else norms
-        data_normalized = self.config.scale_value * (data / norms)
-
-        return data_normalized
-
-
-class MultiProtoHead(ProtoHead):
+class MultiProtoHead(nn.Module):
     def generate_prototypes(self) -> Tensor:
         raise NotImplementedError('You forgot to implement `.generate_prototypes()` method')
 
-    def forward(self, feats: Tensor):
+    def forward(self, feats: Tensor, return_protos: bool=False):
         batch_size = feats.size(0)
         n_protos = self.config.num_prototypes
         n_classes = self.attrs.shape[0]
@@ -62,17 +51,20 @@ class MultiProtoHead(ProtoHead):
         assert protos.shape == (n_protos, n_classes, hid_dim)
 
         protos = protos.view(n_protos * n_classes, hid_dim)
-        if self.config.normalize: protos = self.normalize(protos)
-        if self.config.normalize: feats = self.normalize(feats)
+        if self.config.normalize: protos = normalize(protos, self.config.scale_value)
+        if self.config.normalize: feats = normalize(feats, self.config.scale_value)
 
         logit_groups = torch.mm(feats, protos.t()) # [batch_size x (n_protos * n_classes)]
         logit_groups = logit_groups.view(batch_size, n_protos, n_classes)
         logits = logit_groups.mean(dim=1) # [batch_size x n_classes]
 
-        return logits
+        if return_protos:
+            return logits, protos.view(n_protos, n_classes, hid_dim)
+        else:
+            return logits
 
 
-class JointHead(ProtoHead):
+class JointHead(nn.Module):
     """
     This head implements the following strategies to produce an label embedding matrix:
         - just a normal attrs head with/without biases
@@ -111,17 +103,17 @@ class JointHead(ProtoHead):
 
     def forward(self, x_feats: Tensor) -> Tensor:
         if self.config.normalize_feats:
-            x_feats = self.normalize(x_feats)
+            x_feats = normalize(x_feats, self.config.scale_value)
 
         # Computing logits from attrs
         attrs_proj_matrix = self.attrs_to_proj_matrix(self.attrs)
-        if self.config.normalize: attrs_proj_matrix = self.normalize(attrs_proj_matrix)
+        if self.config.normalize: attrs_proj_matrix = normalize(attrs_proj_matrix, self.config.scale_value)
         attrs_logits = torch.mm(x_feats, attrs_proj_matrix.t())
         if self.config.use_biases: attrs_logits += self.attrs_proj_biases
 
         if self.config.use_cls_proj:
             cls_proj_matrix = self.cls_proj_matrix.weight.t()
-            if self.config.normalize: cls_proj_matrix = self.normalize(cls_proj_matrix)
+            if self.config.normalize: cls_proj_matrix = normalize(cls_proj_matrix, self.config.scale_value)
             cls_logits = torch.mm(x_feats, cls_proj_matrix.t())
             if self.config.use_biases: cls_logits += self.cls_proj_biases
 

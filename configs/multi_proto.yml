@@ -1,5 +1,5 @@
 all:
-  task_trainer: "basic"
+  task_trainer: "multi_proto"
   hp:
     use_class_attrs: true
     img_target_shape: [256, 256]
@@ -9,8 +9,11 @@ all:
       type: "deterministic_linear"
       num_prototypes: 1
       hid_dim: 512
-      normalize: false
+      normalize: true
       scale_value: 1.
+    push_protos_apart:
+      enabled: true
+      loss_coef: 1
 
 cub:
   hp:
