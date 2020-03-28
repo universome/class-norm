@@ -193,6 +193,7 @@ class MILayer(nn.Module):
 
         self.x_dim = x_dim
         self.z_dim = z_dim
+        self.out_dim = out_dim
         self.combine_with_concat = combine_with_concat
 
         self.mi_layer = nn.Linear(z_dim, out_dim * x_dim) # Let's keep the bias since it's soo cheap
@@ -201,13 +202,31 @@ class MILayer(nn.Module):
             self.dense = nn.Linear(x_dim + z_dim, out_dim)
 
     def forward(self, x, z):
-        assert x.shape[0] == z.shape[0]
+        assert x.ndim == z.ndim == 2
+        assert x.size(0) == z.size(0)
         assert x.size(1) == self.x_dim
         assert z.size(1) == self.z_dim
+        batch_size = x.size(0)
 
-        out = x @ self.mi_layer(z).view(x.size(0), self.x_dim, self.out_dim)
+        contextualized_transform = self.mi_layer(z) # [batch_size, out_dim * x_dim]
+        contextualized_transform = contextualized_transform.view(batch_size, self.x_dim, self.out_dim)
+        result = x.view(batch_size, 1, self.x_dim) @ contextualized_transform
+        result = result.squeeze(1)
 
         if self.combine_with_concat:
-            out += self.dense(torch.cat([x, z], dim=0))
+            result += self.dense(torch.cat([x, z], dim=1))
 
-        return out
+        assert result.shape == (x.size(0), self.out_dim), f"Wrong shape: {result.shape}"
+
+        return result
+
+class ConcatLayer(nn.Module):
+    """
+    Simple concatenation layer
+    """
+    def __init__(self, x_dim: int, z_dim: int, out_dim: int):
+        super().__init__()
+        self.model = nn.Linear(x_dim + z_dim, out_dim)
+
+    def forward(self, x: Tensor, z: Tensor) -> Tensor:
+        return self.model(torch.cat([x, z], dim=1))
