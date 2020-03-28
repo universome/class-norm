@@ -25,6 +25,8 @@ class AttrsHead(nn.Module):
 
 class SimpleAttrsHead(nn.Module):
     def __init__(self, attrs: np.ndarray, config: Config):
+        super().__init__()
+
         self.register_buffer('attrs', torch.from_numpy(attrs))
         self.projector = nn.Linear(attrs.shape[1], config.hid_dim)
         self.biases = nn.Parameter(torch.zeros(attrs.shape[0]))
@@ -37,6 +39,14 @@ class SimpleAttrsHead(nn.Module):
 
 
 class MultiProtoHead(nn.Module):
+    def __init__(self, config: Config, attrs: np.ndarray):
+        super().__init__()
+
+        self.config = config
+        self.register_buffer('attrs', torch.from_numpy(attrs))
+
+        self.init_modules()
+
     def generate_prototypes(self) -> Tensor:
         raise NotImplementedError('You forgot to implement `.generate_prototypes()` method')
 
@@ -50,16 +60,32 @@ class MultiProtoHead(nn.Module):
 
         assert protos.shape == (n_protos, n_classes, hid_dim)
 
-        protos = protos.view(n_protos * n_classes, hid_dim)
         if self.config.normalize: protos = normalize(protos, self.config.scale_value)
         if self.config.normalize: feats = normalize(feats, self.config.scale_value)
 
-        logit_groups = torch.mm(feats, protos.t()) # [batch_size x (n_protos * n_classes)]
-        logit_groups = logit_groups.view(batch_size, n_protos, n_classes)
-        logits = logit_groups.mean(dim=1) # [batch_size x n_classes]
+        logit_groups = torch.matmul(protos, feats.t()) # [n_protos, n_classes, batch_size]
+        logit_groups = logit_groups.permute(2, 0, 1) # [batch_size, n_protos, n_classes]
+
+        if self.config.combine_strategy == 'mean':
+            logits = logit_groups.mean(dim=1) # [batch_size x n_classes]
+        elif self.config.combine_strategy == 'max':
+            logits = logit_groups.max(dim=1)[0]
+        elif self.config.combine_strategy == 'min':
+            logits = logit_groups.min(dim=1)[0]
+        elif self.config.combine_strategy == 'sum':
+            logits = logit_groups.sum(dim=1)
+        elif self.config.combine_strategy == 'softmax_mean':
+            prob_groups = logit_groups.view(batch_size, n_protos * n_classes).softmax(dim=1) # [batch_suze, n_protos * n_classes]
+            probs = prob_groups.view(batch_size, n_protos, n_classes).sum(dim=1) # [batch_size x n_classes]
+            logits = probs.log() # [batch_size x n_classes]
+        else:
+            raise NotImplementedError(f'Unknown combine strategy: {self.config.combine_strategy}')
+
+        if self.config.logits_scaling.enabled:
+            logits *= (n_protos * self.config.logits_scaling.scale_value)
 
         if return_protos:
-            return logits, protos.view(n_protos, n_classes, hid_dim)
+            return logits, protos
         else:
             return logits
 
@@ -129,18 +155,18 @@ class JointHead(nn.Module):
 
 
 class DeterministicLinearMultiProtoHead(MultiProtoHead):
-    def __init__(self, config: Config, attrs: np.ndarray):
-        super().__init__()
-
-        self.config = config
-        self.register_buffer('attrs', torch.from_numpy(attrs))
-
+    def init_modules(self):
         # TODO: we should better create a single large matrix
         # and do this by a single matmul. This will speed the things up.
-        self.projectors = nn.ModuleList([nn.Linear(attrs.shape[1], config.hid_dim) for _ in range(config.num_prototypes)])
+        self.embedders = nn.ModuleList([nn.Linear(self.attrs.shape[1], self.config.hid_dim) for _ in range(self.config.num_prototypes)])
 
     def generate_prototypes(self) -> Tensor:
-        prototypes = [p(self.attrs) for p in self.projectors] # [num_prototypes x num_attrs x hid_dim]
-        prototypes = torch.stack(prototypes) # [num_prototypes x num_attrs x hid_dim]
+        prototypes = [e(self.attrs) for e in self.embedders] # [n_protos x n_classes x hid_dim]
+        prototypes = torch.stack(prototypes) # [n_protos x n_classes x hid_dim]
 
         return prototypes
+
+
+# class RandomMultiProtoHead(MultiProtoHead):
+#     def init_modules(self):
+#         if self.config

@@ -6,7 +6,7 @@ from typing import List, Tuple, Callable
 import numpy as np
 from torch.utils.data import Dataset
 
-from .utils import read_column, shuffle_dataset, load_imgs_from_folder, preprocess_imgs
+from src.dataloaders.utils import read_column, shuffle_dataset, load_imgs_from_folder, preprocess_imgs
 
 
 def load_dataset(

@@ -10,9 +10,15 @@ all:
       num_prototypes: 1
       hid_dim: 512
       normalize: true
-      scale_value: 1.
+      scale_value: 5.
+      combine_strategy: "sum"
+
+      logits_scaling: # Scaling by num_prototypes and scale_value
+          enabled: false
+          scale_value: 1.
+
     push_protos_apart:
-      enabled: true
+      enabled: false
       loss_coef: 1
 
 cub:

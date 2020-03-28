@@ -14,6 +14,7 @@ class MultiProtoTaskTrainer(TaskTrainer):
         y = torch.from_numpy(np.array(batch[1])).to(self.device_name)
 
         logits, protos = self.model(x, return_protos=True)
+
         cls_loss = self.criterion(prune_logits(logits, self.output_mask), y)
         loss = cls_loss
 
@@ -22,7 +23,6 @@ class MultiProtoTaskTrainer(TaskTrainer):
             loss += self.config.hp.push_protos_apart.loss_coef * (-1 * mean_distance)
 
             self.writer.add_scalar('mean_distance', mean_distance.item(), self.num_iters_done)
-
 
         self.optim.zero_grad()
         loss.backward()
