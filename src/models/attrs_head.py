@@ -5,6 +5,7 @@ import numpy as np
 from firelab.config import Config
 
 from src.utils.training_utils import normalize
+from src.models.layers import MILayer, ConcatLayer
 
 
 class AttrsHead(nn.Module):
@@ -16,7 +17,8 @@ class AttrsHead(nn.Module):
         self.model = {
             'simple': SimpleAttrsHead,
             'joint_head': JointHead,
-            'deterministic_linear': DeterministicLinearMultiProtoHead
+            'deterministic_linear': DeterministicLinearMultiProtoHead,
+            'embedding_based': EmbeddingBasedMPHead
         }[config.type](config, attrs)
 
     def forward(self, x: Tensor, **kwargs) -> Tensor:
@@ -81,7 +83,7 @@ class MultiProtoHead(nn.Module):
         else:
             raise NotImplementedError(f'Unknown combine strategy: {self.config.combine_strategy}')
 
-        if self.config.logits_scaling.enabled:
+        if self.config.get('logits_scaling.enabled', False):
             logits *= (n_protos * self.config.logits_scaling.scale_value)
 
         if return_protos:
@@ -167,6 +169,65 @@ class DeterministicLinearMultiProtoHead(MultiProtoHead):
         return prototypes
 
 
-# class RandomMultiProtoHead(MultiProtoHead):
-#     def init_modules(self):
-#         if self.config
+class EmbeddingBasedMPHead(MultiProtoHead):
+    def init_modules(self):
+        self.context_embedder = self.create_context_embedder()
+        self.fuser = self.create_fuser()
+
+    def create_context_embedder(self) -> nn.Module:
+        if self.config.context.type == 'gaussian_noise':
+            assert self.config.context.proto_emb_size == self.config.context.z_size
+            return nn.Identity()
+        elif self.config.context.type == 'embeddings':
+            return nn.Embedding(self.config.num_prototypes, self.config.context.proto_emb_size)
+        elif self.config.context.type == 'transformed_gaussian_noise':
+            return nn.Sequential(
+                nn.Linear(self.config.context.z_size, self.config.context.proto_emb_size),
+                nn.ReLU() if self.config.context.use_activation else nn.Identity()
+            )
+        else:
+            raise NotImplementedError(f'Unknown context type: {self.config.context.type}')
+
+    def create_fuser(self) -> nn.Module:
+        if self.config.fusing_type == 'pure_mult_int':
+            return MILayer(self.attrs.shape[1], self.config.context.proto_emb_size, self.config.hid_dim, False)
+        if self.config.fusing_type == 'full_mult_int':
+            return MILayer(self.attrs.shape[1], self.config.context.proto_emb_size, self.config.hid_dim, True)
+        elif self.config.fusing_type == 'concat':
+            return ConcatLayer(self.attrs.shape[1], self.config.context.proto_emb_size, self.config.hid_dim)
+        else:
+            raise NotImplementedError('Unknown fusing type: {self.config.fusing_type}')
+
+    def generate_proto_embeddings(self) -> Tensor:
+        n_classes = self.attrs.shape[0]
+        n_protos = self.config.num_prototypes
+
+        if self.config.context.type in ['gaussian_noise', 'transformed_gaussian_noise']:
+            if self.config.context.same_for_each_class:
+                noise = torch.randn(1, n_protos, self.config.context.z_size).repeat(n_classes, 1, 1)
+            else:
+                noise = torch.randn(n_classes, n_protos, self.config.context.z_size)
+
+            context = noise * self.config.context.std
+        elif self.config.context.type == 'embeddings':
+            context = torch.arange(n_protos).view(1, n_protos).repeat(n_classes, 1) # [n_classes, n_protos]
+        else:
+            raise NotImplementedError(f'Unknown context type: {self.config.context.type}')
+
+        context = context.to(self.attrs.device)
+        embeddings = self.context_embedder(context) # [n_classes, n_protos, proto_emb_size]
+
+        return embeddings
+
+    def generate_prototypes(self) -> Tensor:
+        proto_embeddings = self.generate_proto_embeddings() # [n_classes, n_protos, proto_emb_size]
+        n_classes, n_protos, proto_emb_size = proto_embeddings.shape
+        proto_embeddings = proto_embeddings.view(n_classes * n_protos, proto_emb_size)
+        prototypes = self.fuser(self.attrs.repeat(n_protos, 1), proto_embeddings) # [n_classes * n_protos, hid_dim]
+
+        assert prototypes.shape == (n_classes * n_protos, self.config.hid_dim), f"Wrong shape: {prototypes.shape}"
+
+        prototypes = prototypes.view(n_classes, n_protos, self.config.hid_dim)
+        prototypes = prototypes.permute(1, 0, 2)
+
+        return prototypes
