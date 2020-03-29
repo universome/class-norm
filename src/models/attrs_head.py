@@ -52,21 +52,12 @@ class MultiProtoHead(nn.Module):
     def generate_prototypes(self) -> Tensor:
         raise NotImplementedError('You forgot to implement `.generate_prototypes()` method')
 
-    def forward(self, feats: Tensor, return_protos: bool=False):
-        batch_size = feats.size(0)
+    def aggregate_logits(self, logit_groups: Tensor) -> Tensor:
+        batch_size = logit_groups.size(0)
         n_protos = self.config.num_prototypes
         n_classes = self.attrs.shape[0]
-        hid_dim = self.config.hid_dim
 
-        protos = self.generate_prototypes()
-
-        assert protos.shape == (n_protos, n_classes, hid_dim)
-
-        if self.config.normalize: protos = normalize(protos, self.config.scale_value)
-        if self.config.normalize: feats = normalize(feats, self.config.scale_value)
-
-        logit_groups = torch.matmul(protos, feats.t()) # [n_protos, n_classes, batch_size]
-        logit_groups = logit_groups.permute(2, 0, 1) # [batch_size, n_protos, n_classes]
+        assert logit_groups.shape == (batch_size, n_protos, n_classes), f"Wrong shape: {logit_groups.shape}"
 
         if self.config.combine_strategy == 'mean':
             logits = logit_groups.mean(dim=1) # [batch_size x n_classes]
@@ -82,6 +73,44 @@ class MultiProtoHead(nn.Module):
             logits = probs.log() # [batch_size x n_classes]
         else:
             raise NotImplementedError(f'Unknown combine strategy: {self.config.combine_strategy}')
+
+        return logits
+
+    def forward(self, feats: Tensor, return_protos: bool=False):
+        batch_size = feats.size(0)
+        n_protos = self.config.num_prototypes
+        n_classes = self.attrs.shape[0]
+        hid_dim = self.config.hid_dim
+
+        protos = self.generate_prototypes()
+
+        assert protos.shape == (n_protos, n_classes, hid_dim)
+
+        if self.config.get('senet.enabled'):
+            attns = self.generete_senet_attns(feats)
+            assert attns.shape == (n_protos, batch_size, hid_dim)
+
+            se_protos = protos.view(n_protos, 1, n_classes, hid_dim) * attns.view(n_protos, batch_size, 1, hid_dim)
+            se_protos = se_protos.permute(1, 0, 2, 3)
+
+            assert se_protos.shape == (batch_size, n_protos, n_classes, hid_dim)
+
+            if self.config.normalize: se_protos = normalize(se_protos, self.config.scale_value)
+            if self.config.normalize: feats = normalize(feats, self.config.scale_value)
+
+            feats = feats.view(batch_size, 1, hid_dim).repeat(1, n_protos, 1)
+            logit_groups = torch.matmul(
+                se_protos.view(batch_size * n_protos, n_classes, hid_dim),
+                feats.view(batch_size * n_protos, hid_dim, 1)) # [batch_size * n_protos, n_classes]
+            logit_groups = logit_groups.view(batch_size, n_protos, n_classes)
+        else:
+            if self.config.normalize: protos = normalize(protos, self.config.scale_value)
+            if self.config.normalize: feats = normalize(feats, self.config.scale_value)
+
+            logit_groups = torch.matmul(protos, feats.t()) # [n_protos, n_classes, batch_size]
+            logit_groups = logit_groups.permute(2, 0, 1) # [batch_size, n_protos, n_classes]
+
+        logits = self.aggregate_logits(logit_groups)
 
         if self.config.get('logits_scaling.enabled', False):
             logits *= (n_protos * self.config.logits_scaling.scale_value)
@@ -161,6 +190,18 @@ class DeterministicLinearMultiProtoHead(MultiProtoHead):
         # TODO: we should better create a single large matrix
         # and do this by a single matmul. This will speed the things up.
         self.embedders = nn.ModuleList([nn.Linear(self.attrs.shape[1], self.config.hid_dim) for _ in range(self.config.num_prototypes)])
+
+        if self.config.get('senet.enabled'):
+            self.senets = nn.ModuleList([
+                nn.Sequential(
+                    nn.Linear(self.config.hid_dim, self.config.senet.reduction_dim),
+                    nn.ReLU(inplace=True),
+                    nn.Linear(self.config.senet.reduction_dim, self.config.hid_dim),
+                    nn.Sigmoid()
+                ) for _ in range(self.config.num_prototypes)])
+
+    def generete_senet_attns(self, x: Tensor) -> Tensor:
+        return torch.stack([s(x) for s in self.senets])
 
     def generate_prototypes(self) -> Tensor:
         prototypes = [e(self.attrs) for e in self.embedders] # [n_protos x n_classes x hid_dim]
