@@ -18,7 +18,7 @@ all:
           scale_value: 1.
 
       senet:
-        enabled: true
+        enabled: false
         reduction_dim: 16
 
     # head:
