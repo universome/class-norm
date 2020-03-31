@@ -1,4 +1,4 @@
-from typing import Tuple, Any
+from typing import Tuple, Any, Iterable
 
 import numpy as np
 import torch
@@ -230,3 +230,30 @@ class ConcatLayer(nn.Module):
 
     def forward(self, x: Tensor, z: Tensor) -> Tensor:
         return self.model(torch.cat([x, z], dim=1))
+
+
+def create_fuser(fusing_type: str, input_size: int, context_size: int, output_size: int) -> nn.Module:
+    if fusing_type == 'pure_mult_int':
+        return MILayer(input_size, context_size, output_size, False)
+    if fusing_type == 'full_mult_int':
+        return MILayer(input_size, context_size, output_size, True)
+    elif fusing_type == 'concat':
+        return ConcatLayer(input_size, context_size, output_size)
+    else:
+        raise NotImplementedError(f'Unknown fusing type: {fusing_type}')
+
+
+
+def create_sequential_model(layers_sizes: Iterable[int]) -> nn.Sequential:
+    assert len(layers_sizes) > 0, "We need at least an input size"
+
+    modules = []
+    input_dim = layers_sizes[0]
+
+    for output_dim in layers_sizes:
+        modules.append(nn.Linear(input_dim, output_dim))
+        modules.append(nn.ReLU())
+        input_dim = output_dim
+
+    return nn.Sequential(*modules)
+

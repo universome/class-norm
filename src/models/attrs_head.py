@@ -5,7 +5,7 @@ import numpy as np
 from firelab.config import Config
 
 from src.utils.training_utils import normalize
-from src.models.layers import MILayer, ConcatLayer
+from src.models.layers import MILayer, ConcatLayer, create_sequential_model, create_fuser
 
 
 class AttrsHead(nn.Module):
@@ -14,11 +14,15 @@ class AttrsHead(nn.Module):
     """
     def __init__(self, config: Config, attrs: np.ndarray):
         super().__init__()
+
         self.model = {
             'simple': SimpleAttrsHead,
             'joint_head': JointHead,
-            'deterministic_linear': DeterministicLinearMultiProtoHead,
-            'embedding_based': EmbeddingBasedMPHead
+            'multi_headed': MultiHeadedMPHead,
+            'embedding_based': {
+                'static': StaticEmbeddingMPHead,
+                'random': RandomEmbeddingMPHead
+            }[config.context.type]
         }[config.type](config, attrs)
 
     def forward(self, x: Tensor, **kwargs) -> Tensor:
@@ -48,6 +52,12 @@ class MultiProtoHead(nn.Module):
         self.register_buffer('attrs', torch.from_numpy(attrs))
 
         self.init_modules()
+
+        # TODO: - compute std and change it in such a way that it equals to He/Xavier's std.
+        if self.config.get('learnable_scale'):
+            self.scale = nn.Parameter(torch.tensor(self.config.scale_value))
+        else:
+            self.register_buffer('scale', torch.tensor(self.config.scale_value))
 
     def generate_prototypes(self) -> Tensor:
         raise NotImplementedError('You forgot to implement `.generate_prototypes()` method')
@@ -95,8 +105,8 @@ class MultiProtoHead(nn.Module):
 
             assert se_protos.shape == (batch_size, n_protos, n_classes, hid_dim)
 
-            if self.config.normalize: se_protos = normalize(se_protos, self.config.scale_value)
-            if self.config.normalize: feats = normalize(feats, self.config.scale_value)
+            if self.config.normalize: se_protos = normalize(se_protos, self.scale)
+            if self.config.normalize: feats = normalize(feats, self.scale)
 
             feats = feats.view(batch_size, 1, hid_dim).repeat(1, n_protos, 1)
             logit_groups = torch.matmul(
@@ -104,8 +114,8 @@ class MultiProtoHead(nn.Module):
                 feats.view(batch_size * n_protos, hid_dim, 1)) # [batch_size * n_protos, n_classes]
             logit_groups = logit_groups.view(batch_size, n_protos, n_classes)
         else:
-            if self.config.normalize: protos = normalize(protos, self.config.scale_value)
-            if self.config.normalize: feats = normalize(feats, self.config.scale_value)
+            if self.config.normalize: protos = normalize(protos, self.scale)
+            if self.config.normalize: feats = normalize(feats, self.scale)
 
             logit_groups = torch.matmul(protos, feats.t()) # [n_protos, n_classes, batch_size]
             logit_groups = logit_groups.permute(2, 0, 1) # [batch_size, n_protos, n_classes]
@@ -185,7 +195,7 @@ class JointHead(nn.Module):
         return logits
 
 
-class DeterministicLinearMultiProtoHead(MultiProtoHead):
+class MultiHeadedMPHead(MultiProtoHead):
     def init_modules(self):
         # TODO: we should better create a single large matrix
         # and do this by a single matmul. This will speed the things up.
@@ -210,55 +220,10 @@ class DeterministicLinearMultiProtoHead(MultiProtoHead):
         return prototypes
 
 
-class EmbeddingBasedMPHead(MultiProtoHead):
+class EmbeddingMPHead(MultiProtoHead):
     def init_modules(self):
         self.context_embedder = self.create_context_embedder()
         self.fuser = self.create_fuser()
-
-    def create_context_embedder(self) -> nn.Module:
-        if self.config.context.type == 'gaussian_noise':
-            assert self.config.context.proto_emb_size == self.config.context.z_size
-            return nn.Identity()
-        elif self.config.context.type == 'embeddings':
-            return nn.Embedding(self.config.num_prototypes, self.config.context.proto_emb_size)
-        elif self.config.context.type == 'transformed_gaussian_noise':
-            return nn.Sequential(
-                nn.Linear(self.config.context.z_size, self.config.context.proto_emb_size),
-                nn.ReLU() if self.config.context.use_activation else nn.Identity()
-            )
-        else:
-            raise NotImplementedError(f'Unknown context type: {self.config.context.type}')
-
-    def create_fuser(self) -> nn.Module:
-        if self.config.fusing_type == 'pure_mult_int':
-            return MILayer(self.attrs.shape[1], self.config.context.proto_emb_size, self.config.hid_dim, False)
-        if self.config.fusing_type == 'full_mult_int':
-            return MILayer(self.attrs.shape[1], self.config.context.proto_emb_size, self.config.hid_dim, True)
-        elif self.config.fusing_type == 'concat':
-            return ConcatLayer(self.attrs.shape[1], self.config.context.proto_emb_size, self.config.hid_dim)
-        else:
-            raise NotImplementedError('Unknown fusing type: {self.config.fusing_type}')
-
-    def generate_proto_embeddings(self) -> Tensor:
-        n_classes = self.attrs.shape[0]
-        n_protos = self.config.num_prototypes
-
-        if self.config.context.type in ['gaussian_noise', 'transformed_gaussian_noise']:
-            if self.config.context.same_for_each_class:
-                noise = torch.randn(1, n_protos, self.config.context.z_size).repeat(n_classes, 1, 1)
-            else:
-                noise = torch.randn(n_classes, n_protos, self.config.context.z_size)
-
-            context = noise * self.config.context.std
-        elif self.config.context.type == 'embeddings':
-            context = torch.arange(n_protos).view(1, n_protos).repeat(n_classes, 1) # [n_classes, n_protos]
-        else:
-            raise NotImplementedError(f'Unknown context type: {self.config.context.type}')
-
-        context = context.to(self.attrs.device)
-        embeddings = self.context_embedder(context) # [n_classes, n_protos, proto_emb_size]
-
-        return embeddings
 
     def generate_prototypes(self) -> Tensor:
         proto_embeddings = self.generate_proto_embeddings() # [n_classes, n_protos, proto_emb_size]
@@ -272,3 +237,50 @@ class EmbeddingBasedMPHead(MultiProtoHead):
         prototypes = prototypes.permute(1, 0, 2)
 
         return prototypes
+
+
+class StaticEmbeddingMPHead(EmbeddingMPHead):
+    def create_context_embedder(self) -> nn.Module:
+        return nn.Embedding(self.config.num_prototypes, self.config.context.proto_emb_size)
+
+    def create_fuser(self):
+        return create_fuser(
+            self.config.fusing_type, self.attrs.shape[1],
+            self.config.context.proto_emb_size, self.config.hid_dim)
+
+    def generate_proto_embeddings(self) -> Tensor:
+        n_classes = self.attrs.shape[0]
+        n_protos = self.config.num_prototypes
+
+        context = torch.arange(n_protos, device=self.attrs.device)
+        context = context.view(1, n_protos).repeat(n_classes, 1) # [n_classes, n_protos]
+        embeddings = self.context_embedder(context) # [n_classes, n_protos, proto_emb_size]
+
+        return embeddings
+
+
+class RandomEmbeddingMPHead(EmbeddingMPHead):
+    def create_fuser(self):
+        return create_fuser(
+            self.config.fusing_type, self.attrs.shape[1],
+            self.config.context.transform_layers[-1], self.config.hid_dim)
+
+    def create_context_embedder(self) -> nn.Module:
+        return create_sequential_model(self.config.context.transform_layers)
+
+    def generate_proto_embeddings(self) -> Tensor:
+        n_classes = self.attrs.shape[0]
+        n_protos = self.config.num_prototypes
+        z_size = self.config.context.transform_layers[0]
+
+        if self.config.context.same_for_each_class:
+            noise = torch.randn(1, n_protos, z_size, device=self.attrs.device)
+            # noise = torch.zeros(1, n_protos, z_size, device=self.attrs.device)
+            noise = noise.repeat(n_classes, 1, 1)
+        else:
+            noise = torch.randn(n_classes, n_protos, z_size, device=self.attrs.device)
+
+        context = noise * self.config.context.std
+        embeddings = self.context_embedder(context) # [n_classes, n_protos, proto_emb_size]
+
+        return embeddings
