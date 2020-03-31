@@ -7,7 +7,7 @@ from firelab.config import Config
 from firelab.utils.training_utils import fix_random_seed
 
 from src.trainers.lll_trainer import LLLTrainer
-
+from src.utils.constants import DEBUG
 
 DEFAULT_RANDOM_SEED = 1 # np.random.randint(np.iinfo(np.int32).max)
 
@@ -63,7 +63,9 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--config_name', type=str, default='lgm', help='Which config to run?')
     parser.add_argument('-n', '--num_runs', type=int, default=1, help='How many times we should run the experiment?')
     parser.add_argument('-e', '--exp_name', type=str, default='', help='Postfix to add to experiment name.')
-    parser.add_argument('--experiments_dir', type=str, default='experiments', help='Directory where all the experiments reside.')
+    parser.add_argument('--experiments_dir', type=str,
+        default=(f'experiments{"-debug" if DEBUG else ""}'),
+        help='Directory where all the experiments reside.')
 
     args, config_args = parser.parse_known_args()
 

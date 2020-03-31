@@ -7,7 +7,7 @@ import numpy as np
 from torch.utils.data import Dataset
 
 from src.dataloaders.utils import read_column, shuffle_dataset, load_imgs_from_folder, preprocess_imgs
-
+from src.utils.constants import DEBUG
 
 def load_dataset(
         data_dir: PathLike,
@@ -20,8 +20,9 @@ def load_dataset(
     train_test_split = load_train_test_split(data_dir)
     img_paths = [p for (p, img_split) in zip(img_paths, train_test_split) if split == img_split]
 
-    # import random
-    # img_paths = random.sample(img_paths, 100)
+    if DEBUG:
+        import random
+        img_paths = random.sample(img_paths, 100)
 
     imgs = load_imgs_from_folder(os.path.join(data_dir, 'images'), img_paths, target_shape)
     labels = load_labels(img_paths)
