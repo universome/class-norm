@@ -134,7 +134,9 @@ dmypy.json
 #########################
 data/
 experiments/
+experiments-debug/
 old-experiments*/
 .vscode/
 logs/
+
 
