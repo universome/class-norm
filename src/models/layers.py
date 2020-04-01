@@ -244,16 +244,19 @@ def create_fuser(fusing_type: str, input_size: int, context_size: int, output_si
 
 
 
-def create_sequential_model(layers_sizes: Iterable[int]) -> nn.Sequential:
+def create_sequential_model(layers_sizes: Iterable[int], final_activation: bool=True) -> nn.Sequential:
     assert len(layers_sizes) > 0, "We need at least an input size"
 
     modules = []
     input_dim = layers_sizes[0]
 
-    for output_dim in layers_sizes:
+    for output_dim in layers_sizes[1:]:
         modules.append(nn.Linear(input_dim, output_dim))
         modules.append(nn.ReLU())
         input_dim = output_dim
+
+    if not final_activation:
+        modules.pop(-1)
 
     return nn.Sequential(*modules)
 

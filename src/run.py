@@ -16,10 +16,8 @@ def run_trainer(args: argparse.Namespace, config_cli_args: List[str]):
     config = load_config(args, config_cli_args)
     print(config)
 
-    for run_idx in range(args.num_runs):
-        print(f'\n<======= RUN # {run_idx} =======>\n')
-        fix_random_seed(config.random_seed + run_idx)
-        LLLTrainer(config).start()
+    fix_random_seed(config.random_seed)
+    LLLTrainer(config).start()
 
 
 def load_config(args: argparse.Namespace, config_cli_args: List[str]) -> Config:
@@ -58,15 +56,17 @@ def cli_config_args_to_exp_name(args: List) -> str:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Running LLL trainer')
-    parser.add_argument('-d', '--dataset', default='cifar100', type=str, help='Dataset')
+    parser.add_argument('-d', '--dataset', type=str, help='Dataset')
     parser.add_argument('-s', '--random_seed', type=int, default=DEFAULT_RANDOM_SEED, help='Random seed to fix')
-    parser.add_argument('-c', '--config_name', type=str, default='lgm', help='Which config to run?')
-    parser.add_argument('-n', '--num_runs', type=int, default=1, help='How many times we should run the experiment?')
+    parser.add_argument('-c', '--config_name', type=str, help='Which config to run?')
     parser.add_argument('-e', '--exp_name', type=str, default='', help='Postfix to add to experiment name.')
     parser.add_argument('--experiments_dir', type=str,
         default=(f'experiments{"-debug" if DEBUG else ""}'),
         help='Directory where all the experiments reside.')
 
     args, config_args = parser.parse_known_args()
+
+    print('ARGS:', args)
+    print('CONFIG_ARGS:', config_args)
 
     run_trainer(args, config_args)

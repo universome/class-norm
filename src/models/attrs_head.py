@@ -22,7 +22,7 @@ class AttrsHead(nn.Module):
             'embedding_based': {
                 'static': StaticEmbeddingMPHead,
                 'random': RandomEmbeddingMPHead
-            }[config.context.type]
+            }[config.get('context.type', 'static')]
         }[config.type](config, attrs)
 
     def forward(self, x: Tensor, **kwargs) -> Tensor:
@@ -210,6 +210,16 @@ class MultiHeadedMPHead(MultiProtoHead):
                     nn.Sigmoid()
                 ) for _ in range(self.config.num_prototypes)])
 
+    def create_embedder(self):
+        assert len(self.config.embedder_hidden_layers) > 0, \
+            "Several linear models are equivalent to a single one"
+
+        return create_sequential_model([
+            self.attrs.shape[1],
+            *self.config.embedder_hidden_layers,
+            self.config.hid_dim
+        ], final_activation=self.config.use_final_activation)
+
     def generete_senet_attns(self, x: Tensor) -> Tensor:
         return torch.stack([s(x) for s in self.senets])
 
@@ -275,7 +285,6 @@ class RandomEmbeddingMPHead(EmbeddingMPHead):
 
         if self.config.context.same_for_each_class:
             noise = torch.randn(1, n_protos, z_size, device=self.attrs.device)
-            # noise = torch.zeros(1, n_protos, z_size, device=self.attrs.device)
             noise = noise.repeat(n_classes, 1, 1)
         else:
             noise = torch.randn(n_classes, n_protos, z_size, device=self.attrs.device)
