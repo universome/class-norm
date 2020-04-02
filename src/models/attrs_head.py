@@ -18,10 +18,8 @@ class AttrsHead(nn.Module):
         self.model = {
             'simple': SimpleAttrsHead,
             'multi_headed': MultiHeadedMPHead,
-            'embedding_based': {
-                'static': StaticEmbeddingMPHead,
-                'random': RandomEmbeddingMPHead
-            }[config.get('context.type', 'static')]
+            'random_embeddings': RandomEmbeddingMPHead,
+            'static_embeddings': StaticEmbeddingMPHead
         }[config.type](config, attrs)
 
     def forward(self, x: Tensor, **kwargs) -> Tensor:
@@ -191,7 +189,14 @@ class EmbeddingMPHead(MultiProtoHead):
 
 class StaticEmbeddingMPHead(EmbeddingMPHead):
     def create_context_embedder(self) -> nn.Module:
-        return nn.Embedding(self.config.num_prototypes, self.config.context.proto_emb_size)
+        return nn.Sequential(
+            nn.Embedding(self.config.num_prototypes, 512),
+            nn.ReLU(),
+            nn.Linear(512, self.config.context.proto_emb_size)
+        )
+        # return nn.Sequential(
+        #     nn.Embedding(self.config.num_prototypes, self.config.context.proto_emb_size),
+        # )
 
     def create_fuser(self):
         return create_fuser(
@@ -209,27 +214,49 @@ class StaticEmbeddingMPHead(EmbeddingMPHead):
         return embeddings
 
 
-class RandomEmbeddingMPHead(EmbeddingMPHead):
-    def create_fuser(self):
-        return create_fuser(
-            self.config.fusing_type, self.attrs.shape[1],
-            self.config.context.transform_layers[-1], self.config.hid_dim)
+class RandomEmbeddingMPHead(MultiProtoHead):
+    def init_modules(self):
+        self.noise_transform = create_sequential_model(self.config.noise.transform_layers)
+        self.attrs_transform = create_sequential_model(self.config.attrs_transform_layers)
+        self.fuser = create_fuser(
+            self.config.fusing_type,
+            self.config.attrs_transform_layers[-1],
+            self.config.noise.transform_layers[-1],
+            self.config.after_fuse_transform_layers[0])
+        self.after_fuse_transform = create_sequential_model(
+            self.config.after_fuse_transform_layers, final_activation=False)
 
-    def create_context_embedder(self) -> nn.Module:
-        return create_sequential_model(self.config.context.transform_layers)
-
-    def generate_proto_embeddings(self) -> Tensor:
+    def get_transformed_noise(self) -> Tensor:
         n_classes = self.attrs.shape[0]
         n_protos = self.compute_n_protos()
-        z_size = self.config.context.transform_layers[0]
+        z_size = self.config.noise.transform_layers[0]
 
-        if self.config.context.same_for_each_class:
+        if self.config.noise.same_for_each_class:
             noise = torch.randn(1, n_protos, z_size, device=self.attrs.device)
             noise = noise.repeat(n_classes, 1, 1)
         else:
             noise = torch.randn(n_classes, n_protos, z_size, device=self.attrs.device)
 
-        context = noise * self.config.context.std
-        embeddings = self.context_embedder(context) # [n_classes, n_protos, proto_emb_size]'
+        noise = noise * self.config.noise.std
+        transformed_noise = self.noise_transform(noise) # [n_classes, n_protos, proto_emb_size]
 
-        return embeddings
+        return transformed_noise
+
+    def generate_prototypes(self) -> Tensor:
+        transformed_noise = self.get_transformed_noise() # [n_classes, n_protos, transformed_noise_size]
+        transformed_attrs = self.attrs_transform(self.attrs) # [n_classes, transformed_attrs_size]
+
+        assert transformed_noise.shape[0] == transformed_attrs.shape[0]
+
+        n_classes, n_protos, transformed_noise_size = transformed_noise.shape
+
+        transformed_noise = transformed_noise.view(n_classes * n_protos, transformed_noise_size)
+        transformed_attrs = transformed_attrs.repeat(n_protos, 1)
+        contextualized_attrs = self.fuser(transformed_attrs, transformed_noise) # [n_classes * n_protos, after_fuse_transform_layers[0]]
+        prototypes = self.after_fuse_transform(contextualized_attrs) # [n_classes * n_protos, hid_dim]
+
+        assert prototypes.shape == (n_classes * n_protos, self.config.hid_dim), f"Wrong shape: {prototypes.shape}"
+
+        prototypes = prototypes.view(n_protos, n_classes, self.config.hid_dim)
+
+        return prototypes
