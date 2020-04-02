@@ -145,7 +145,8 @@ class LLLTrainer(BaseTrainer):
             if self.config.task_trainer == 'agem':
                 task_trainer.update_episodic_memory()
 
-            self.checkpoint(task_idx)
+            if self.config.get('should_checkpoint', False):
+                self.checkpoint(task_idx)
 
         if self.config.get('logging.save_logits'):
             self.logits_history.append(self.run_inference(self.ds_test))

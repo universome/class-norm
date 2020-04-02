@@ -6,36 +6,37 @@ all:
     max_num_epochs: 5
     batch_size: 10
 
-    head:
-      type: "multi_headed"
-      num_prototypes: 1
-      hid_dim: 512
-      normalize: true
-      scale_value: 10.
-      combine_strategy: "mean"
-      use_final-activation: false
-
-      logits_scaling: # Scaling by num_prototypes and scale_value
-          enabled: false
-          scale_value: 1.
-
-      senet:
-        enabled: false
-        reduction_dim: 16
-
     # head:
-    #   type: "embedding_based"
+    #   type: "multi_headed"
     #   num_prototypes: 1
     #   hid_dim: 512
     #   normalize: true
     #   scale_value: 10.
-    #   combine_strategy: "sum"
-    #   context:
-    #     type: "random"
-    #     # transform_layers: [64]
-    #     same_for_each_class: true
-    #     std: 1.
-    #   fusing_type: "concat"
+    #   combine_strategy: "mean"
+    #   use_final-activation: false
+
+    #   logits_scaling: # Scaling by num_prototypes and scale_value
+    #       enabled: false
+    #       scale_value: 1.
+
+    #   senet:
+    #     enabled: false
+    #     reduction_dim: 16
+
+    head:
+      type: "embedding_based"
+      num_prototypes: 1
+      # num_test_prototypes: 1
+      hid_dim: 512
+      normalize: true
+      scale_value: 10.
+      combine_strategy: "mean"
+      context:
+        type: "random"
+        # transform_layers: [64]
+        same_for_each_class: true
+        # std: 1.
+      fusing_type: "concat"
 
       # head:
       #   type: "embedding_based"
