@@ -243,7 +243,6 @@ def create_fuser(fusing_type: str, input_size: int, context_size: int, output_si
         raise NotImplementedError(f'Unknown fusing type: {fusing_type}')
 
 
-
 def create_sequential_model(layers_sizes: Iterable[int], final_activation: bool=True) -> nn.Sequential:
     assert len(layers_sizes) > 0, "We need at least an input size"
 
@@ -255,7 +254,7 @@ def create_sequential_model(layers_sizes: Iterable[int], final_activation: bool=
         modules.append(nn.ReLU())
         input_dim = output_dim
 
-    if not final_activation:
+    if len(modules) > 0 and not final_activation:
         modules.pop(-1)
 
     return nn.Sequential(*modules)
