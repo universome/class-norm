@@ -24,31 +24,21 @@ all:
     #     reduction_dim: 16
 
     head:
-      type: "embedding_based"
-      num_prototypes: 1
-      # num_test_prototypes: 1
+      type: "random_embeddings"
+      # num_prototypes: 1
       hid_dim: 512
       normalize: true
       scale_value: 10.
       combine_strategy: "mean"
-      context:
-        type: "random"
-        # transform_layers: [64]
-        same_for_each_class: true
-        # std: 1.
-      fusing_type: "concat"
+      # fusing_type: "concat"
+      # after_fuse_transform_layers: [512]
+      # attrs_transform_layers: [312]
 
-      # head:
-      #   type: "embedding_based"
-      #   num_prototypes: 1
-      #   hid_dim: 512
-      #   normalize: true
-      #   scale_value: 10.
-      #   combine_strategy: "sum"
-      #   context:
-      #     type: "static"
-      #     proto_emb_size: 512
-      #   fusing_type: "concat"
+      # noise:
+      #   transform_layers: [128]
+      #   same_for_each_class: false
+      #   std: 0.0
+
 
     push_protos_apart:
       enabled: false
