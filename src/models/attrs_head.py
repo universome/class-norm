@@ -17,7 +17,6 @@ class AttrsHead(nn.Module):
 
         self.model = {
             'simple': SimpleAttrsHead,
-            'joint_head': JointHead,
             'multi_headed': MultiHeadedMPHead,
             'embedding_based': {
                 'static': StaticEmbeddingMPHead,
@@ -62,9 +61,15 @@ class MultiProtoHead(nn.Module):
     def generate_prototypes(self) -> Tensor:
         raise NotImplementedError('You forgot to implement `.generate_prototypes()` method')
 
+    def compute_n_protos(self) -> int:
+        if (not self.training and self.config.get('num_test_prototypes')):
+            return self.config.num_test_prototypes
+        else:
+            return self.config.num_prototypes
+
     def aggregate_logits(self, logit_groups: Tensor) -> Tensor:
         batch_size = logit_groups.size(0)
-        n_protos = self.config.num_prototypes
+        n_protos = self.compute_n_protos()
         n_classes = self.attrs.shape[0]
 
         assert logit_groups.shape == (batch_size, n_protos, n_classes), f"Wrong shape: {logit_groups.shape}"
@@ -88,7 +93,7 @@ class MultiProtoHead(nn.Module):
 
     def forward(self, feats: Tensor, return_protos: bool=False):
         batch_size = feats.size(0)
-        n_protos = self.config.num_prototypes
+        n_protos = self.compute_n_protos()
         n_classes = self.attrs.shape[0]
         hid_dim = self.config.hid_dim
 
@@ -129,70 +134,6 @@ class MultiProtoHead(nn.Module):
             return logits, protos
         else:
             return logits
-
-
-class JointHead(nn.Module):
-    """
-    This head implements the following strategies to produce an label embedding matrix:
-        - just a normal attrs head with/without biases
-        - attrs head with normalized attribute embeddings
-        - attribute is [original attribute] + [one-hot class representation] concatenated
-        - learned attributes
-
-        TODO: several layers for attributes embeddings
-    """
-    def __init__(self, config: Config, attrs: np.ndarray):
-        super().__init__()
-
-        print('Running with a "complex" attrs head.')
-
-        self.config = config
-        self.attrs_to_proj_matrix = nn.Linear(attrs.shape[1], self.config.hid_dim)
-
-        if self.config.learnable_attrs:
-            self.attrs = nn.Parameter(torch.from_numpy(attrs))
-        else:
-            self.register_buffer('attrs', torch.from_numpy(attrs))
-
-        if self.config.use_cls_proj:
-            self.cls_proj_matrix = nn.Linear(attrs.shape[0], self.config.hid_dim, bias=False)
-
-            if self.config.combine_strategy == 'learnable':
-                self.attrs_weight = nn.Parameter(torch.tensor(0.))
-            elif self.config.combine_strategy == 'concat':
-                self.register_buffer('attrs_weight', torch.tensor(0.))
-
-            if self.config.use_biases:
-                self.cls_proj_biases = nn.Parameter(torch.zeros(attrs.shape[0]))
-
-        if self.config.use_biases:
-            self.attrs_proj_biases = nn.Parameter(torch.zeros(attrs.shape[0]))
-
-    def forward(self, x_feats: Tensor) -> Tensor:
-        if self.config.normalize_feats:
-            x_feats = normalize(x_feats, self.config.scale_value)
-
-        # Computing logits from attrs
-        attrs_proj_matrix = self.attrs_to_proj_matrix(self.attrs)
-        if self.config.normalize: attrs_proj_matrix = normalize(attrs_proj_matrix, self.config.scale_value)
-        attrs_logits = torch.mm(x_feats, attrs_proj_matrix.t())
-        if self.config.use_biases: attrs_logits += self.attrs_proj_biases
-
-        if self.config.use_cls_proj:
-            cls_proj_matrix = self.cls_proj_matrix.weight.t()
-            if self.config.normalize: cls_proj_matrix = normalize(cls_proj_matrix, self.config.scale_value)
-            cls_logits = torch.mm(x_feats, cls_proj_matrix.t())
-            if self.config.use_biases: cls_logits += self.cls_proj_biases
-
-            alpha = self.attrs_weight.sigmoid()
-            logits = alpha * attrs_logits + (1 - alpha) * cls_logits
-
-            if self.config.combine_strategy == 'concat':
-                logits = 2 * logits # Since our weights were equal to 0.5
-        else:
-            logits = attrs_logits
-
-        return logits
 
 
 class MultiHeadedMPHead(MultiProtoHead):
@@ -243,8 +184,7 @@ class EmbeddingMPHead(MultiProtoHead):
 
         assert prototypes.shape == (n_classes * n_protos, self.config.hid_dim), f"Wrong shape: {prototypes.shape}"
 
-        prototypes = prototypes.view(n_classes, n_protos, self.config.hid_dim)
-        prototypes = prototypes.permute(1, 0, 2)
+        prototypes = prototypes.view(n_protos, n_classes, self.config.hid_dim)
 
         return prototypes
 
@@ -280,7 +220,7 @@ class RandomEmbeddingMPHead(EmbeddingMPHead):
 
     def generate_proto_embeddings(self) -> Tensor:
         n_classes = self.attrs.shape[0]
-        n_protos = self.config.num_prototypes
+        n_protos = self.compute_n_protos()
         z_size = self.config.context.transform_layers[0]
 
         if self.config.context.same_for_each_class:
@@ -290,6 +230,6 @@ class RandomEmbeddingMPHead(EmbeddingMPHead):
             noise = torch.randn(n_classes, n_protos, z_size, device=self.attrs.device)
 
         context = noise * self.config.context.std
-        embeddings = self.context_embedder(context) # [n_classes, n_protos, proto_emb_size]
+        embeddings = self.context_embedder(context) # [n_classes, n_protos, proto_emb_size]'
 
         return embeddings
