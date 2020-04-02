@@ -1,5 +1,6 @@
-import argparse
 import sys; sys.path.append('.')
+import argparse
+from hashlib import sha256
 from typing import List, Dict, Any
 
 import numpy as np
@@ -41,17 +42,11 @@ def load_config(args: argparse.Namespace, config_cli_args: List[str]) -> Config:
     # Overwriting with CLI arguments
     config = config.overwrite(Config.read_from_cli())
 
-    config_cli_args_prefix = cli_config_args_to_exp_name(config_cli_args)
-    exp_name = f'{args.config_name}-{args.exp_name}-{args.dataset}-{config_cli_args_prefix}-{config.random_seed}'
+    hp_hash = sha256(str(config.hp).encode('utf-8')).hexdigest()[:10]
+    exp_name = f'{args.config_name}-{args.dataset}-{hp_hash}-{config.random_seed}'
     config.set('exp_name', exp_name)
 
     return config
-
-
-def cli_config_args_to_exp_name(args: List) -> str:
-    # TODO: parse args in a better format... And explain these weird manipulations...
-    # Explanation: check parser.parse_known_args() format
-    return '_'.join([f'{args[i][len("--config."):]}={args[i + 1]}' for i in range(0, len(args) - 1, 2)])
 
 
 if __name__ == '__main__':
@@ -59,7 +54,6 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--dataset', type=str, help='Dataset')
     parser.add_argument('-s', '--random_seed', type=int, default=DEFAULT_RANDOM_SEED, help='Random seed to fix')
     parser.add_argument('-c', '--config_name', type=str, help='Which config to run?')
-    parser.add_argument('-e', '--exp_name', type=str, default='', help='Postfix to add to experiment name.')
     parser.add_argument('--experiments_dir', type=str,
         default=(f'experiments{"-debug" if DEBUG else ""}'),
         help='Directory where all the experiments reside.')
