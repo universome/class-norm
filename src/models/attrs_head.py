@@ -51,10 +51,18 @@ class MultiProtoHead(nn.Module):
         self.init_modules()
 
         # TODO: - compute std and change it in such a way that it equals to He/Xavier's std.
-        if self.config.get('learnable_scale'):
-            self.scale = nn.Parameter(torch.tensor(self.config.scale_value))
+        if self.config.scale.type == 'learnable':
+            self.scale = nn.Parameter(torch.tensor(self.config.scale.value))
+        elif self.config.scale.type == 'constant':
+            self.register_buffer('scale', torch.tensor(self.config.scale.value))
+        elif self.config.scale.type == 'predict_from_attrs':
+            self.predict_scale = create_sequential_model(self.config.scale.layers_sizes)
+            self.predict_scale[-2].bias.data = torch.ones_like(self.predict_scale[-2].bias.data) * (self.config.scale.value ** 2)
+        elif self.config.scale.type == 'predict_from_logits':
+            self.predict_scale = create_sequential_model(self.config.scale.layers_sizes)
+            self.predict_scale[-2].bias.data = torch.ones_like(self.predict_scale[-2].bias.data) * (self.config.scale.value ** 2)
         else:
-            self.register_buffer('scale', torch.tensor(self.config.scale_value))
+            raise NotImplementedError(f'Unknown scaling type: {self.config.scale.type}')
 
     def generate_prototypes(self) -> Tensor:
         raise NotImplementedError('You forgot to implement `.generate_prototypes()` method')
@@ -98,6 +106,7 @@ class MultiProtoHead(nn.Module):
         protos = self.generate_prototypes()
 
         assert protos.shape == (n_protos, n_classes, hid_dim)
+        assert feats.shape == (batch_size, hid_dim)
 
         if self.config.get('senet.enabled'):
             attns = self.generete_senet_attns(feats)
@@ -155,7 +164,7 @@ class MultiHeadedMPHead(MultiProtoHead):
     def init_modules(self):
         # TODO: we should better create a single large matrix
         # and do this by a single matmul. This will speed the things up.
-        self.embedders = nn.ModuleList([nn.Linear(self.attrs.shape[1], self.config.hid_dim) for _ in range(self.config.num_prototypes)])
+        self.embedders = nn.ModuleList([self.create_embedder() for _ in range(self.config.num_prototypes)])
 
         if self.config.get('senet.enabled'):
             self.senets = nn.ModuleList([
@@ -167,8 +176,8 @@ class MultiHeadedMPHead(MultiProtoHead):
                 ) for _ in range(self.config.num_prototypes)])
 
     def create_embedder(self):
-        assert len(self.config.embedder_hidden_layers) > 0, \
-            "Several linear models are equivalent to a single one"
+        # assert len(self.config.embedder_hidden_layers) > 0, \
+        #     "Several linear models are equivalent to a single one"
 
         return create_sequential_model([
             self.attrs.shape[1],

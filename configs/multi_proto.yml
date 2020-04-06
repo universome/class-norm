@@ -7,38 +7,39 @@ all:
     batch_size: 10
 
     # head:
+    #   output_dist: "normal"
     #   type: "multi_headed"
     #   num_prototypes: 1
     #   hid_dim: 512
-    #   normalize: true
     #   scale_value: 10.
     #   combine_strategy: "mean"
-    #   use_final-activation: false
-
-    #   logits_scaling: # Scaling by num_prototypes and scale_value
-    #       enabled: false
-    #       scale_value: 1.
+    #   embedder_hidden_layers: []
+    #   use_final_activation: false
 
     #   senet:
     #     enabled: false
     #     reduction_dim: 16
 
     head:
+      output_dist: "von_mises"
       type: "random_embeddings"
-      # num_prototypes: 1
+      num_prototypes: 1
       hid_dim: 512
-      normalize: true
-      scale_value: 10.
       combine_strategy: "mean"
-      # fusing_type: "concat"
-      # after_fuse_transform_layers: [512]
-      # attrs_transform_layers: [312]
+      fusing_type: "concat"
+      after_fuse_transform_layers: [512]
+      attrs_transform_layers: [312]
 
-      # noise:
-      #   transform_layers: [128]
-      #   same_for_each_class: false
-      #   std: 0.0
+      noise:
+        transform_layers: [16]
+        same_for_each_class: false
+        std: 0.0
 
+      scale:
+        # type: "predict_from_logits"
+        type: "constant"
+        layers_sizes: [200, 256, 1]
+        value: 10
 
     push_protos_apart:
       enabled: false
