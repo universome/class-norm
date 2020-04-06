@@ -29,9 +29,9 @@ def validate_clf(clf_model: nn.Module, dataloader, device: str='cpu'):
 
 def construct_optimizer(parameters, optim_config: Config):
     if optim_config.type == 'sgd':
-        return torch.optim.SGD(parameters, **optim_config.kwargs.to_dict())
+        return torch.optim.SGD(parameters, **optim_config.kwargs)
     elif optim_config.type == 'adam':
-        return torch.optim.Adam(parameters, **optim_config.kwargs.to_dict())
+        return torch.optim.Adam(parameters, **optim_config.kwargs)
     else:
         raise NotImplementedError(f'Unknown optimizer: {optim_config.type}')
 

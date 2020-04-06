@@ -27,16 +27,18 @@ class AttrsHead(nn.Module):
 
 
 class SimpleAttrsHead(nn.Module):
-    def __init__(self, attrs: np.ndarray, config: Config):
+    def __init__(self, config: Config, attrs: np.ndarray):
         super().__init__()
 
+        self.scale = config.scale.value
         self.register_buffer('attrs', torch.from_numpy(attrs))
         self.projector = nn.Linear(attrs.shape[1], config.hid_dim)
-        self.biases = nn.Parameter(torch.zeros(attrs.shape[0]))
 
     def forward(self, feats: Tensor) -> Tensor:
-        attr_embs = self.projector(self.attrs)
-        logits = torch.mm(feats, attr_embs.t()) + self.biases
+        prototypes = self.projector(self.attrs)
+        feats = normalize(feats, self.scale)
+        prototypes = normalize(prototypes, self.scale)
+        logits = torch.mm(feats, prototypes.t())
 
         return logits
 
@@ -81,7 +83,14 @@ class MultiProtoHead(nn.Module):
         assert logit_groups.shape == (batch_size, n_protos, n_classes), f"Wrong shape: {logit_groups.shape}"
 
         if self.config.combine_strategy == 'mean':
-            logits = logit_groups.mean(dim=1) # [batch_size x n_classes]
+            if n_protos > 1 and self.config.golden_proto.enabled and self.config.golden_proto.weight != "same":
+                # Distribute remaining weights equally between other prototypes
+                weight_others = (1 - self.config.golden_proto.weight) / (n_protos - 1)
+                logit_groups[:, 0, :] *= self.config.golden_proto.weight
+                logit_groups[:, 1:, :] *= weight_others
+                logits = logit_groups.sum(dim=1)
+            else:
+                logits = logit_groups.mean(dim=1) # [batch_size x n_classes]
         elif self.config.combine_strategy == 'max':
             logits = logit_groups.max(dim=1)[0]
         elif self.config.combine_strategy == 'min':
@@ -97,7 +106,7 @@ class MultiProtoHead(nn.Module):
 
         return logits
 
-    def forward(self, feats: Tensor, return_protos: bool=False):
+    def forward(self, feats: Tensor):
         batch_size = feats.size(0)
         n_protos = self.compute_n_protos()
         n_classes = self.attrs.shape[0]
@@ -141,10 +150,10 @@ class MultiProtoHead(nn.Module):
                 logit_groups = torch.matmul(protos, feats.t()) # [n_protos, n_classes, batch_size]
                 logit_groups = logit_groups.permute(2, 0, 1) # [batch_size, n_protos, n_classes]
             else:
-                assert False, "Normal output distribution is deprecated"
+                assert False, "Gaussian output distribution is deprecated"
                 x = feats.view(batch_size, 1, 1, hid_dim)
                 mu = protos.view(1, n_protos, n_classes, hid_dim)
-                logit_groups = -(x - mu).pow(2).sum(dim=3) * self.config.scale.value
+                logit_groups = -(x - mu).pow(2).sum(dim=3) * self.scale
 
                 assert logit_groups.shape == (batch_size, n_protos, n_classes)
 
@@ -154,10 +163,7 @@ class MultiProtoHead(nn.Module):
             scales = self.predict_scale(logits)
             logits = logits * scales
 
-        if return_protos:
-            return logits, protos
-        else:
-            return logits
+        return logits
 
 
 class MultiHeadedMPHead(MultiProtoHead):
@@ -263,8 +269,13 @@ class RandomEmbeddingMPHead(MultiProtoHead):
         else:
             noise = torch.randn(n_classes, n_protos, z_size, device=self.attrs.device)
 
+        if self.config.golden_proto.enabled:
+            noise[:, 0, :] = 0. # First noise emb is zero.
+
         noise = noise * self.config.noise.std
         transformed_noise = self.noise_transform(noise) # [n_classes, n_protos, proto_emb_size]
+
+        assert torch.all(noise == transformed_noise)
 
         return transformed_noise
 
