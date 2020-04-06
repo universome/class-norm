@@ -117,16 +117,33 @@ class MultiProtoHead(nn.Module):
                 feats.view(batch_size * n_protos, hid_dim, 1)) # [batch_size * n_protos, n_classes]
             logit_groups = logit_groups.view(batch_size, n_protos, n_classes)
         else:
-            if self.config.normalize: protos = normalize(protos, self.scale)
-            if self.config.normalize: feats = normalize(feats, self.scale)
+            if self.config.scale.type == 'predict_from_attrs':
+                scales = self.predict_scale(self.attrs).view(1, n_classes, 1)
+                protos = normalize(protos, scales)
+                feats = normalize(feats)
+            elif self.config.scale.type == 'predict_from_logits':
+                protos = normalize(protos)
+                feats = normalize(feats)
+            else:
+                protos = normalize(protos, self.scale)
+                feats = normalize(feats, self.scale)
 
-            logit_groups = torch.matmul(protos, feats.t()) # [n_protos, n_classes, batch_size]
-            logit_groups = logit_groups.permute(2, 0, 1) # [batch_size, n_protos, n_classes]
+            if self.config.output_dist == 'von_mises':
+                logit_groups = torch.matmul(protos, feats.t()) # [n_protos, n_classes, batch_size]
+                logit_groups = logit_groups.permute(2, 0, 1) # [batch_size, n_protos, n_classes]
+            else:
+                assert False, "Normal output distribution is deprecated"
+                x = feats.view(batch_size, 1, 1, hid_dim)
+                mu = protos.view(1, n_protos, n_classes, hid_dim)
+                logit_groups = -(x - mu).pow(2).sum(dim=3) * self.config.scale.value
+
+                assert logit_groups.shape == (batch_size, n_protos, n_classes)
 
         logits = self.aggregate_logits(logit_groups)
 
-        if self.config.get('logits_scaling.enabled', False):
-            logits *= (n_protos * self.config.logits_scaling.scale_value)
+        if self.config.scale.type == 'predict_from_logits':
+            scales = self.predict_scale(logits)
+            logits = logits * scales
 
         if return_protos:
             return logits, protos
