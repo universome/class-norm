@@ -275,8 +275,6 @@ class RandomEmbeddingMPHead(MultiProtoHead):
         noise = noise * self.config.noise.std
         transformed_noise = self.noise_transform(noise) # [n_classes, n_protos, proto_emb_size]
 
-        assert torch.all(noise == transformed_noise)
-
         return transformed_noise
 
     def generate_prototypes(self) -> Tensor:
