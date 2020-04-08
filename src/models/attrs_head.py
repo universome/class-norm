@@ -75,48 +75,7 @@ class MultiProtoHead(nn.Module):
         else:
             return self.config.num_prototypes
 
-    def aggregate_logits(self, logit_groups: Tensor) -> Tensor:
-        batch_size = logit_groups.size(0)
-        n_protos = self.compute_n_protos()
-        n_classes = self.attrs.shape[0]
-
-        assert logit_groups.shape == (batch_size, n_protos, n_classes), f"Wrong shape: {logit_groups.shape}"
-
-        if self.config.combine_strategy == 'mean':
-            if n_protos > 1 and self.config.golden_proto.enabled and self.config.golden_proto.weight != "same":
-                # Distribute remaining weights equally between other prototypes
-                weight_others = (1 - self.config.golden_proto.weight) / (n_protos - 1)
-                logit_groups[:, 0, :] *= self.config.golden_proto.weight
-                logit_groups[:, 1:, :] *= weight_others
-                logits = logit_groups.sum(dim=1)
-            else:
-                logits = logit_groups.mean(dim=1) # [batch_size x n_classes]
-        elif self.config.combine_strategy == 'max':
-            logits = logit_groups.max(dim=1)[0]
-        elif self.config.combine_strategy == 'min':
-            logits = logit_groups.min(dim=1)[0]
-        elif self.config.combine_strategy == 'sum':
-            logits = logit_groups.sum(dim=1)
-        elif self.config.combine_strategy == 'softmax_mean':
-            prob_groups = logit_groups.view(batch_size, n_protos * n_classes).softmax(dim=1) # [batch_suze, n_protos * n_classes]
-            probs = prob_groups.view(batch_size, n_protos, n_classes).sum(dim=1) # [batch_size x n_classes]
-            logits = probs.log() # [batch_size x n_classes]
-        else:
-            raise NotImplementedError(f'Unknown combine strategy: {self.config.combine_strategy}')
-
-        return logits
-
-    def forward(self, feats: Tensor):
-        batch_size = feats.size(0)
-        n_protos = self.compute_n_protos()
-        n_classes = self.attrs.shape[0]
-        hid_dim = self.config.hid_dim
-
-        protos = self.generate_prototypes()
-
-        assert protos.shape == (n_protos, n_classes, hid_dim)
-        assert feats.shape == (batch_size, hid_dim)
-
+    def aggregate_logits(self, feats: Tensor, protos: Tensor, batch_size: int, n_protos: int, n_classes: int, hid_dim: int):
         if self.config.get('senet.enabled'):
             attns = self.generete_senet_attns(feats)
             assert attns.shape == (n_protos, batch_size, hid_dim)
@@ -157,11 +116,80 @@ class MultiProtoHead(nn.Module):
 
                 assert logit_groups.shape == (batch_size, n_protos, n_classes)
 
-        logits = self.aggregate_logits(logit_groups)
+        logits = self.aggregate_logit_groups(logit_groups)
 
         if self.config.scale.type == 'predict_from_logits':
             scales = self.predict_scale(logits)
             logits = logits * scales
+
+        return logits
+
+    def aggregate_logit_groups(self, logit_groups: Tensor) -> Tensor:
+        logits_aggregation_type = self.config.get('logits_aggregation_type', 'mean')
+        batch_size = logit_groups.size(0)
+        n_protos = self.compute_n_protos()
+        n_classes = self.attrs.shape[0]
+
+        assert logit_groups.shape == (batch_size, n_protos, n_classes), f"Wrong shape: {logit_groups.shape}"
+
+        if logits_aggregation_type == 'mean':
+            if n_protos > 1 and self.config.golden_proto.enabled and self.config.golden_proto.weight != "same":
+                # Distribute remaining weights equally between other prototypes
+                weight_others = (1 - self.config.golden_proto.weight) / (n_protos - 1)
+                logit_groups[:, 0, :] *= self.config.golden_proto.weight
+                logit_groups[:, 1:, :] *= weight_others
+                logits = logit_groups.sum(dim=1)
+            else:
+                logits = logit_groups.mean(dim=1) # [batch_size x n_classes]
+        elif logits_aggregation_type == 'max':
+            logits = logit_groups.max(dim=1)[0]
+        elif logits_aggregation_type == 'min':
+            logits = logit_groups.min(dim=1)[0]
+        elif logits_aggregation_type == 'sum':
+            logits = logit_groups.sum(dim=1)
+        elif logits_aggregation_type == 'softmax_mean':
+            prob_groups = logit_groups.view(batch_size, n_protos * n_classes).softmax(dim=1) # [batch_suze, n_protos * n_classes]
+            probs = prob_groups.view(batch_size, n_protos, n_classes).sum(dim=1) # [batch_size x n_classes]
+            logits = probs.log() # [batch_size x n_classes]
+        else:
+            raise NotImplementedError(f'Unknown combine strategy: {logits_aggregation_type}')
+
+        return logits
+
+    @property
+    def aggregation_type(self) -> str:
+        if self.training:
+            return self.config.aggregation_type
+        else:
+            return self.config.test_aggregation_type
+
+    def forward(self, feats: Tensor):
+        batch_size = feats.size(0)
+        n_protos = self.compute_n_protos()
+        n_classes = self.attrs.shape[0]
+        hid_dim = self.config.hid_dim
+
+        protos = self.generate_prototypes()
+
+        assert protos.shape == (n_protos, n_classes, hid_dim)
+        assert feats.shape == (batch_size, hid_dim)
+
+        if self.aggregation_type == 'aggregate_logits':
+            logits = self.aggregate_logits(feats, protos, batch_size, n_protos, n_classes, hid_dim)
+        elif self.aggregation_type == 'aggregate_protos':
+            protos = protos.mean(dim=0) # [n_classes, hid_dim]
+            protos = normalize(protos, self.scale)
+            feats = normalize(feats, self.scale)
+            logits = torch.matmul(feats, protos.t()) # [batch_size, n_classes]
+        elif self.aggregation_type == 'aggregate_losses':
+            protos = normalize(protos, self.scale)
+            feats = normalize(feats, self.scale)
+            logits = torch.matmul(protos, feats.t()) # [n_protos, n_classes, batch_size]
+            logits = logits.permute(2, 0, 1) # [batch_size, n_protos, n_classes]
+            assert logits.shape == (batch_size, n_protos, n_classes), f"Wrong shape: {logits.shape}"
+            logits = logits.contiguous().view(batch_size * n_protos, n_classes)
+        else:
+            raise NotImplementedError(f'Unknown aggregation_type: {self.aggregation_type}')
 
         return logits
 

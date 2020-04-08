@@ -25,10 +25,13 @@ all:
       type: "random_embeddings"
       num_prototypes: 1
       hid_dim: 512
-      combine_strategy: "mean"
       fusing_type: "concat"
       after_fuse_transform_layers: [512]
       attrs_transform_layers: [312]
+
+      # How to combine the predictions from different prototypes
+      aggregation_type: "aggregate_logits"
+      test_aggregation_type: "aggregate_logits"
 
       noise:
         transform_layers: [32]
@@ -36,7 +39,7 @@ all:
         std: 0.0
 
       golden_proto:
-        enabled: true
+        enabled: false
         weight: "same"
 
       scale:

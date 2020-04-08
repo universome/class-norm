@@ -2,7 +2,7 @@
 
 num_runs=$1
 
-experiments_dir="mph_random_optim"
+experiments_dir="aggregations"
 mkdir -p $experiments_dir
 config="multi_proto"
 dataset=cub
@@ -13,13 +13,16 @@ case "$dataset" in
 esac
 
 for (( random_seed=1; random_seed<=num_runs; random_seed++ )); do
-    for lr in 0.0001 0.0005 0.001 0.0025 0.005 0.01; do
-        for momentum in 0.0 0.1 0.25 0.4 0.5 0.6 0.75 0.9 0.95 0.99; do
+    for aggregation_type in aggregate_logits aggregate_protos aggregate_losses; do
+        for test_aggregation_type in aggregate_logits aggregate_protos; do
+            for num_prototypes in 1 10 25; do
                 cli_args=$(echo "-c $config -d $dataset --experiments_dir $experiments_dir -s $random_seed" \
-                        "--config.hp.optim.kwargs.lr $lr" \
-                        "--config.hp.optim.kwargs.momentum $momentum")
+                        "--config.hp.head.aggregation_type $aggregation_type" \
+                        "--config.hp.head.test_aggregation_type $test_aggregation_type" \
+                        "--config.hp.head.num_prototypes $num_prototypes")
                 # echo "$cli_args"
                 sbatch --mem "$mem" --export=ALL,cli_args="$cli_args" slurm/slurm_lll_job.sh;
+            done
         done
     done
 done
