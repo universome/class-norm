@@ -51,7 +51,18 @@ class MultiProtoHead(nn.Module):
         self.register_buffer('attrs', torch.from_numpy(attrs))
 
         self.init_modules()
+        self.init_scaling()
 
+    def generate_prototypes(self) -> Tensor:
+        raise NotImplementedError('You forgot to implement `.generate_prototypes()` method')
+
+    def compute_n_protos(self) -> int:
+        if (not self.training and self.config.get('num_test_prototypes')):
+            return self.config.num_test_prototypes
+        else:
+            return self.config.num_prototypes
+
+    def init_scaling(self):
         # TODO: - compute std and change it in such a way that it equals to He/Xavier's std.
         if self.config.scale.type == 'learnable':
             self.scale = nn.Parameter(torch.tensor(self.config.scale.value))
@@ -63,17 +74,11 @@ class MultiProtoHead(nn.Module):
         elif self.config.scale.type == 'predict_from_logits':
             self.predict_scale = create_sequential_model(self.config.scale.layers_sizes)
             self.predict_scale[-2].bias.data = torch.ones_like(self.predict_scale[-2].bias.data) * (self.config.scale.value ** 2)
+        elif self.config.scale.type == 'batch_norm':
+            self.protos_norm = nn.BatchNorm1d(self.config.hid_dim, affine=self.config.scale.get('affine', True))
+            self.feats_norm = nn.BatchNorm1d(self.config.hid_dim, affine=self.config.scale.get('affine', True))
         else:
             raise NotImplementedError(f'Unknown scaling type: {self.config.scale.type}')
-
-    def generate_prototypes(self) -> Tensor:
-        raise NotImplementedError('You forgot to implement `.generate_prototypes()` method')
-
-    def compute_n_protos(self) -> int:
-        if (not self.training and self.config.get('num_test_prototypes')):
-            return self.config.num_test_prototypes
-        else:
-            return self.config.num_prototypes
 
     def aggregate_logits(self, feats: Tensor, protos: Tensor, batch_size: int, n_protos: int, n_classes: int, hid_dim: int):
         if self.config.get('senet.enabled'):
@@ -101,6 +106,9 @@ class MultiProtoHead(nn.Module):
             elif self.config.scale.type == 'predict_from_logits':
                 protos = normalize(protos)
                 feats = normalize(feats)
+            elif self.config.scale.type == 'batch_norm':
+                protos = self.protos_norm(protos.view(n_protos * n_classes, hid_dim)).view(n_protos, n_classes, hid_dim)
+                feats = self.feats_norm(feats)
             else:
                 protos = normalize(protos, self.scale)
                 feats = normalize(feats, self.scale)
@@ -161,7 +169,7 @@ class MultiProtoHead(nn.Module):
         if self.training:
             return self.config.aggregation_type
         else:
-            return self.config.test_aggregation_type
+            return self.config.get('test_aggregation_type', self.config.aggregation_type)
 
     def forward(self, feats: Tensor):
         batch_size = feats.size(0)

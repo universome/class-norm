@@ -31,7 +31,6 @@ all:
 
       # How to combine the predictions from different prototypes
       aggregation_type: "aggregate_logits"
-      test_aggregation_type: "aggregate_logits"
 
       noise:
         transform_layers: [32]
