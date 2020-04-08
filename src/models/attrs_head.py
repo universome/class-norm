@@ -322,7 +322,7 @@ class RandomEmbeddingMPHead(MultiProtoHead):
         n_classes, n_protos, transformed_noise_size = transformed_noise.shape
 
         transformed_noise = transformed_noise.view(n_classes * n_protos, transformed_noise_size)
-        transformed_attrs = transformed_attrs.repeat(n_protos, 1)
+        transformed_attrs = transformed_attrs.view(n_classes, 1, -1).repeat(1, n_protos, 1).view(n_classes * n_protos, -1)
         contextualized_attrs = self.fuser(transformed_attrs, transformed_noise) # [n_classes * n_protos, after_fuse_transform_layers[0]]
         prototypes = self.after_fuse_transform(contextualized_attrs) # [n_classes * n_protos, hid_dim]
 
