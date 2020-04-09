@@ -20,26 +20,51 @@ all:
     #     enabled: false
     #     reduction_dim: 16
 
+    # head:
+    #   output_dist: "von_mises"
+    #   type: "random_embeddings"
+    #   num_prototypes: 1
+    #   hid_dim: 512
+    #   fusing_type: "concat"
+    #   after_fuse_transform_layers: [512]
+    #   attrs_transform_layers: [312]
+
+    #   # How to combine the predictions from different prototypes
+    #   aggregation_type: "aggregate_logits"
+
+    #   noise:
+    #     transform_layers: [32]
+    #     same_for_each_class: false
+    #     std: 0.0
+
+    #   golden_proto:
+    #     enabled: false
+    #     weight: "same"
+
+    #   scale:
+    #     # type: "predict_from_logits"
+    #     type: "constant"
+    #     # layers_sizes: [200, 256, 1]
+    #     value: 10
+
+    # push_protos_apart:
+    #   enabled: false
+    #   loss_coef: 1
+
     head:
       output_dist: "von_mises"
-      type: "random_embeddings"
+      type: "dropout_attrs"
       num_prototypes: 1
       hid_dim: 512
       fusing_type: "concat"
-      after_fuse_transform_layers: [512]
-      attrs_transform_layers: [312]
+      attrs_transform_layers: [312, 512]
 
       # How to combine the predictions from different prototypes
       aggregation_type: "aggregate_logits"
 
-      noise:
-        transform_layers: [32]
-        same_for_each_class: false
-        std: 0.0
-
-      golden_proto:
-        enabled: false
-        weight: "same"
+      dropout:
+        p: 0.1
+        type: "attribute_wise"
 
       scale:
         # type: "predict_from_logits"
@@ -47,9 +72,6 @@ all:
         # layers_sizes: [200, 256, 1]
         value: 10
 
-    push_protos_apart:
-      enabled: false
-      loss_coef: 1
 
 cub:
   hp:

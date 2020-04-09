@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch import Tensor
 import numpy as np
 from firelab.config import Config
@@ -19,7 +20,8 @@ class AttrsHead(nn.Module):
             'simple': SimpleAttrsHead,
             'multi_headed': MultiHeadedMPHead,
             'random_embeddings': RandomEmbeddingMPHead,
-            'static_embeddings': StaticEmbeddingMPHead
+            'static_embeddings': StaticEmbeddingMPHead,
+            'dropout_attrs': DropoutMPH
         }[config.type](config, attrs)
 
     def forward(self, x: Tensor, **kwargs) -> Tensor:
@@ -141,7 +143,7 @@ class MultiProtoHead(nn.Module):
         assert logit_groups.shape == (batch_size, n_protos, n_classes), f"Wrong shape: {logit_groups.shape}"
 
         if logits_aggregation_type == 'mean':
-            if n_protos > 1 and self.config.golden_proto.enabled and self.config.golden_proto.weight != "same":
+            if n_protos > 1 and self.config.get('golden_proto.enabled') and self.config.golden_proto.weight != "same":
                 # Distribute remaining weights equally between other prototypes
                 weight_others = (1 - self.config.golden_proto.weight) / (n_protos - 1)
                 logit_groups[:, 0, :] *= self.config.golden_proto.weight
@@ -329,5 +331,58 @@ class RandomEmbeddingMPHead(MultiProtoHead):
         assert prototypes.shape == (n_classes * n_protos, self.config.hid_dim), f"Wrong shape: {prototypes.shape}"
 
         prototypes = prototypes.view(n_protos, n_classes, self.config.hid_dim)
+
+        return prototypes
+
+
+class DropoutMPH(MultiHeadedMPHead):
+    def init_modules(self):
+        self.attrs_transform = create_sequential_model(
+            self.config.attrs_transform_layers,
+            final_activation=False)
+
+    def dropout_attrs(self):
+        n_protos = self.compute_n_protos()
+        n_classes, attr_dim = self.attrs.shape
+
+        if not self.training and self.compute_n_protos() == 1:
+            p = 0.0
+        else:
+            p = self.config.dropout.p
+
+        if self.config.dropout.type == 'attribute_wise':
+            scale = 1 / (1 - p)
+
+            # Creating a mask per prototype
+            masks = torch.rand(n_protos, attr_dim) >= p
+            masks = masks.view(1, n_protos, attr_dim).float()
+            masks = masks.to(self.attrs.device)
+
+            # Replicating attrs per each prototype
+            attrs = self.attrs.view(n_classes, 1, attr_dim)
+            attrs = attrs.repeat(1, n_protos, 1)
+
+            # Applying the masks
+            attrs = attrs * masks
+
+            # Scaling attrs during training
+            attrs = attrs * scale
+            attrs = attrs.permute(1, 0, 2) # [n_protos, n_classes, attr_dim]
+        elif self.config.dropout.type == 'element_wise':
+            attrs = self.attrs.view(n_classes, 1, attr_dim)
+            attrs = attrs.repeat(1, n_protos, 1)
+            attrs = attrs.permute(1, 0, 2)
+            attrs = F.dropout(attrs, p=p)
+        else:
+            raise NotImplementedError('Unknown dropout type')
+
+        return attrs
+
+    def generate_prototypes(self):
+        attrs = self.dropout_attrs()
+        prototypes = self.attrs_transform(attrs)
+
+        assert prototypes.shape == (self.compute_n_protos(), self.attrs.shape[0], self.config.hid_dim), \
+            f"Wrong shape: {prototypes.shape}"
 
         return prototypes
