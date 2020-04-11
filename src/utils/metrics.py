@@ -107,7 +107,10 @@ def compute_ausuc(logits: List[List[float]], targets: List[int], seen_classes_ma
 
     auc_score = np.trapz(accs_seen, x=accs_unseen) * 100
 
-    return auc_score, (accs_seen, accs_unseen)
+    if return_accs:
+        return auc_score, (accs_seen, accs_unseen)
+    else:
+        return auc_score
 
 
 def compute_ausuc_slow(logits: List[List[float]], targets: List[int], seen_classes_mask: List[bool],
