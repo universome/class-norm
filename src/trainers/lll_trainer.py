@@ -36,8 +36,9 @@ from src.trainers.dem_task_trainer import DEMTaskTrainer
 from src.trainers.icarl_task_trainer import iCarlTaskTrainer
 from src.trainers.multi_proto_task_trainer import MultiProtoTaskTrainer
 
-from src.utils.data_utils import construct_output_mask, filter_out_classes
-from src.dataloaders.utils import create_custom_dataset
+from src.utils.data_utils import construct_output_mask, filter_out_classes, compute_class_centroids
+from src.utils.training_utils import normalize
+from src.dataloaders.utils import create_custom_dataset, extract_features_for_dataset
 
 
 TASK_TRAINERS = {
@@ -162,8 +163,19 @@ class LLLTrainer(BaseTrainer):
         dataloader = DataLoader(dataset, batch_size=self.config.get('inference_batch_size', self.config.hp.batch_size))
 
         with torch.no_grad():
-            logits = [self.model(torch.from_numpy(np.array(b)).to(self.device_name)).cpu().numpy() for b, _ in dataloader]
-            logits = np.vstack(logits)
+            if self.config.hp.get('use_oracle_prototypes'):
+                ds_train_feats = extract_features_for_dataset(self.ds_train, self.model.embedder, self.device_name, 256)
+                feats = extract_features_for_dataset(dataset, self.model.embedder, self.device_name, 256) # [ds_size, hid_dim]
+
+                train_feats = compute_class_centroids(ds_train_feats, self.config.data.num_classes) # [num_classes, hid_dim]
+                prototypes = normalize(torch.from_numpy(train_feats).float(), self.config.hp.head.scale.value)
+                feats = normalize(torch.from_numpy(np.array([x for x, _ in feats])), self.config.hp.head.scale.value) # [ds_size, hid_dim]
+
+                # Logits is the dot-product with the prototypes
+                logits = (feats @ prototypes.t()).cpu().numpy() # [ds_size, num_classes]
+            else:
+                logits = [self.model(torch.from_numpy(np.array(b)).to(self.device_name)).cpu().numpy() for b, _ in dataloader]
+                logits = np.vstack(logits)
 
         return logits
 
