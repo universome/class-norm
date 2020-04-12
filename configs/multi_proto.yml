@@ -39,14 +39,14 @@ all:
         same_for_each_class: false
         std: 0.0
 
-      dae:
-        enabled: false
-        encoder_layers: [512, 256, 32]
-        input_noise_type: "bernoulli"
-        input_std: 1.
-        input_dropout_p: 0.5
-        codes_std: 0.1
-        loss_coef: 1.
+      # dae:
+      #   enabled: false
+      #   encoder_layers: [512, 256, 32]
+      #   input_noise_type: "bernoulli"
+      #   input_std: 1.
+      #   input_dropout_p: 0.5
+      #   codes_std: 0.1
+      #   loss_coef: 1.
 
       golden_proto:
         enabled: false

@@ -258,4 +258,3 @@ def create_sequential_model(layers_sizes: Iterable[int], final_activation: bool=
         modules.pop(-1)
 
     return nn.Sequential(*modules)
-

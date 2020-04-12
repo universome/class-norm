@@ -346,13 +346,14 @@ class RandomEmbeddingMPHead(MultiProtoHead):
         n_classes, n_protos, transformed_noise_size = z_transormed.shape
 
         z_transormed = z_transormed.view(n_classes * n_protos, transformed_noise_size)
-        attrs_transformed = attrs_transformed.view(n_classes, 1, -1).repeat(1, n_protos, 1).view(n_classes * n_protos, -1)
+        attrs_transformed = attrs_transformed.unsqueeze(1).repeat(1, n_protos, 1).view(n_classes * n_protos, -1)
         contextualized_attrs = self.fuser(attrs_transformed, z_transormed) # [n_classes * n_protos, after_fuse_transform_layers[0]]
         prototypes = self.after_fuse_transform(contextualized_attrs) # [n_classes * n_protos, hid_dim]
 
         assert prototypes.shape == (n_classes * n_protos, self.config.hid_dim), f"Wrong shape: {prototypes.shape}"
 
-        prototypes = prototypes.view(n_protos, n_classes, self.config.hid_dim)
+        prototypes = prototypes.view(n_classes, n_protos, self.config.hid_dim)
+        prototypes = prototypes.permute(1, 0, 2)
 
         return prototypes
 
