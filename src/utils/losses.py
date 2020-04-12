@@ -143,3 +143,30 @@ def gdpp_normalize_min_max(eig_vals):
     if abs(minV - maxV) < 1e-10:
         return eig_vals
     return (eig_vals - minV) / (maxV - minV)
+
+
+def compute_mmd_loss(feats_fake: Tensor, feats_real: Tensor, cov_diff_coef: float=1.0) -> Tensor:
+    assert feats_fake.shape[1] == feats_real.shape[1]
+
+    mean_fake = feats_fake.mean(dim=0)
+    mean_real = feats_real.mean(dim=0)
+    cov_fake = compute_covariance(feats_fake)
+    cov_real = compute_covariance(feats_real)
+
+    means_diff = (mean_fake - mean_real).pow(2).mean()
+    cov_diff = (cov_fake - cov_real).pow(2).mean()
+
+    return means_diff + cov_diff_coef * cov_diff
+
+
+def compute_covariance(feats: Tensor) -> Tensor:
+    """
+    Computes empirical covariance matrix for a batch of feature vectors
+    """
+    assert feats.ndim == 2
+
+    feats -= feats.mean(dim=0)
+    cov_unscaled = feats.t() @ feats # [feat_dim, feat_dim]
+    cov = cov_unscaled / (feats.size(0) - 1)
+
+    return cov
