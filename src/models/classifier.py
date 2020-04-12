@@ -14,18 +14,28 @@ from src.models.attrs_head import AttrsHead
 RESNET_CLS = {18: resnet18, 34: resnet34, 50: resnet50}
 
 
-class ResnetClassifier(nn.Module):
+class Classifier(nn.Module):
     def __init__(self, config: Config, attrs: np.ndarray=None):
-        super(ResnetClassifier, self).__init__()
+        super(Classifier, self).__init__()
 
-        self.embedder = ResnetEmbedder(
-            config.hp.classifier.resnet_n_layers,
-            config.hp.classifier.pretrained)
-        self.head = ClassifierHead(
-            INPUT_DIMS[f'resnet{config.hp.classifier.resnet_n_layers}_feat'],
-            config.data.num_classes,
-            attrs,
-            config.hp.get('head'))
+        self.config = config
+        self.attrs = attrs
+
+        self.init_embedder()
+        self.init_head()
+
+    @property
+    def hid_dim(self) -> int:
+        raise NotImplementedError()
+
+    def init_embedder(self):
+        raise NotImplementedError('`init_embedder` method is not implemented')
+
+    def init_head(self):
+        if self.attrs is None:
+            self.head = nn.Linear(self.hid_dim, self.config.data.num_classes)
+        else:
+            self.head = AttrsHead(self.config.hp.get('head'), self.attrs)
 
     def compute_pruned_predictions(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
         return prune_logits(self.forward(x), output_mask)
@@ -37,6 +47,29 @@ class ResnetClassifier(nn.Module):
         return sum(p.numel() for p in self.head.parameters())
 
 
+class ResnetClassifier(Classifier):
+    @property
+    def hid_dim(self) -> int:
+        return INPUT_DIMS[f'resnet{self.config.hp.classifier.resnet_n_layers}_feat']
+
+    def init_embedder(self):
+        self.embedder = ResnetEmbedder(
+            self.config.hp.classifier.resnet_n_layers,
+            self.config.hp.classifier.pretrained)
+
+
+class FeatClassifier(Classifier):
+    @property
+    def hid_dim(self) -> int:
+        return self.config.hp.classifier.hid_dim
+
+    def init_embedder(self):
+        self.embedder = nn.Sequential(
+            # GaussianDropout(self.config.get('cls_gaussian_dropout_sigma', 0.)),
+            nn.Linear(self.config.hp.classifier.data_dim, self.config.hp.classifier.hid_dim),
+            nn.ReLU(),
+        )
+
 class ResnetEmbedder(nn.Module):
     def __init__(self, resnet_n_layers: int=18, pretrained: bool=True):
         super(ResnetEmbedder, self).__init__()
@@ -47,46 +80,6 @@ class ResnetEmbedder(nn.Module):
 
     def forward(self, x):
         return resnet_embedder_forward(self.resnet, x)
-
-
-class FeatClassifier(nn.Module):
-    def __init__(self, config: Config, attrs: np.ndarray = None):
-        super(FeatClassifier, self).__init__()
-
-        self.config = config
-        self.body = self.create_body()
-        self.head = ClassifierHead(config.hp.classifier.hid_dim, config.data.num_classes, attrs)
-
-    def create_body(self) -> nn.Module:
-        return nn.Sequential(
-            # GaussianDropout(self.config.get('cls_gaussian_dropout_sigma', 0.)),
-            nn.Linear(self.config.hp.classifier.data_dim, self.config.hp.classifier.hid_dim),
-            nn.ReLU(),
-        )
-
-    def forward(self, x) -> Tensor:
-        return self.head(self.body(x))
-
-    def compute_pruned_predictions(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
-        return prune_logits(self.forward(x), output_mask)
-
-
-class ClassifierHead(nn.Module):
-    def __init__(self, hid_dim: int, num_classes: int, attrs: np.ndarray = None, head_config: Config=None):
-        super(ClassifierHead, self).__init__()
-
-        self.use_attrs = not attrs is None
-
-        if self.use_attrs:
-            self.head = AttrsHead(head_config, attrs)
-        else:
-            self.head = nn.Linear(hid_dim, num_classes)
-
-    def forward(self, feats: Tensor, **head_kwargs) -> Tensor:
-        return self.head(feats, **head_kwargs)
-
-    def compute_pruned_predictions(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
-        return prune_logits(self.forward(x), output_mask)
 
 
 class ConvFeatClassifier(FeatClassifier):

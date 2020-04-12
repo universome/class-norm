@@ -2,7 +2,7 @@ all:
   task_trainer: "multi_proto"
   hp:
     use_class_attrs: true
-    use_oracle_prototypes: true
+    # use_oracle_prototypes: true
     img_target_shape: [256, 256]
     max_num_epochs: 5
     batch_size: 10
@@ -32,11 +32,21 @@ all:
 
       # How to combine the predictions from different prototypes
       aggregation_type: "aggregate_logits"
+      logits_aggregation_type: "mean"
 
       noise:
         transform_layers: [32]
         same_for_each_class: false
         std: 0.0
+
+      dae:
+        enabled: false
+        encoder_layers: [512, 256, 32]
+        input_noise_type: "bernoulli"
+        input_std: 1.
+        input_dropout_p: 0.5
+        codes_std: 0.1
+        loss_coef: 1.
 
       golden_proto:
         enabled: false

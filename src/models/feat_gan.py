@@ -9,7 +9,7 @@ from firelab.config import Config
 
 from src.utils.training_utils import prune_logits
 from src.utils.constants import INPUT_DIMS
-from src.models.classifier import ClassifierHead
+from src.models.classifier import FeatClassifier
 
 
 class FeatGenerator(nn.Module):
@@ -91,10 +91,7 @@ class FeatDiscriminator(nn.Module):
         self.adv_head = nn.Linear(self.config.hp.discriminator.hid_dim, 1)
 
         if self.config.hp.discriminator.type == 'acgan':
-            self.cls_head = ClassifierHead(
-                self.config.hp.classifier.hid_dim,
-                self.config.data.num_classes,
-                attrs)
+            self.cls_head = FeatClassifier(self.config, attrs)
 
     def init_body(self, num_layers: int, conditional:bool=False) -> nn.Module:
         layers = [

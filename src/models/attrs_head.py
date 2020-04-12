@@ -55,7 +55,7 @@ class MultiProtoHead(nn.Module):
         self.init_modules()
         self.init_scaling()
 
-    def generate_prototypes(self) -> Tensor:
+    def generate_prototypes(self, *args, **kwargs) -> Tensor:
         raise NotImplementedError('You forgot to implement `.generate_prototypes()` method')
 
     def compute_n_protos(self) -> int:
@@ -71,10 +71,10 @@ class MultiProtoHead(nn.Module):
         elif self.config.scale.type == 'constant':
             self.register_buffer('scale', torch.tensor(self.config.scale.value))
         elif self.config.scale.type == 'predict_from_attrs':
-            self.predict_scale = create_sequential_model(self.config.scale.layers_sizes)
+            self.predict_scale = create_sequential_model(self.config.scale.layers_sizes, final_activation=True)
             self.predict_scale[-2].bias.data = torch.ones_like(self.predict_scale[-2].bias.data) * (self.config.scale.value ** 2)
         elif self.config.scale.type == 'predict_from_logits':
-            self.predict_scale = create_sequential_model(self.config.scale.layers_sizes)
+            self.predict_scale = create_sequential_model(self.config.scale.layers_sizes, final_activation=True)
             self.predict_scale[-2].bias.data = torch.ones_like(self.predict_scale[-2].bias.data) * (self.config.scale.value ** 2)
         elif self.config.scale.type == 'batch_norm':
             self.protos_norm = nn.BatchNorm1d(self.config.hid_dim, affine=self.config.scale.get('affine', True))
@@ -293,8 +293,10 @@ class RandomEmbeddingMPHead(MultiProtoHead):
             self.config.attrs_transform_layers[-1],
             self.config.noise.transform_layers[-1],
             self.config.after_fuse_transform_layers[0])
-        self.after_fuse_transform = create_sequential_model(
-            self.config.after_fuse_transform_layers, final_activation=False)
+        self.after_fuse_transform = create_sequential_model(self.config.after_fuse_transform_layers)
+
+        if self.config.get('dae.enabled'):
+            self.encoder = create_sequential_model(self.config.dae.encoder_layers)
 
     def get_transformed_noise(self) -> Tensor:
         n_classes = self.attrs.shape[0]
@@ -315,17 +317,37 @@ class RandomEmbeddingMPHead(MultiProtoHead):
 
         return transformed_noise
 
+    def compute_dae_reconstructions(self, feats: Tensor, y: Tensor) -> Tensor:
+        if self.config.dae.input_noise_type == 'bernoulli':
+            feats_noised = F.dropout(feats, self.config.dae.input_dropout_p)
+        elif self.config.dae.input_noise_type == 'gaussian':
+            feats_noised = feats + torch.randn_like(feats) * self.config.dae.input_std
+        else:
+            raise NotImplementedError('Unknown input noise type: {self.config.dae.input_noise_type}')
+
+        z = self.encoder(feats_noised) # [batch_size, z_size]
+        z += torch.randn_like(z) * self.config.dae.get('codes_std', 0.)
+        z_transformed = self.noise_transform(z) # [batch_size, noise.transform_layers[-1]]
+        attrs_transformed = self.attrs_transform(self.attrs) # [n_classes, attrs.transform_layers[-1]]
+        attrs_transformed = attrs_transformed[y] # [batch_size, attrs.transform_layers[-1]]
+        contextualized_attrs = self.fuser(z_transformed, attrs_transformed) # [batch_size, after_fuse_transform_layers[0]]
+        feats_rec = self.after_fuse_transform(contextualized_attrs) # [batch_size, hid_dim]
+
+        assert feats.shape == feats_rec.shape, f"Wrong shape: {feats_rec.shape}"
+
+        return feats_rec
+
     def generate_prototypes(self) -> Tensor:
-        transformed_noise = self.get_transformed_noise() # [n_classes, n_protos, transformed_noise_size]
-        transformed_attrs = self.attrs_transform(self.attrs) # [n_classes, transformed_attrs_size]
+        z_transormed = self.get_transformed_noise() # [n_classes, n_protos, transformed_noise_size]
+        attrs_transformed = self.attrs_transform(self.attrs) # [n_classes, transformed_attrs_size]
 
-        assert transformed_noise.shape[0] == transformed_attrs.shape[0]
+        assert z_transormed.shape[0] == attrs_transformed.shape[0]
 
-        n_classes, n_protos, transformed_noise_size = transformed_noise.shape
+        n_classes, n_protos, transformed_noise_size = z_transormed.shape
 
-        transformed_noise = transformed_noise.view(n_classes * n_protos, transformed_noise_size)
-        transformed_attrs = transformed_attrs.view(n_classes, 1, -1).repeat(1, n_protos, 1).view(n_classes * n_protos, -1)
-        contextualized_attrs = self.fuser(transformed_attrs, transformed_noise) # [n_classes * n_protos, after_fuse_transform_layers[0]]
+        z_transormed = z_transormed.view(n_classes * n_protos, transformed_noise_size)
+        attrs_transformed = attrs_transformed.view(n_classes, 1, -1).repeat(1, n_protos, 1).view(n_classes * n_protos, -1)
+        contextualized_attrs = self.fuser(attrs_transformed, z_transormed) # [n_classes * n_protos, after_fuse_transform_layers[0]]
         prototypes = self.after_fuse_transform(contextualized_attrs) # [n_classes * n_protos, hid_dim]
 
         assert prototypes.shape == (n_classes * n_protos, self.config.hid_dim), f"Wrong shape: {prototypes.shape}"
@@ -337,9 +359,7 @@ class RandomEmbeddingMPHead(MultiProtoHead):
 
 class DropoutMPH(MultiHeadedMPHead):
     def init_modules(self):
-        self.attrs_transform = create_sequential_model(
-            self.config.attrs_transform_layers,
-            final_activation=False)
+        self.attrs_transform = create_sequential_model(self.config.attrs_transform_layers)
 
     def dropout_attrs(self):
         n_protos = self.compute_n_protos()
