@@ -2,7 +2,7 @@
 
 num_runs=$1
 
-experiments_dir="additional_losses"
+experiments_dir="generative_training"
 mkdir -p $experiments_dir
 config="multi_proto"
 dataset=cub
@@ -14,13 +14,14 @@ esac
 
 for (( random_seed=1; random_seed<=num_runs; random_seed++ )); do
     for num_prototypes in 10 25; do
-        for dae_loss_coef in 0.0 0.1 1.0; do
-            for push_protos_apart_loss_coef in 0.0 0.1 1.0; do
-                for protos_clf_loss_coef in 0.0 0.1 1.0; do
+        for generative_training_type in gdpp mmd; do
+            for generative_training_loss_coef in 0.1 0.5 1.0; do
+                for num_generative_protos in 5 10 25; do
                     cli_args=$(echo "-c $config -d $dataset --experiments_dir $experiments_dir -s $random_seed" \
-                            "--config.hp.head.dae.loss_coef $dae_loss_coef" \
-                            "--config.hp.head.push_protos_apart.loss_coef $push_protos_apart_loss_coef" \
-                            "--config.hp.head.protos_clf_loss.loss_coef $protos_clf_loss_coef" \
+                            "--config.hp.generative_training.enabled true" \
+                            "--config.hp.generative_training.type $generative_training_type" \
+                            "--config.hp.generative_training.loss_coef $generative_training_loss_coef" \
+                            "--config.hp.generative_training.num_protos $num_generative_protos" \
                             "--config.hp.head.num_prototypes $num_prototypes")
                     # echo "$cli_args"
                     sbatch --mem "$mem" --export=ALL,cli_args="$cli_args" slurm/slurm_lll_job.sh;
