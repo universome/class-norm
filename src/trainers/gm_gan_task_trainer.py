@@ -125,7 +125,7 @@ class GMGANTaskTrainer(TaskTrainer):
                                   "(for example, previous trainers was not finished or this trainer was already run)"
 
         for i in tqdm(range(self.config.hp.num_iters_per_task), desc=f'Task #{self.task_idx} iteration'):
-            batch = self.sample_train_batch()
+            batch = self.sample_batch(self.task_ds_train, self.config.hp.batch_size)
             self.train_on_batch(batch)
             self.num_iters_done += 1
             self.run_after_iter_done_callbacks()
@@ -134,12 +134,3 @@ class GMGANTaskTrainer(TaskTrainer):
                 plot_samples(self)
 
         self._after_train_hook()
-
-    def sample_train_batch(self) -> Tuple[np.ndarray, np.ndarray]:
-        batch_size = min(self.config.hp.batch_size, len(self.task_ds_train))
-        idx = random.sample(range(len(self.task_ds_train)), batch_size)
-        x, y = zip(*[self.task_ds_train[i] for i in idx])
-        # x = self.task_train_images[idx]
-        # y = self.task_train_labels[idx]
-
-        return x, y

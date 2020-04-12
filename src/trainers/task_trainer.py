@@ -181,3 +181,10 @@ class TaskTrainer:
         y = torch.tensor(y).to(self.device_name)
 
         return x, y
+
+    def sample_batch(self, dataset: List[Tuple[Any, int]], batch_size: int, replace: bool=False) -> Tuple[np.ndarray, np.ndarray]:
+        batch_size = batch_size if replace else min(batch_size, len(dataset))
+        idx = np.random.choice(range(len(dataset)), size=batch_size, replace=replace)
+        x, y = zip(*[dataset[i] for i in idx])
+
+        return x, y

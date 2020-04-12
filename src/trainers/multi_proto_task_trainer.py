@@ -5,7 +5,7 @@ from torch import Tensor
 
 from src.trainers.task_trainer import TaskTrainer
 from src.utils.training_utils import prune_logits, normalize
-from src.utils.losses import compute_mean_distance
+from src.utils.losses import compute_mean_distance, compute_gdpp_loss, compute_mmd_loss
 
 
 class MultiProtoTaskTrainer(TaskTrainer):
@@ -64,3 +64,31 @@ class MultiProtoTaskTrainer(TaskTrainer):
         self.optim.step()
 
         self.writer.add_scalar('cls_loss', cls_loss.item(), self.num_iters_done)
+
+        if self.config.hp.generative_training.enabled:
+            self.run_generative_training_step()
+
+    def run_generative_training_step(self):
+        prototypes = self.model.head.model.generate_prototypes(self.config.hp.generative_training.num_protos) # [n_protos, n_classes, hid_dim]
+        prototypes = prototypes[:, self.classes, :] # [n_protos, n_curr_classes, hid_dim]
+        prototypes = prototypes.view(-1, prototypes.size(2)) # [n_protos * n_curr_classes, hid_dim]
+
+        batch = self.sample_batch(self.task_ds_train, prototypes.size(0), replace=True)
+        x = torch.from_numpy(np.array(batch[0])).to(self.device_name)
+
+        with torch.no_grad():
+            feats = self.model.embedder(x) # [batch_size, hid_dim]
+
+        if self.config.hp.generative_training.type == 'gdpp':
+            generative_loss = compute_gdpp_loss(prototypes, feats)
+        elif self.config.hp.generative_training.type == 'mmd':
+            generative_loss = compute_mmd_loss(prototypes, feats)
+        else:
+            raise NotImplementedError(f'Unknown generative loss type: {self.config.hp.generative_training.type}')
+
+        self.writer.add_scalar(f'{self.config.hp.generative_training.type}_loss', generative_loss.item(), self.num_iters_done)
+        generative_loss *= self.config.hp.generative_training.loss_coef
+
+        self.optim.zero_grad()
+        generative_loss.backward()
+        self.optim.step()

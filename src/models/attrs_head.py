@@ -301,9 +301,8 @@ class RandomEmbeddingMPHead(MultiProtoHead):
         if self.config.get('dae.enabled'):
             self.encoder = create_sequential_model(self.config.dae.encoder_layers)
 
-    def get_transformed_noise(self) -> Tensor:
+    def get_transformed_noise(self, n_protos: int) -> Tensor:
         n_classes = self.attrs.shape[0]
-        n_protos = self.compute_n_protos()
         z_size = self.config.noise.transform_layers[0]
 
         if self.config.noise.same_for_each_class:
@@ -340,8 +339,9 @@ class RandomEmbeddingMPHead(MultiProtoHead):
 
         return feats_rec
 
-    def generate_prototypes(self) -> Tensor:
-        z_transormed = self.get_transformed_noise() # [n_classes, n_protos, transformed_noise_size]
+    def generate_prototypes(self, n_protos: int=None) -> Tensor:
+        n_protos = n_protos if not n_protos is None else self.compute_n_protos()
+        z_transormed = self.get_transformed_noise(n_protos) # [n_classes, n_protos, transformed_noise_size]
         attrs_transformed = self.attrs_transform(self.attrs) # [n_classes, transformed_attrs_size]
 
         assert z_transormed.shape[0] == attrs_transformed.shape[0]

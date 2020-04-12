@@ -21,6 +21,12 @@ all:
     #     enabled: false
     #     reduction_dim: 16
 
+    generative_training:
+      loss_coef: 1.0
+      num_protos: 10
+      enabled: false
+      type: "mmd"
+
     head:
       output_dist: "von_mises"
       type: "random_embeddings"
@@ -40,7 +46,7 @@ all:
         std: 0.0
 
       dae:
-        enabled: true
+        enabled: false
         encoder_layers: [512, 256, 32]
         input_noise_type: "gaussian"
         input_std: 1.
@@ -59,11 +65,11 @@ all:
         # layers_sizes: [200, 256, 1]
 
       protos_clf_loss:
-        enabled: true
+        enabled: false
         loss_coef: 0.0
 
       push_protos_apart:
-        enabled: true
+        enabled: false
         loss_coef: 0.0
 
     # head:
