@@ -17,7 +17,7 @@ def run_trainer(args: argparse.Namespace, config_cli_args: List[str]):
     config = load_config(args, config_cli_args)
     print(config)
 
-    fix_random_seed(config.random_seed)
+    fix_random_seed(config.random_seed, enable_cudnn_deterministic=True, disable_cudnn_benchmark=True)
     LLLTrainer(config).start()
 
 
