@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch import Tensor, autograd
 
 from src.utils.training_utils import normalize
@@ -102,3 +103,43 @@ def compute_mean_distance(protos: Tensor, metric: str='cosine') -> Tensor:
     cosines = cosines * (1 - torch.eye(n_protos, device=cosines.device)).view(1, n_protos, n_protos)
 
     return (2 - cosines).mean()
+
+
+def compute_gdpp_loss(phiFake, phiReal):
+    r"""
+    Copypasted from: https://github.com/facebookresearch/pytorch_GAN_zoo/blob/master/models/loss_criterions/GDPP_loss.py
+
+    Implementation of the GDPP loss. Can be used with any kind of GAN
+    architecture.
+    Args:
+        phiFake (tensor) : last feature layer of the discriminator on real data
+        phiReal (tensor) : last feature layer of the discriminator on fake data
+    Returns:
+        Loss's value. The backward operation in performed within this operator
+    """
+    fakeEigVals, fakeEigVecs = gdpp_compute_diversity(phiFake)
+    realEigVals, realEigVecs = gdpp_compute_diversity(phiReal)
+
+    # Scaling factor to make the two losses operating in comparable ranges.
+    magnitudeLoss = 0.0001 * F.mse_loss(target=realEigVals, input=fakeEigVals)
+    structureLoss = -torch.sum(torch.mul(fakeEigVecs, realEigVecs), 0)
+    normalizedRealEigVals = gdpp_normalize_min_max(realEigVals)
+    weightedStructureLoss = torch.sum(torch.mul(normalizedRealEigVals, structureLoss))
+    gdppLoss = magnitudeLoss + weightedStructureLoss
+
+    return gdppLoss
+
+
+def gdpp_compute_diversity(phi):
+    phi = F.normalize(phi, p=2, dim=1)
+    SB = torch.mm(phi, phi.t())
+    eig_vals, eig_vecs = torch.symeig(SB, eigenvectors=True)
+
+    return eig_vals, eig_vecs
+
+
+def gdpp_normalize_min_max(eig_vals):
+    minV, maxV = torch.min(eig_vals), torch.max(eig_vals)
+    if abs(minV - maxV) < 1e-10:
+        return eig_vals
+    return (eig_vals - minV) / (maxV - minV)
