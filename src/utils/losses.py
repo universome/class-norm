@@ -93,8 +93,8 @@ def compute_mean_distance(protos: Tensor, metric: str='cosine') -> Tensor:
     assert protos.ndim == 3, "Dimensionality must be [n_protos x n_classes x feat_dim]"
 
     n_protos, n_classes, feat_dim = protos.shape
-    protos = normalize(protos) # [n_protos x n_classes x feat_dim]
-    cosines = torch.matmul(protos.permute(1, 0, 2), protos.permute(1, 2, 0))
+    protos = normalize(protos) # [n_protos, n_classes, feat_dim]
+    cosines = torch.matmul(protos.permute(1, 0, 2), protos.permute(1, 2, 0)) # [n_classes, n_protos, n_protos]
 
     assert cosines.shape == (n_classes, n_protos, n_protos)
 

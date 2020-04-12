@@ -39,28 +39,32 @@ all:
         same_for_each_class: false
         std: 0.0
 
-      # dae:
-      #   enabled: false
-      #   encoder_layers: [512, 256, 32]
-      #   input_noise_type: "bernoulli"
-      #   input_std: 1.
-      #   input_dropout_p: 0.5
-      #   codes_std: 0.1
-      #   loss_coef: 1.
+      dae:
+        enabled: true
+        encoder_layers: [512, 256, 32]
+        input_noise_type: "gaussian"
+        input_std: 1.
+        # input_dropout_p: 0.5
+        codes_std: 0.1
+        loss_coef: 0.0
 
       golden_proto:
         enabled: false
         weight: "same"
 
       scale:
-        # type: "predict_from_logits"
         type: "constant"
-        # layers_sizes: [200, 256, 1]
         value: 10
+        # type: "predict_from_logits"
+        # layers_sizes: [200, 256, 1]
 
-    # push_protos_apart:
-    #   enabled: false
-    #   loss_coef: 1
+      protos_clf_loss:
+        enabled: true
+        loss_coef: 0.0
+
+      push_protos_apart:
+        enabled: true
+        loss_coef: 0.0
 
     # head:
     #   output_dist: "von_mises"

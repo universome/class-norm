@@ -173,7 +173,7 @@ class MultiProtoHead(nn.Module):
         else:
             return self.config.get('test_aggregation_type', self.config.aggregation_type)
 
-    def forward(self, feats: Tensor):
+    def forward(self, feats: Tensor, return_protos: bool=False):
         batch_size = feats.size(0)
         n_protos = self.compute_n_protos()
         n_classes = self.attrs.shape[0]
@@ -201,7 +201,10 @@ class MultiProtoHead(nn.Module):
         else:
             raise NotImplementedError(f'Unknown aggregation_type: {self.aggregation_type}')
 
-        return logits
+        if return_protos:
+            return logits, protos
+        else:
+            return logits
 
 
 class MultiHeadedMPHead(MultiProtoHead):
