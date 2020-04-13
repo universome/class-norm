@@ -3,10 +3,10 @@ from typing import Tuple, Any, Iterable
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch import Tensor
 from torchvision.models.resnet import resnet18, resnet34, resnet50
 from firelab.config import Config
-
 
 input_type_TO_CLS = {18: resnet18, 34: resnet34, 50: resnet50}
 
@@ -188,7 +188,7 @@ class MILayer(nn.Module):
     The first part (z'Wx) is MI, the second part (z'U + Vx + b) is equivalent to concatenation-based approach
     Reference: https://openreview.net/forum?id=rylnK6VtDH
     """
-    def __init__(self, x_dim: int, z_dim: int, out_dim: int, combine_with_concat: bool=True):
+    def __init__(self, x_dim: int, z_dim: int, out_dim: int, combine_with_concat: bool=True, use_non_linearity: bool=False):
         super().__init__()
 
         self.x_dim = x_dim
@@ -200,6 +200,8 @@ class MILayer(nn.Module):
 
         if self.combine_with_concat:
             self.dense = nn.Linear(x_dim + z_dim, out_dim)
+
+        self.non_linearity = nn.LeakyReLU() if use_non_linearity else nn.Identity()
 
     def forward(self, x, z):
         assert x.ndim == z.ndim == 2
@@ -218,27 +220,32 @@ class MILayer(nn.Module):
 
         assert result.shape == (x.size(0), self.out_dim), f"Wrong shape: {result.shape}"
 
-        return result
+        return self.non_linearity(result)
+
 
 class ConcatLayer(nn.Module):
     """
     Simple concatenation layer
     """
-    def __init__(self, x_dim: int, z_dim: int, out_dim: int):
+    def __init__(self, x_dim: int, z_dim: int, out_dim: int, use_non_linearity: bool=False):
         super().__init__()
         self.model = nn.Linear(x_dim + z_dim, out_dim)
+        self.non_linearity = nn.LeakyReLU() if use_non_linearity else nn.Identity()
 
     def forward(self, x: Tensor, z: Tensor) -> Tensor:
-        return self.model(torch.cat([x, z], dim=1))
+        out = self.model(torch.cat([x, z], dim=1))
+        out = self.non_linearity(out)
+
+        return out
 
 
-def create_fuser(fusing_type: str, input_size: int, context_size: int, output_size: int) -> nn.Module:
+def create_fuser(fusing_type: str, input_size: int, context_size: int, output_size: int, use_non_linearity: bool=False) -> nn.Module:
     if fusing_type == 'pure_mult_int':
-        return MILayer(input_size, context_size, output_size, False)
+        return MILayer(input_size, context_size, output_size, False, use_non_linearity)
     if fusing_type == 'full_mult_int':
-        return MILayer(input_size, context_size, output_size, True)
+        return MILayer(input_size, context_size, output_size, True, use_non_linearity)
     elif fusing_type == 'concat':
-        return ConcatLayer(input_size, context_size, output_size)
+        return ConcatLayer(input_size, context_size, output_size, use_non_linearity)
     else:
         raise NotImplementedError(f'Unknown fusing type: {fusing_type}')
 

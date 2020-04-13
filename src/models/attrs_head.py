@@ -295,7 +295,8 @@ class RandomEmbeddingMPHead(MultiProtoHead):
             self.config.fusing_type,
             self.config.attrs_transform_layers[-1],
             self.config.noise.transform_layers[-1],
-            self.config.after_fuse_transform_layers[0])
+            self.config.after_fuse_transform_layers[0],
+            use_non_linearity=(len(self.config.after_fuse_transform_layers) > 1))
         self.after_fuse_transform = create_sequential_model(self.config.after_fuse_transform_layers)
 
         if self.config.get('dae.enabled'):
