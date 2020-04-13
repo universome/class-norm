@@ -28,7 +28,6 @@ all:
       type: "mmd"
 
     head:
-      output_dist: "von_mises"
       type: "random_embeddings"
       num_prototypes: 1
       hid_dim: 512
@@ -37,8 +36,8 @@ all:
       attrs_transform_layers: [312]
 
       # How to combine the predictions from different prototypes
-      aggregation_type: "aggregate_logits"
-      logits_aggregation_type: "mean"
+      aggregation_type: "average_prototypes"
+      # aggregation_type: "softmax"
 
       noise:
         transform_layers: [100]

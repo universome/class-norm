@@ -31,7 +31,7 @@ class MultiProtoTaskTrainer(TaskTrainer):
         else:
             logits = self.model(x)
 
-        if self.config.hp.head.aggregation_type == 'aggregate_losses':
+        if self.config.hp.head.aggregation_type == 'individual_losses':
             n_protos = logits.size(0) // y.size(0)
             batch_size = y.size(0)
             y = y.view(batch_size, 1).repeat(1, n_protos).view(batch_size * n_protos)

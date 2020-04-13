@@ -65,113 +65,12 @@ class MultiProtoHead(nn.Module):
             return self.config.num_prototypes
 
     def init_scaling(self):
-        # TODO: - compute std and change it in such a way that it equals to He/Xavier's std.
         if self.config.scale.type == 'learnable':
             self.scale = nn.Parameter(torch.tensor(self.config.scale.value))
         elif self.config.scale.type == 'constant':
             self.register_buffer('scale', torch.tensor(self.config.scale.value))
-        elif self.config.scale.type == 'predict_from_attrs':
-            self.predict_scale = create_sequential_model(self.config.scale.layers_sizes, final_activation=True)
-            self.predict_scale[-2].bias.data = torch.ones_like(self.predict_scale[-2].bias.data) * (self.config.scale.value ** 2)
-        elif self.config.scale.type == 'predict_from_logits':
-            self.predict_scale = create_sequential_model(self.config.scale.layers_sizes, final_activation=True)
-            self.predict_scale[-2].bias.data = torch.ones_like(self.predict_scale[-2].bias.data) * (self.config.scale.value ** 2)
-        elif self.config.scale.type == 'batch_norm':
-            self.protos_norm = nn.BatchNorm1d(self.config.hid_dim, affine=self.config.scale.get('affine', True))
-            self.feats_norm = nn.BatchNorm1d(self.config.hid_dim, affine=self.config.scale.get('affine', True))
         else:
             raise NotImplementedError(f'Unknown scaling type: {self.config.scale.type}')
-
-    def aggregate_logits(self, feats: Tensor, protos: Tensor, batch_size: int, n_protos: int, n_classes: int, hid_dim: int):
-        if self.config.get('senet.enabled'):
-            attns = self.generete_senet_attns(feats)
-            assert attns.shape == (n_protos, batch_size, hid_dim)
-
-            se_protos = protos.view(n_protos, 1, n_classes, hid_dim) * attns.view(n_protos, batch_size, 1, hid_dim)
-            se_protos = se_protos.permute(1, 0, 2, 3)
-
-            assert se_protos.shape == (batch_size, n_protos, n_classes, hid_dim)
-
-            if self.config.normalize: se_protos = normalize(se_protos, self.scale)
-            if self.config.normalize: feats = normalize(feats, self.scale)
-
-            feats = feats.view(batch_size, 1, hid_dim).repeat(1, n_protos, 1)
-            logit_groups = torch.matmul(
-                se_protos.view(batch_size * n_protos, n_classes, hid_dim),
-                feats.view(batch_size * n_protos, hid_dim, 1)) # [batch_size * n_protos, n_classes]
-            logit_groups = logit_groups.view(batch_size, n_protos, n_classes)
-        else:
-            if self.config.scale.type == 'predict_from_attrs':
-                scales = self.predict_scale(self.attrs).view(1, n_classes, 1)
-                protos = normalize(protos, scales)
-                feats = normalize(feats)
-            elif self.config.scale.type == 'predict_from_logits':
-                protos = normalize(protos)
-                feats = normalize(feats)
-            elif self.config.scale.type == 'batch_norm':
-                protos = self.protos_norm(protos.view(n_protos * n_classes, hid_dim)).view(n_protos, n_classes, hid_dim)
-                feats = self.feats_norm(feats)
-            else:
-                protos = normalize(protos, self.scale)
-                feats = normalize(feats, self.scale)
-
-            if self.config.output_dist == 'von_mises':
-                logit_groups = torch.matmul(protos, feats.t()) # [n_protos, n_classes, batch_size]
-                logit_groups = logit_groups.permute(2, 0, 1) # [batch_size, n_protos, n_classes]
-            else:
-                assert False, "Gaussian output distribution is deprecated"
-                x = feats.view(batch_size, 1, 1, hid_dim)
-                mu = protos.view(1, n_protos, n_classes, hid_dim)
-                logit_groups = -(x - mu).pow(2).sum(dim=3) * self.scale
-
-                assert logit_groups.shape == (batch_size, n_protos, n_classes)
-
-        logits = self.aggregate_logit_groups(logit_groups)
-
-        if self.config.scale.type == 'predict_from_logits':
-            scales = self.predict_scale(logits)
-            logits = logits * scales
-
-        return logits
-
-    def aggregate_logit_groups(self, logit_groups: Tensor) -> Tensor:
-        logits_aggregation_type = self.config.get('logits_aggregation_type', 'mean')
-        batch_size = logit_groups.size(0)
-        n_protos = self.compute_n_protos()
-        n_classes = self.attrs.shape[0]
-
-        assert logit_groups.shape == (batch_size, n_protos, n_classes), f"Wrong shape: {logit_groups.shape}"
-
-        if logits_aggregation_type == 'mean':
-            if n_protos > 1 and self.config.get('golden_proto.enabled') and self.config.golden_proto.weight != "same":
-                # Distribute remaining weights equally between other prototypes
-                weight_others = (1 - self.config.golden_proto.weight) / (n_protos - 1)
-                logit_groups[:, 0, :] *= self.config.golden_proto.weight
-                logit_groups[:, 1:, :] *= weight_others
-                logits = logit_groups.sum(dim=1)
-            else:
-                logits = logit_groups.mean(dim=1) # [batch_size x n_classes]
-        elif logits_aggregation_type == 'max':
-            logits = logit_groups.max(dim=1)[0]
-        elif logits_aggregation_type == 'min':
-            logits = logit_groups.min(dim=1)[0]
-        elif logits_aggregation_type == 'sum':
-            logits = logit_groups.sum(dim=1)
-        elif logits_aggregation_type == 'softmax_mean':
-            prob_groups = logit_groups.view(batch_size, n_protos * n_classes).softmax(dim=1) # [batch_suze, n_protos * n_classes]
-            probs = prob_groups.view(batch_size, n_protos, n_classes).sum(dim=1) # [batch_size x n_classes]
-            logits = probs.log() # [batch_size x n_classes]
-        else:
-            raise NotImplementedError(f'Unknown combine strategy: {logits_aggregation_type}')
-
-        return logits
-
-    @property
-    def aggregation_type(self) -> str:
-        if self.training:
-            return self.config.aggregation_type
-        else:
-            return self.config.get('test_aggregation_type', self.config.aggregation_type)
 
     def forward(self, feats: Tensor, return_protos: bool=False):
         batch_size = feats.size(0)
@@ -184,22 +83,36 @@ class MultiProtoHead(nn.Module):
         assert protos.shape == (n_protos, n_classes, hid_dim)
         assert feats.shape == (batch_size, hid_dim)
 
-        if self.aggregation_type == 'aggregate_logits':
-            logits = self.aggregate_logits(feats, protos, batch_size, n_protos, n_classes, hid_dim)
-        elif self.aggregation_type == 'aggregate_protos':
-            protos = protos.mean(dim=0) # [n_classes, hid_dim]
-            protos = normalize(protos, self.scale)
-            feats = normalize(feats, self.scale)
-            logits = torch.matmul(feats, protos.t()) # [batch_size, n_classes]
-        elif self.aggregation_type == 'aggregate_losses':
-            protos = normalize(protos, self.scale)
-            feats = normalize(feats, self.scale)
+        feats = normalize(feats, self.scale)
+        protos = normalize(protos, self.scale)
+        aggregation_type = self.config.get('aggregation_type', 'mean')
+
+        if aggregation_type == 'average_prototypes':
+            if n_protos > 1 and self.config.get('golden_proto.enabled') and self.config.golden_proto.weight != "same":
+                # Distribute remaining weights equally between other prototypes
+                weight_others = (1 - self.config.golden_proto.weight) / (n_protos - 1)
+                protos_weighted = protos
+                protos_weighted[0] *= self.config.golden_proto.weight
+                protos_weighted[1:] *= weight_others
+                main_protos = protos_weighted.sim(dim=0) # [n_classes, hid_dim]
+            else:
+                main_protos = protos.mean(dim=0) # [n_classes, hid_dim]
+
+            main_protos = normalize(main_protos, self.scale) # Normalizing once again
+            logits = torch.matmul(feats, main_protos.t()) # [batch_size, n_classes]
+        elif aggregation_type == 'softmax':
+            logit_groups = protos @ feats.t() # [n_protos, n_classes, batch_size]
+            logit_groups = logit_groups.permute(2, 1, 0) # [batch_size, n_protos, n_classes]
+            prob_groups = logit_groups.view(batch_size, n_protos * n_classes).softmax(dim=1) # [batch_suze, n_protos * n_classes]
+            probs = prob_groups.view(batch_size, n_protos, n_classes).sum(dim=1) # [batch_size x n_classes]
+            logits = probs.log() # [batch_size x n_classes]
+        elif aggregation_type == 'individual_losses':
             logits = torch.matmul(protos, feats.t()) # [n_protos, n_classes, batch_size]
             logits = logits.permute(2, 0, 1) # [batch_size, n_protos, n_classes]
             assert logits.shape == (batch_size, n_protos, n_classes), f"Wrong shape: {logits.shape}"
             logits = logits.contiguous().view(batch_size * n_protos, n_classes)
         else:
-            raise NotImplementedError(f'Unknown aggregation_type: {self.aggregation_type}')
+            raise NotImplementedError(f'Unknown aggregation_type: {aggregation_type}')
 
         if return_protos:
             return logits, protos
@@ -213,15 +126,6 @@ class MultiHeadedMPHead(MultiProtoHead):
         # and do this by a single matmul. This will speed the things up.
         self.embedders = nn.ModuleList([self.create_embedder() for _ in range(self.config.num_prototypes)])
 
-        if self.config.get('senet.enabled'):
-            self.senets = nn.ModuleList([
-                nn.Sequential(
-                    nn.Linear(self.config.hid_dim, self.config.senet.reduction_dim),
-                    nn.ReLU(inplace=True),
-                    nn.Linear(self.config.senet.reduction_dim, self.config.hid_dim),
-                    nn.Sigmoid()
-                ) for _ in range(self.config.num_prototypes)])
-
     def create_embedder(self):
         # assert len(self.config.embedder_hidden_layers) > 0, \
         #     "Several linear models are equivalent to a single one"
@@ -231,9 +135,6 @@ class MultiHeadedMPHead(MultiProtoHead):
             *self.config.embedder_hidden_layers,
             self.config.hid_dim
         ], final_activation=self.config.use_final_activation)
-
-    def generete_senet_attns(self, x: Tensor) -> Tensor:
-        return torch.stack([s(x) for s in self.senets])
 
     def generate_prototypes(self) -> Tensor:
         prototypes = [e(self.attrs) for e in self.embedders] # [n_protos x n_classes x hid_dim]
