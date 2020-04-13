@@ -12,18 +12,16 @@ generative_training:
         # Required changes
         head|num_prototypes: [50]
         head|noise|std: [1.0]
-        optim|kwargs|lr: [0.003]
-        optim|kwargs|momentum: [0.0]
         generative_training|enabled: [true]
 
         # HPO search
         generative_training|loss_coef: [0.1, 1.0, 10.0]
-        head|after_fuse_transform_layers: ["{256-512}", "{512-512-512}"]
+        head|after_fuse_transform_layers: ["{512-512}"]
         head|tanh_on_top: [True, False]
         generative_training|type: ["gdpp", "mmd"]
         generative_training|num_protos: [10, 25]
 
-    baselines: [{head.after_fuse_transform_layers: "{256-512}"}]
+    baselines: [{head.after_fuse_transform_layers: "{512}"}]
 
 
 autoencoding_loss:
@@ -32,14 +30,12 @@ autoencoding_loss:
         head|num_prototypes: [50]
         head|noise|std: [1.0]
         head|dae|enabled: [true]
-        optim|kwargs|lr: [0.003]
-        optim|kwargs|momentum: [0.0]
 
         # HPO search
         head|dae|loss_coef: [0.1, 1.0, 10.0]
-        head|after_fuse_transform_layers: ["{256-512}", "{512-512-512}"]
+        head|after_fuse_transform_layers: ["{512-512}"]
 
-    baselines: [{head.after_fuse_transform_layers: "{256-512}"}]
+    baselines: [{head.after_fuse_transform_layers: "{512}"}]
 
 
 classifier_loss:
@@ -48,27 +44,10 @@ classifier_loss:
         head|num_prototypes: [50]
         head|noise|std: [1.0]
         head|dae|enabled: [true]
-        optim|kwargs|lr: [0.003]
-        optim|kwargs|momentum: [0.0]
 
         # HPO search
         head|dae|loss_coef: [0.1, 1.0, 10.0]
-        head|after_fuse_transform_layers: ["{256-512}", "{512-512-512}"]
+        head|after_fuse_transform_layers: ["{512-512}"]
 
-    baselines: [{head.after_fuse_transform_layers: "{256-512}"}]
+    baselines: [{head.after_fuse_transform_layers: "{512}"}]
 
-
-attribute_dropout:
-    grid:
-        # Required changes
-        head|num_prototypes: [50]
-        head|noise|std: [1.0]
-        head|dae|enabled: [true]
-        optim|kwargs|lr: [0.003]
-        optim|kwargs|momentum: [0.0]
-
-        # HPO search
-        head|dae|loss_coef: [0.1, 1.0, 10.0]
-        head|after_fuse_transform_layers: ["{256-512}", "{512-512-512}"]
-
-    baselines: [{head.after_fuse_transform_layers: "{256-512}"}]

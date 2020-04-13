@@ -1,6 +1,7 @@
 all:
   task_trainer: "multi_proto"
   hp:
+    optim: {kwargs: {lr: 0.005}}
     use_class_attrs: true
     # use_oracle_prototypes: true
     img_target_shape: [256, 256]
