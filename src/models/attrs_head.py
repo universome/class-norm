@@ -83,6 +83,9 @@ class MultiProtoHead(nn.Module):
         assert protos.shape == (n_protos, n_classes, hid_dim)
         assert feats.shape == (batch_size, hid_dim)
 
+        if self.config.use_tanh_on_top:
+            protos = F.tanh(protos)
+
         feats = normalize(feats, self.scale)
         protos = normalize(protos, self.scale)
         aggregation_type = self.config.get('aggregation_type', 'mean')

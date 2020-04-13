@@ -34,6 +34,7 @@ all:
       fusing_type: "concat"
       after_fuse_transform_layers: [512]
       attrs_transform_layers: [312]
+      use_tanh_on_top: false # To be similar to gazsl
 
       # How to combine the predictions from different prototypes
       aggregation_type: "average_prototypes"
