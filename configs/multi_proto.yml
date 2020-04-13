@@ -41,13 +41,13 @@ all:
       logits_aggregation_type: "mean"
 
       noise:
-        transform_layers: [32]
+        transform_layers: [128]
         same_for_each_class: false
         std: 0.0
 
       dae:
         enabled: false
-        encoder_layers: [512, 256, 32]
+        encoder_layers: [512, 256, 128]
         input_noise_type: "gaussian"
         input_std: 1.
         # input_dropout_p: 0.5
