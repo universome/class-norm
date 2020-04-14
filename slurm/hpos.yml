@@ -51,12 +51,14 @@ classifier_loss:
     baselines: [{head|after_fuse_transform_layers: "{512}"}]
 
 
-bernoulli_dropout:
+dropout:
     grid:
         # Required changes
         head|dropout|enabled: [true]
 
         # HPO search
+        head|attrs_transform_layers: ["{312-512}", "{312-1024-512}"]
+        head|use_tanh_on_top: [true, false]
+        head|dropout|std: [0.1, 0.5, 1.0]
 
-
-    baselines: [{head|after_fuse_transform_layers: "{512}"}]
+    baselines: []

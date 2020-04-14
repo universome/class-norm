@@ -3,31 +3,27 @@ all:
   hp:
     optim: {kwargs: {lr: 0.005}}
     use_class_attrs: true
-    # use_oracle_prototypes: true
     img_target_shape: [256, 256]
     max_num_epochs: 5
     batch_size: 10
 
     head:
       type: "dropout_attrs"
-      num_prototypes: 1
+      num_prototypes: 50
       hid_dim: 512
-      fusing_type: "concat"
-      attrs_transform_layers: [312, 512]
+      attrs_transform_layers: [312, 1024, 512]
+      use_tanh_on_top: false
 
       # How to combine the predictions from different prototypes
-      aggregation_type: "aggregate_logits"
+      aggregation_type: "average_prototypes"
 
       dropout:
-        p: 0.1
-        type: "attribute_wise"
+        type: "gaussian"
+        std: 1.0
 
       scale:
-        # type: "predict_from_logits"
         type: "constant"
-        # layers_sizes: [200, 256, 1]
         value: 10
-
 
 cub:
   hp:
