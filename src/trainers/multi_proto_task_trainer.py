@@ -26,7 +26,7 @@ class MultiProtoTaskTrainer(TaskTrainer):
             loss += self.config.hp.head.dae.loss_coef * rec_loss
             self.writer.add_scalar('rec_loss', rec_loss.item(), self.num_iters_done)
 
-        if self.config.hp.head.get('protos_clf_loss_coef') or self.config.hp.get('push_protos_apart_loss_coef'):
+        if self.config.hp.get('protos_clf_loss_coef') or self.config.hp.get('push_protos_apart_loss_coef'):
             logits, protos = self.model(x, return_protos=True)
         else:
             logits = self.model(x)

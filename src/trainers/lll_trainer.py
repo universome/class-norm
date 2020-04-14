@@ -163,16 +163,30 @@ class LLLTrainer(BaseTrainer):
         dataloader = DataLoader(dataset, batch_size=self.config.get('inference_batch_size', self.config.hp.batch_size))
 
         with torch.no_grad():
-            if self.config.hp.get('use_oracle_prototypes'):
+            if self.config.hp.get('use_oracle_prototypes') or self.config.hp.get('use_oracle_softmax_mean'):
                 ds_train_feats = extract_features_for_dataset(self.ds_train, self.model.embedder, self.device_name, 256)
-                feats = extract_features_for_dataset(dataset, self.model.embedder, self.device_name, 256) # [ds_size, hid_dim]
-
-                train_feats = compute_class_centroids(ds_train_feats, self.config.data.num_classes) # [num_classes, hid_dim]
-                prototypes = normalize(torch.from_numpy(train_feats).float(), self.config.hp.head.scale.value)
+                feats = extract_features_for_dataset(dataset, self.model.embedder, self.device_name, 256)
                 feats = normalize(torch.from_numpy(np.array([x for x, _ in feats])), self.config.hp.head.scale.value) # [ds_size, hid_dim]
 
-                # Logits is the dot-product with the prototypes
-                logits = (feats @ prototypes.t()).cpu().numpy() # [ds_size, num_classes]
+                if self.config.hp.get('use_oracle_prototypes'):
+                    prototypes_raw = compute_class_centroids(ds_train_feats, self.config.data.num_classes) # [num_classes, hid_dim]
+                    prototypes = normalize(torch.from_numpy(prototypes_raw).float(), self.config.hp.head.scale.value) # [num_classes, hid_dim]
+
+                    # Logits is the dot-product with the prototypes
+                    logits = (feats @ prototypes.t()).cpu().numpy() # [ds_size, num_classes]
+                else:
+                    max_num_protos_per_class = 5
+                    ds_size = len(dataset)
+                    n_classes = self.config.data.num_classes
+
+                    feats_train = normalize(torch.from_numpy(np.array([x for x, _ in ds_train_feats])), self.config.hp.head.scale.value) # [train_ds_size, hid_dim]
+                    classes_train = np.array([y for _, y in self.ds_train])
+                    class_idx = [np.where(classes_train == c)[0][:max_num_protos_per_class] for c in range(n_classes)]
+                    feats_train = torch.stack([feats_train[idx] for idx in class_idx]) # [n_protos, n_classes, hid_dim]
+                    logits_mp = feats_train @ feats.t() # [n_protos, n_classes, ds_size]
+                    logits_mp = logits_mp.permute(2, 0, 1).view(ds_size, -1) # [ds_size, n_protos * n_classes]
+                    probs_mp = logits_mp.softmax(dim=1)
+                    logits = probs_mp.view(ds_size, max_num_protos_per_class, n_classes).sum(dim=1).log() # [ds_size, n_classes]
             else:
                 logits = [self.model(torch.from_numpy(np.array(b)).to(self.device_name)).cpu().numpy() for b, _ in dataloader]
                 logits = np.vstack(logits)
