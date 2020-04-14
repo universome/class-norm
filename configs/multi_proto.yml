@@ -4,7 +4,7 @@ all:
     optim: {kwargs: {lr: 0.005}}
     use_class_attrs: true
     # use_oracle_prototypes: true
-    use_oracle_softmax_mean: true
+    # use_oracle_softmax_mean: true
     img_target_shape: [256, 256]
     max_num_epochs: 5
     batch_size: 10
@@ -12,25 +12,10 @@ all:
     generative_training:
       loss_coef: 1.0
       num_protos: 10
-      enabled: false
       type: "mmd"
 
     protos_clf_loss_coef: 0.0
     push_protos_apart_loss_coef: 0.0
-
-    # head:
-    #   output_dist: "normal"
-    #   type: "multi_headed"
-    #   num_prototypes: 1
-    #   hid_dim: 512
-    #   scale_value: 10.
-    #   combine_strategy: "mean"
-    #   embedder_hidden_layers: []
-    #   use_final_activation: false
-
-    #   senet:
-    #     enabled: false
-    #     reduction_dim: 16
 
     head:
       type: "random_embeddings"
@@ -68,27 +53,6 @@ all:
         # input_dropout_p: 0.5
         codes_std: 0.1
         loss_coef: 0.0
-
-    # head:
-    #   type: "dropout_attrs"
-    #   num_prototypes: 1
-    #   hid_dim: 512
-    #   fusing_type: "concat"
-    #   attrs_transform_layers: [312, 512]
-
-    #   # How to combine the predictions from different prototypes
-    #   aggregation_type: "aggregate_logits"
-
-    #   dropout:
-    #     p: 0.1
-    #     type: "attribute_wise"
-
-    #   scale:
-    #     # type: "predict_from_logits"
-    #     type: "constant"
-    #     # layers_sizes: [200, 256, 1]
-    #     value: 10
-
 
 cub:
   hp:

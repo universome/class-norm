@@ -65,7 +65,7 @@ class MultiProtoTaskTrainer(TaskTrainer):
 
         self.writer.add_scalar('cls_loss', cls_loss.item(), self.num_iters_done)
 
-        if self.config.hp.generative_training.enabled:
+        if self.config.hp.get('generative_training.loss_coef'):
             self.run_generative_training_step()
 
     def run_generative_training_step(self):

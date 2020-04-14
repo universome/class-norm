@@ -79,6 +79,7 @@ class LLLTrainer(BaseTrainer):
         self.episodic_memory = []
         self.episodic_memory_output_mask = []
         self.logits_history = []
+        self.train_logits_history = []
 
         self.save_config()
 
@@ -152,6 +153,9 @@ class LLLTrainer(BaseTrainer):
         if self.config.get('logging.save_logits'):
             self.logits_history.append(self.run_inference(self.ds_test))
 
+        if self.config.get('logging.save_train_logits'):
+            self.train_logits_history.append(self.run_inference(self.ds_train))
+
         self.save_experiment_data()
 
     def run_inference(self, dataset: List[Tuple[np.ndarray, int]]):
@@ -175,18 +179,19 @@ class LLLTrainer(BaseTrainer):
                     # Logits is the dot-product with the prototypes
                     logits = (feats @ prototypes.t()).cpu().numpy() # [ds_size, num_classes]
                 else:
-                    max_num_protos_per_class = 5
+                    max_num_protos_per_class = 25
                     ds_size = len(dataset)
                     n_classes = self.config.data.num_classes
 
                     feats_train = normalize(torch.from_numpy(np.array([x for x, _ in ds_train_feats])), self.config.hp.head.scale.value) # [train_ds_size, hid_dim]
                     classes_train = np.array([y for _, y in self.ds_train])
-                    class_idx = [np.where(classes_train == c)[0][:max_num_protos_per_class] for c in range(n_classes)]
-                    feats_train = torch.stack([feats_train[idx] for idx in class_idx]) # [n_protos, n_classes, hid_dim]
-                    logits_mp = feats_train @ feats.t() # [n_protos, n_classes, ds_size]
-                    logits_mp = logits_mp.permute(2, 0, 1).view(ds_size, -1) # [ds_size, n_protos * n_classes]
+                    class_idx = [np.where(classes_train == c)[0][:max_num_protos_per_class] for c in range(n_classes)] # [n_classes, n_protos]
+                    feats_train = torch.stack([feats_train[idx] for idx in class_idx]) # [n_classes, n_protos, hid_dim]
+                    logits_mp = feats_train @ feats.t() # [n_classes, n_protos, ds_size]
+                    logits_mp = logits_mp.permute(2, 0, 1).view(ds_size, -1) # [ds_size, n_classes * n_protos]
                     probs_mp = logits_mp.softmax(dim=1)
-                    logits = probs_mp.view(ds_size, max_num_protos_per_class, n_classes).sum(dim=1).log() # [ds_size, n_classes]
+                    logits = probs_mp.view(ds_size, n_classes, max_num_protos_per_class).sum(dim=2).log() # [ds_size, n_classes]
+                    logits = logits.cpu().numpy()
             else:
                 logits = [self.model(torch.from_numpy(np.array(b)).to(self.device_name)).cpu().numpy() for b, _ in dataloader]
                 logits = np.vstack(logits)
@@ -195,6 +200,7 @@ class LLLTrainer(BaseTrainer):
 
     def save_experiment_data(self):
         np.save(os.path.join(self.paths.custom_data_path, 'logits_history'), self.logits_history)
+        np.save(os.path.join(self.paths.custom_data_path, 'train_logits_history'), self.train_logits_history)
         np.save(os.path.join(self.paths.custom_data_path, 'class_splits'), self.class_splits)
         np.save(os.path.join(self.paths.custom_data_path, 'targets'), [y for _, y in self.ds_test])
 
