@@ -8,6 +8,15 @@ all:
     max_num_epochs: 5
     batch_size: 10
 
+    generative_training:
+      loss_coef: 1.0
+      num_protos: 10
+      enabled: false
+      type: "mmd"
+
+    protos_clf_loss_coef: 0.0
+    push_protos_apart_loss_coef: 0.0
+
     # head:
     #   output_dist: "normal"
     #   type: "multi_headed"
@@ -21,12 +30,6 @@ all:
     #   senet:
     #     enabled: false
     #     reduction_dim: 16
-
-    generative_training:
-      loss_coef: 1.0
-      num_protos: 10
-      enabled: false
-      type: "mmd"
 
     head:
       type: "random_embeddings"
@@ -65,16 +68,7 @@ all:
         # type: "predict_from_logits"
         # layers_sizes: [200, 256, 1]
 
-      protos_clf_loss:
-        enabled: false
-        loss_coef: 0.0
-
-      push_protos_apart:
-        enabled: false
-        loss_coef: 0.0
-
     # head:
-    #   output_dist: "von_mises"
     #   type: "dropout_attrs"
     #   num_prototypes: 1
     #   hid_dim: 512

@@ -26,7 +26,7 @@ class MultiProtoTaskTrainer(TaskTrainer):
             loss += self.config.hp.head.dae.loss_coef * rec_loss
             self.writer.add_scalar('rec_loss', rec_loss.item(), self.num_iters_done)
 
-        if self.config.hp.head.get('protos_clf_loss.enabled') or self.config.hp.head.get('push_protos_apart.enabled'):
+        if self.config.hp.head.get('protos_clf_loss_coef') or self.config.hp.get('push_protos_apart_loss_coef'):
             logits, protos = self.model(x, return_protos=True)
         else:
             logits = self.model(x)
@@ -41,13 +41,13 @@ class MultiProtoTaskTrainer(TaskTrainer):
 
         loss += cls_loss
 
-        if self.config.hp.head.get('push_protos_apart.enabled'):
+        if self.config.hp.get('push_protos_apart_loss_coef', 0.0) > 0:
             mean_distance = compute_mean_distance(protos)
-            loss += self.config.hp.head.push_protos_apart.loss_coef * (-1 * mean_distance)
+            loss += self.config.hp.push_protos_apart_loss_coef * (-1 * mean_distance)
 
             self.writer.add_scalar('mean_distance', mean_distance.item(), self.num_iters_done)
 
-        if self.config.hp.head.get('protos_clf_loss.enabled'):
+        if self.config.hp.get('protos_clf_loss_coef', 0.0) > 0:
             protos_clf_targets = torch.arange(protos.size(1)).to(protos.device) # [n_classes]
             protos_clf_targets = protos_clf_targets.unsqueeze(1).repeat(1, protos.size(0)) # [n_classes, n_protos]
             protos_clf_targets = protos_clf_targets.permute(1, 0) # [n_protos, n_classes]
@@ -56,7 +56,7 @@ class MultiProtoTaskTrainer(TaskTrainer):
             protos_clf_logits = protos @ protos_main.t() # [n_protos, n_classes, n_classes]
 
             protos_clf_loss = F.cross_entropy(protos_clf_logits, protos_clf_targets)
-            loss += protos_clf_loss * self.config.hp.head.protos_clf_loss.loss_coef
+            loss += protos_clf_loss * self.config.hp.protos_clf_loss_coef
             self.writer.add_scalar('protos_clf_loss', protos_clf_loss.item(), self.num_iters_done)
 
         self.optim.zero_grad()
