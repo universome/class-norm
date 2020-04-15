@@ -8,7 +8,7 @@ from firelab.config import Config
 from src.utils.training_utils import prune_logits
 from src.utils.constants import INPUT_DIMS
 from src.models.layers import ResNetLastBlock, GaussianDropout
-from src.models.attrs_head import AttrsHead
+from src.models.attrs_head import create_attrs_head
 
 
 RESNET_CLS = {18: resnet18, 34: resnet34, 50: resnet50}
@@ -35,7 +35,7 @@ class Classifier(nn.Module):
         if self.attrs is None:
             self.head = nn.Linear(self.hid_dim, self.config.data.num_classes)
         else:
-            self.head = AttrsHead(self.config.hp.get('head'), self.attrs)
+            self.head = create_attrs_head(self.config.hp.get('head'), self.attrs)
 
     def compute_pruned_predictions(self, x: Tensor, output_mask: np.ndarray) -> Tensor:
         return prune_logits(self.forward(x), output_mask)

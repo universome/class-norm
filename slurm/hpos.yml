@@ -70,3 +70,23 @@ normalized_attrs:
         head|after_fuse_transform_layers: ["{512}", "{256-512}", "{512-512}", "{512-512-512}"]
         clip_grad|value: [10, 100, 1000, 1000000000]
     baselines: []
+
+
+triplet_loss:
+    grid:
+        num_prototypes: [50]
+        head|noise|std: [1.0]
+        triplet_loss|enabled: [true]
+        clip_grad|value: [10]
+        normalized_attrs: [true]
+
+        head|after_fuse_transform_layers: ["512-512", "512-512-512"]
+        head|aggregation_type: ["average_prototypes", "mean_distance"]
+        triplet_loss|coef: [0.0, 0.1, 1.0, 10.0]
+        cls_loss|enabled: [true, false]
+
+    baselines: [{head|after_fuse_transform_layers: "{512}"}]
+
+different_lrs:
+    grid:
+        a: [1]

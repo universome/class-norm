@@ -9,6 +9,10 @@ all:
     max_num_epochs: 5
     batch_size: 10
 
+    triplet_loss:
+      enabled: false
+      coef: 1.0
+
     generative_training:
       loss_coef: 0.0
       num_protos: 10
@@ -25,7 +29,8 @@ all:
       after_fuse_transform_layers: [512]
       attrs_transform_layers: [312]
       use_tanh_on_top: false # To be similar to gazsl
-      aggregation_type: "average_prototypes"
+      #aggregation_type: "average_prototypes"
+      aggregation_type: "mean_distance"
 
       noise:
         transform_layers: [100]

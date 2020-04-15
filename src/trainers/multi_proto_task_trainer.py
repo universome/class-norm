@@ -21,11 +21,45 @@ class MultiProtoTaskTrainer(TaskTrainer):
             with torch.no_grad():
                 feats = self.model.embedder(x)
             logits = self.model.head(feats)
-            feats_rec = self.model.head.model.compute_dae_reconstructions(feats, y)
+            feats_rec = self.model.head.compute_dae_reconstructions(feats, y)
 
             rec_loss = torch.norm(feats_rec - feats, dim=1).mean()
             loss += self.config.hp.head.dae.loss_coef * rec_loss
             self.writer.add_scalar('rec_loss', rec_loss.item(), self.num_iters_done)
+
+        if self.config.hp.get('triplet_loss.enabled'):
+            feats = self.model.embedder(x) # [batch_size, hid_dim]
+            protos = self.model.head.generate_prototypes() # [n_protos, n_classes, hid_dim]
+
+            feats = normalize(feats) # [batch_size, hid_dim]
+            protos = normalize(protos)
+
+            batch_size = feats.size(0)
+            n_protos, _, hid_dim = protos.size()
+            n_curr_classes = len(self.classes)
+
+            protos = protos[:, self.classes, :] # [n_protos, n_curr_classes, hid_dim]
+            protos = protos.view(n_protos * n_curr_classes, hid_dim).permute(1, 0) # [hid_dim, n_protos * n_curr_classes]
+            distances = (feats.unsqueeze(2) - protos.unsqueeze(0)).norm(dim=1).pow(2) # [batch_size, n_protos * n_curr_classes]
+            distances = distances.view(batch_size, n_protos, n_curr_classes)
+            classes_in_batch = y.view(batch_size, 1, 1).repeat(1, n_protos, n_curr_classes)
+            classes_generated = torch.tensor(self.classes).to(self.device_name).view(1, 1, n_curr_classes).repeat(batch_size, n_protos, 1)
+            positive_distances = distances.masked_select(classes_in_batch == classes_generated)
+            negative_distances = distances.masked_select(classes_in_batch != classes_generated)
+
+            # Now we should remove too easy negative distances
+            smallest_negative_distances_idx = negative_distances.sort()[1][:len(positive_distances)]
+            negative_distances = negative_distances[smallest_negative_distances_idx]
+            #triplet_loss = torch.max(positive_distances - negative_distances + self.config.hp.triplet_loss.margin, 0)
+            # TODO: well, this is actually not a triplet loss...
+            triplet_loss = positive_distances.mean() - negative_distances.mean()
+
+            loss += triplet_loss * self.config.hp.triplet_loss.coef
+            # print('triplet', triplet_loss.item())
+
+            self.writer.add_scalar('triplet_loss/loss', triplet_loss.item(), self.num_iters_done)
+            self.writer.add_scalar('triplet_loss/positive_mean_dist', positive_distances.mean().item(), self.num_iters_done)
+            self.writer.add_scalar('triplet_loss/negative_mean_dist', negative_distances.mean().item(), self.num_iters_done)
 
         if self.config.hp.get('protos_clf_loss_coef') or self.config.hp.get('push_protos_apart_loss_coef'):
             logits, protos = self.model(x, return_protos=True)
@@ -40,7 +74,9 @@ class MultiProtoTaskTrainer(TaskTrainer):
         else:
             cls_loss = self.criterion(prune_logits(logits, self.output_mask), y)
 
-        loss += cls_loss
+        if self.config.get('cls_loss.enabled', True):
+            loss += cls_loss * self.config.get('cls_loss.coef', 1.0)
+            # print('cls', cls_loss.item())
 
         if self.config.hp.get('push_protos_apart_loss_coef', 0.0) > 0:
             mean_distance = compute_mean_distance(protos)

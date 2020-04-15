@@ -9,23 +9,14 @@ from src.utils.training_utils import normalize
 from src.models.layers import MILayer, ConcatLayer, create_sequential_model, create_fuser
 
 
-class AttrsHead(nn.Module):
-    """
-    An entry point for all types of attribute-based heads
-    """
-    def __init__(self, config: Config, attrs: np.ndarray):
-        super().__init__()
-
-        self.model = {
-            'simple': SimpleAttrsHead,
-            'multi_headed': MultiHeadedMPHead,
-            'random_embeddings': RandomEmbeddingMPHead,
-            'static_embeddings': StaticEmbeddingMPHead,
-            'dropout_attrs': DropoutMPH
-        }[config.type](config, attrs)
-
-    def forward(self, x: Tensor, **kwargs) -> Tensor:
-        return self.model(x, **kwargs)
+def create_attrs_head(config: Config, attrs: np.ndarray) -> nn.Module:
+    return {
+        'simple': SimpleAttrsHead,
+        'multi_headed': MultiHeadedMPHead,
+        'random_embeddings': RandomEmbeddingMPHead,
+        'static_embeddings': StaticEmbeddingMPHead,
+        'dropout_attrs': DropoutMPH
+    }[config.type](config, attrs)
 
 
 class SimpleAttrsHead(nn.Module):
@@ -103,6 +94,11 @@ class MultiProtoHead(nn.Module):
 
             main_protos = normalize(main_protos, self.scale) # Normalizing once again
             logits = torch.matmul(feats, main_protos.t()) # [batch_size, n_classes]
+        elif aggregation_type == 'mean_distance':
+            protos_for_dist = protos.view(n_protos * n_classes, hid_dim).unsqueeze(0) # [1, n_protos * n_classes, hid_dim]
+            distances = (feats.unsqueeze(1) - protos_for_dist).norm(dim=2).pow(2) # [batch_size, n_protos * n_classes]
+            distances = distances.view(batch_size, n_protos, n_classes) # [batch_size, n_protos, n_classes]
+            logits = -distances.mean(dim=1) # [batch_size, n_classes]
         elif aggregation_type == 'softmax':
             logit_groups = protos @ feats.t() # [n_protos, n_classes, batch_size]
             logit_groups = logit_groups.permute(2, 1, 0) # [batch_size, n_protos, n_classes]
