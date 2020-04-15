@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import Tensor
+from torch.nn.utils import clip_grad_norm_
 
 from src.trainers.task_trainer import TaskTrainer
 from src.utils.training_utils import prune_logits, normalize
@@ -61,6 +62,9 @@ class MultiProtoTaskTrainer(TaskTrainer):
 
         self.optim.zero_grad()
         loss.backward()
+        if self.config.hp.get('clip_grad.value', float('inf')) < float('inf'):
+            grad_norm = clip_grad_norm_(self.model.parameters(), self.config.hp.clip_grad.value)
+            self.writer.add_scalar('cls/grad_norm', grad_norm, self.num_iters_done)
         self.optim.step()
 
         self.writer.add_scalar('cls_loss', cls_loss.item(), self.num_iters_done)
