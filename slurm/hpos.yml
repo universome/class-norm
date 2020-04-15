@@ -74,7 +74,7 @@ normalized_attrs:
 
 triplet_loss:
     grid:
-        num_prototypes: [50]
+        head|num_prototypes: [50]
         head|noise|std: [1.0]
         triplet_loss|enabled: [true]
         clip_grad|value: [10]
@@ -87,6 +87,14 @@ triplet_loss:
 
     baselines: [{head|after_fuse_transform_layers: "{512}"}]
 
-different_lrs:
+different_optims:
     grid:
-        a: [1]
+        head|after_fuse_transform_layers: ["512-512", "512-512-512"]
+        normalized_attrs: [true]
+        clip_grad|value: [10, 25, 50, 1000]
+        optim|groups|head|lr: [0.0001, 0.0005, 0.001, 0.005]
+        optim|groups|head|momentum: [0.0, 0.9]
+        #optim|groups|embedder|lr: [0.0001, 0.0005, 0.001, 0.005]
+        #optim|groups|embedder|momentum: [0.5, 0.75, 0.9, 0.95]
+
+    baselines: []

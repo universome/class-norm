@@ -36,6 +36,12 @@ def construct_optimizer(parameters, optim_config: Config):
         raise NotImplementedError(f'Unknown optimizer: {optim_config.type}')
 
 
+def construct_per_group_optimizer(model: nn.Module, optim_config: Config) -> torch.optim.Optimizer:
+    groups = [{'params': getattr(model, g).parameters(), **optim_config.groups.get(g)} for g in optim_config.groups.keys()]
+
+    return construct_optimizer(groups, optim_config)
+
+
 def compute_accuracy(logits: Tensor, targets: Tensor, *args, **kwargs) -> Tensor:
     return compute_guessed(logits, targets, *args, **kwargs).mean()
 
