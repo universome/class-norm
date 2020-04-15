@@ -45,7 +45,7 @@ def load_labels(img_paths:List[PathLike]) -> List[int]:
     return [(int(p.split('.')[0]) - 1) for p in img_paths]
 
 
-def load_class_attributes(data_dir: PathLike) -> np.ndarray:
+def load_class_attributes(data_dir: PathLike, normalized: bool=False) -> np.ndarray:
     # filename = os.path.join(data_dir, 'attributes/class_attribute_labels_continuous.txt')
     #
     # with open(filename) as f:
@@ -56,12 +56,16 @@ def load_class_attributes(data_dir: PathLike) -> np.ndarray:
     #     attrs = attrs / (attrs.max(axis=0) * 5)
     #     # attrs /= (attrs.std(axis=0) * 50)
 
-    filename = os.path.join(data_dir, 'CUB_attr_in_order.pickle')
+    if normalized:
+        return np.load(os.path.join(data_dir, 'attributes_normalized.npy'))
+    else:
+        filename = os.path.join(data_dir, 'CUB_attr_in_order.pickle')
 
-    with open(filename, 'rb') as f:
-        attrs = pickle.load(f, encoding='latin1')
+        with open(filename, 'rb') as f:
+            attrs = pickle.load(f, encoding='latin1')
 
-    return attrs
+        return attrs
+
 
 
 class CUB(Dataset):

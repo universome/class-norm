@@ -106,7 +106,10 @@ class LLLTrainer(BaseTrainer):
 
     def init_dataloaders(self):
         self.ds_train, self.ds_test, self.class_attributes = load_data(
-            self.config.data, self.config.hp.get('img_target_shape'), low_memory=self.config.get('low_memory', False))
+            self.config.data,
+            self.config.hp.get('img_target_shape'),
+            low_memory=self.config.get('low_memory', False),
+            normalized_attrs=self.config.hp.get('normalized_attrs', False))
 
         if self.config.data.has('classes_to_use'):
             self.ds_train = filter_out_classes(self.ds_train, self.config.data.classes_to_use)
@@ -128,6 +131,9 @@ class LLLTrainer(BaseTrainer):
 
             if self.config.get('logging.save_logits'):
                self.logits_history.append(self.run_inference(self.ds_test))
+
+            if self.config.get('logging.save_train_logits'):
+               self.train_logits_history.append(self.run_inference(self.ds_train))
 
             task_trainer = TASK_TRAINERS[self.config.task_trainer](self, task_idx)
 
@@ -203,6 +209,7 @@ class LLLTrainer(BaseTrainer):
         np.save(os.path.join(self.paths.custom_data_path, 'train_logits_history'), self.train_logits_history)
         np.save(os.path.join(self.paths.custom_data_path, 'class_splits'), self.class_splits)
         np.save(os.path.join(self.paths.custom_data_path, 'targets'), [y for _, y in self.ds_test])
+        np.save(os.path.join(self.paths.custom_data_path, 'train_targets'), [y for _, y in self.ds_train])
 
     def checkpoint(self, curr_task_idx: int):
         path = os.path.join(self.paths.checkpoints_path, f'model-task-{curr_task_idx}.pt')
