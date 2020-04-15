@@ -62,3 +62,11 @@ dropout:
         head|dropout|std: [0.1, 0.5, 1.0]
 
     baselines: []
+
+
+normalized_attrs:
+    grid:
+        normalized_attrs: [true, false]
+        head|after_fuse_transform_layers: ["{512}", "{256-512}", "{512-512}", "{512-512-512}"]
+        clip_grad|value: [10, 100, 1000, 1000000000]
+    baselines: []
