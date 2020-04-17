@@ -4,9 +4,8 @@ all:
     #clip_grad: {value: 100}
     optim:
         groups:
-            head: {lr: 0.005, momentum: 0.9}
-            #embedder: {lr: 0.001}
-        kwargs: {lr: 0.005}
+            head: {lr: 0.005, momentum: 0.0}
+            embedder: {}
     use_class_attrs: true
     normalized_attrs: false
     img_target_shape: [256, 256]
