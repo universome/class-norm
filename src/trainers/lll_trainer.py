@@ -154,7 +154,7 @@ class LLLTrainer(BaseTrainer):
                 task_trainer.update_episodic_memory()
 
             if self.config.get('should_checkpoint', False):
-                self.checkpoint(task_idx)
+                self.task_checkpoint(task_idx)
 
         if self.config.get('logging.save_logits'):
             self.logits_history.append(self.run_inference(self.ds_test))
@@ -211,6 +211,12 @@ class LLLTrainer(BaseTrainer):
         np.save(os.path.join(self.paths.custom_data_path, 'targets'), [y for _, y in self.ds_test])
         np.save(os.path.join(self.paths.custom_data_path, 'train_targets'), [y for _, y in self.ds_train])
 
-    def checkpoint(self, curr_task_idx: int):
-        path = os.path.join(self.paths.checkpoints_path, f'model-task-{curr_task_idx}.pt')
+        if self.config.get('logging.save_final_model'):
+            self.checkpoint('final-model')
+
+    def task_checkpoint(self, curr_task_idx: int):
+        self.checkpoint(f'model-task-{curr_task_idx}')
+
+    def checkpoint(self, model_name: str):
+        path = os.path.join(self.paths.checkpoints_path, f'{model_name}.pt')
         torch.save(self.model.state_dict(), path)

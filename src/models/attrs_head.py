@@ -77,6 +77,7 @@ class MultiProtoHead(nn.Module):
         if self.config.use_tanh_on_top:
             protos = F.tanh(protos)
 
+        feats = feats + torch.randn_like(feats) * self.config.feats_noise_std
         feats = normalize(feats, self.scale)
         protos = normalize(protos, self.scale)
         aggregation_type = self.config.get('aggregation_type', 'mean')
@@ -196,7 +197,8 @@ class RandomEmbeddingMPHead(MultiProtoHead):
             self.config.attrs_transform_layers[-1],
             self.config.noise.transform_layers[-1],
             self.config.after_fuse_transform_layers[0],
-            use_non_linearity=(len(self.config.after_fuse_transform_layers) > 1))
+            activation=self.config.get('after_fuse_activation', ('relu' if len(self.config.after_fuse_transform_layers) > 1 else 'none'))
+        )
         self.after_fuse_transform = create_sequential_model(self.config.after_fuse_transform_layers)
 
         if self.config.get('dae.enabled'):

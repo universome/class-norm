@@ -40,6 +40,8 @@ all:
       use_tanh_on_top: false # To be similar to gazsl
       aggregation_type: "average_prototypes"
 
+      feats_noise_std: 0.0
+
       noise:
         transform_layers: [100]
         same_for_each_class: false

@@ -1,4 +1,5 @@
-from typing import Tuple, Any, Iterable
+import functools
+from typing import Tuple, Any, Iterable, Callable
 
 import numpy as np
 import torch
@@ -188,7 +189,7 @@ class MILayer(nn.Module):
     The first part (z'Wx) is MI, the second part (z'U + Vx + b) is equivalent to concatenation-based approach
     Reference: https://openreview.net/forum?id=rylnK6VtDH
     """
-    def __init__(self, x_dim: int, z_dim: int, out_dim: int, combine_with_concat: bool=True, use_non_linearity: bool=False):
+    def __init__(self, x_dim: int, z_dim: int, out_dim: int, combine_with_concat: bool=True):
         super().__init__()
 
         self.x_dim = x_dim
@@ -200,8 +201,6 @@ class MILayer(nn.Module):
 
         if self.combine_with_concat:
             self.dense = nn.Linear(x_dim + z_dim, out_dim)
-
-        self.non_linearity = nn.LeakyReLU() if use_non_linearity else nn.Identity()
 
     def forward(self, x, z):
         assert x.ndim == z.ndim == 2
@@ -220,37 +219,46 @@ class MILayer(nn.Module):
 
         assert result.shape == (x.size(0), self.out_dim), f"Wrong shape: {result.shape}"
 
-        return self.non_linearity(result)
+        return result
 
 
 class ConcatLayer(nn.Module):
     """
     Simple concatenation layer
     """
-    def __init__(self, x_dim: int, z_dim: int, out_dim: int, use_non_linearity: bool=False):
+    def __init__(self, x_dim: int, z_dim: int, out_dim: int):
         super().__init__()
         self.model = nn.Linear(x_dim + z_dim, out_dim)
-        self.non_linearity = nn.LeakyReLU() if use_non_linearity else nn.Identity()
 
     def forward(self, x: Tensor, z: Tensor) -> Tensor:
-        out = self.model(torch.cat([x, z], dim=1))
-        out = self.non_linearity(out)
-
-        return out
+        return self.model(torch.cat([x, z], dim=1))
 
 
-def create_fuser(fusing_type: str, input_size: int, context_size: int, output_size: int, use_non_linearity: bool=False) -> nn.Module:
+class Fuser(nn.Module):
+    def __init__(self, transform: nn.Module, activation: str='none'):
+        super().__init__()
+
+        self.transform = transform
+        self.activation = create_activation(activation)
+
+    def forward(self, x, z) -> Tensor:
+        return self.activation(self.transform(x, z))
+
+
+def create_fuser(fusing_type: str, input_size: int, context_size: int, output_size: int, activation: str='none') -> nn.Module:
     if fusing_type == 'pure_mult_int':
-        return MILayer(input_size, context_size, output_size, False, use_non_linearity)
+        transform = MILayer(input_size, context_size, output_size, False)
     if fusing_type == 'full_mult_int':
-        return MILayer(input_size, context_size, output_size, True, use_non_linearity)
+        transform = MILayer(input_size, context_size, output_size, True)
     elif fusing_type == 'concat':
-        return ConcatLayer(input_size, context_size, output_size, use_non_linearity)
+        transform = ConcatLayer(input_size, context_size, output_size)
     else:
         raise NotImplementedError(f'Unknown fusing type: {fusing_type}')
 
+    return Fuser(transform, activation)
 
-def create_sequential_model(layers_sizes: Iterable[int], final_activation: bool=False) -> nn.Sequential:
+
+def create_sequential_model(layers_sizes: Iterable[int], final_activation: bool=False, activation: str='relu') -> nn.Sequential:
     assert len(layers_sizes) > 0, "We need at least an input size"
 
     modules = []
@@ -258,10 +266,21 @@ def create_sequential_model(layers_sizes: Iterable[int], final_activation: bool=
 
     for output_dim in layers_sizes[1:]:
         modules.append(nn.Linear(input_dim, output_dim))
-        modules.append(nn.ReLU())
+        modules.append(create_activation(activation))
         input_dim = output_dim
 
     if len(modules) > 0 and not final_activation:
         modules.pop(-1)
 
     return nn.Sequential(*modules)
+
+
+def create_activation(activation: str) -> Callable:
+    if activation == 'none':
+        return nn.Identity()
+    elif activation == 'relu':
+        return nn.ReLU()
+    elif activation == 'leaky_relu':
+        return nn.LeakyReLU(0.2)
+    else:
+        raise NotImplementedError(f'Unknown activation type: {activation}')
