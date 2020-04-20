@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -96,6 +97,11 @@ class MultiProtoTaskTrainer(TaskTrainer):
             loss += protos_clf_loss * self.config.hp.protos_clf_loss_coef
             self.writer.add_scalar('protos_clf_loss', protos_clf_loss.item(), self.num_iters_done)
 
+        if self.config.hp.get('generative_training.loss_coef'):
+            generative_loss = self.compute_generative_loss()
+            self.writer.add_scalar(f'{self.config.hp.generative_training.type}_loss', generative_loss.item(), self.num_iters_done)
+            loss += self.config.hp.generative_training.loss_coef * generative_loss
+
         self.optim.zero_grad()
         loss.backward()
         if self.config.hp.get('clip_grad.value', float('inf')) < float('inf'):
@@ -105,11 +111,8 @@ class MultiProtoTaskTrainer(TaskTrainer):
 
         self.writer.add_scalar('cls_loss', cls_loss.item(), self.num_iters_done)
 
-        if self.config.hp.get('generative_training.loss_coef'):
-            self.run_generative_training_step()
-
-    def run_generative_training_step(self):
-        prototypes = self.model.head.model.generate_prototypes(self.config.hp.generative_training.num_protos) # [n_protos, n_classes, hid_dim]
+    def compute_generative_loss(self):
+        prototypes = self.model.head.generate_prototypes(self.config.hp.generative_training.num_protos) # [n_protos, n_classes, hid_dim]
         prototypes = prototypes[:, self.classes, :] # [n_protos, n_curr_classes, hid_dim]
         prototypes = prototypes.view(-1, prototypes.size(2)) # [n_protos * n_curr_classes, hid_dim]
 
@@ -126,9 +129,14 @@ class MultiProtoTaskTrainer(TaskTrainer):
         else:
             raise NotImplementedError(f'Unknown generative loss type: {self.config.hp.generative_training.type}')
 
-        self.writer.add_scalar(f'{self.config.hp.generative_training.type}_loss', generative_loss.item(), self.num_iters_done)
-        generative_loss *= self.config.hp.generative_training.loss_coef
+        return generative_loss
 
-        self.optim.zero_grad()
-        generative_loss.backward()
-        self.optim.step()
+    def _after_train_hook(self):
+        if not self.config.get('logging.save_prototypes'):
+            return
+
+        with torch.no_grad():
+            prototypes = self.model.head.generate_prototypes()
+            prototypes = normalize(prototypes, self.config.hp.head.scale.value)
+        filename = os.path.join(self.main_trainer.paths.custom_data_path, f'prototypes-{self.task_idx + 1}')
+        np.save(filename, prototypes.cpu().numpy())

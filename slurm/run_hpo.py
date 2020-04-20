@@ -32,7 +32,7 @@ def main():
     hpos = Config.load('slurm/hpos.yml')[args.experiment]
 
     experiments_vals = generate_experiments_from_hpo_grid(hpos.grid)
-    experiments_vals.extend([b.to_dict() for b in hpos.baselines])
+    experiments_vals.extend([b.to_dict() for b in hpos.get('baselines', [])])
     experiments_vals = [{p.replace('|', '.'): v for p, v in exp.items()} for exp in experiments_vals]
     experiments_cli_args = [' '.join([f'--config.hp.{p} {v}' for p, v in exp.items()]) for exp in experiments_vals]
 

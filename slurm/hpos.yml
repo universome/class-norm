@@ -99,3 +99,18 @@ different_optims:
         #optim|groups|embedder|momentum: [0.5, 0.75, 0.9, 0.95]
 
     baselines: []
+
+
+golden_proto_linear:
+    grid:
+        head|after_fuse_transform_layers: ["512-"]
+        head|noise|std: [1.0]
+        head|golden_proto|enabled: [true]
+        head|num_prototypes: [50]
+        generative_training|type: ["gdpp"]
+
+        normalized_attrs: [true, false]
+        clip_grad|value: [10, 100]
+        optim|groups|embedder|lr: [0.0005, 0.005]
+        head|golden_proto|weight: [0.9, 0.75, 0.5, 0.25, 0.1, 0.0]
+        generative_training|loss_coef: [0.0, 0.1, 1.0]

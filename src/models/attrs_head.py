@@ -88,7 +88,7 @@ class MultiProtoHead(nn.Module):
                 protos_weighted = protos
                 protos_weighted[0] *= self.config.golden_proto.weight
                 protos_weighted[1:] *= weight_others
-                main_protos = protos_weighted.sim(dim=0) # [n_classes, hid_dim]
+                main_protos = protos_weighted.mean(dim=0) # [n_classes, hid_dim]
             else:
                 main_protos = protos.mean(dim=0) # [n_classes, hid_dim]
 
