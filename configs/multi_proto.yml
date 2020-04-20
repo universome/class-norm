@@ -13,6 +13,11 @@ all:
     max_num_epochs: 5
     batch_size: 10
 
+    diagonal_cov_reg:
+        loss_coef: 0.0
+        per_class: false
+        batch_size: 100
+
     triplet_loss:
       enabled: false
       coef: 0.0

@@ -159,6 +159,17 @@ def compute_mmd_loss(feats_fake: Tensor, feats_real: Tensor, cov_diff_coef: floa
     return means_diff + cov_diff_coef * cov_diff
 
 
+def compute_diagonal_cov_reg(feats) -> Tensor:
+    """
+    Computes diagonal covariance regularization
+    """
+    assert feats.ndim == 2, f"The function accepts only 2d feature vectors: {feats.shape}"
+    cov = compute_covariance(feats)
+    eye = torch.eye(feats.size(1), device=cov.device)
+
+    return torch.norm(cov - eye)
+
+
 def compute_covariance(feats: Tensor) -> Tensor:
     """
     Computes empirical covariance matrix for a batch of feature vectors

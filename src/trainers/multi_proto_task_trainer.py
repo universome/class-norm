@@ -7,7 +7,12 @@ from torch.nn.utils import clip_grad_norm_
 
 from src.trainers.task_trainer import TaskTrainer
 from src.utils.training_utils import prune_logits, normalize
-from src.utils.losses import compute_mean_distance, compute_gdpp_loss, compute_mmd_loss
+from src.utils.losses import (
+    compute_mean_distance,
+    compute_gdpp_loss,
+    compute_mmd_loss,
+    compute_diagonal_cov_reg
+)
 
 
 class MultiProtoTaskTrainer(TaskTrainer):
@@ -99,8 +104,13 @@ class MultiProtoTaskTrainer(TaskTrainer):
 
         if self.config.hp.get('generative_training.loss_coef'):
             generative_loss = self.compute_generative_loss()
-            self.writer.add_scalar(f'{self.config.hp.generative_training.type}_loss', generative_loss.item(), self.num_iters_done)
             loss += self.config.hp.generative_training.loss_coef * generative_loss
+            self.writer.add_scalar(f'{self.config.hp.generative_training.type}_loss', generative_loss.item(), self.num_iters_done)
+
+        if self.config.hp.get('diagonal_cov_reg.loss_coef'):
+            diagonal_cov_reg = self.compute_diagonal_cov_reg()
+            loss += self.config.hp.diagonal_cov_reg.loss_coef * diagonal_cov_reg
+            self.writer.add_scalar(f'diagonal_cov_reg', diagonal_cov_reg.item(), self.num_iters_done)
 
         self.optim.zero_grad()
         loss.backward()
@@ -110,6 +120,17 @@ class MultiProtoTaskTrainer(TaskTrainer):
         self.optim.step()
 
         self.writer.add_scalar('cls_loss', cls_loss.item(), self.num_iters_done)
+
+    def compute_diagonal_cov_reg(self):
+        if not self.config.hp.get('diagonal_cov_reg.loss_coef'): return torch.tensor(0.0)
+
+        batch = self.sample_batch(self.task_ds_train, self.config.hp.diagonal_cov_reg.batch_size)
+        x = torch.from_numpy(np.array(batch[0])).to(self.device_name)
+        feats = self.model.embedder(x)
+        reg = compute_diagonal_cov_reg(feats)
+
+        return reg
+
 
     def compute_generative_loss(self):
         prototypes = self.model.head.generate_prototypes(self.config.hp.generative_training.num_protos) # [n_protos, n_classes, hid_dim]
