@@ -1,11 +1,12 @@
 all:
   task_trainer: "multi_proto"
   hp:
-    clip_grad: {value: 50}
+    clip_grad: {value: 10}
     optim:
         groups:
-            head: {lr: 0.0005, momentum: 0.9}
+            head: {lr: 0.005, momentum: 0.9}
             embedder: {}
+        kwargs: {lr: 0.003}
     use_class_attrs: true
     normalized_attrs: false
     img_target_shape: [256, 256]
@@ -14,7 +15,7 @@ all:
 
     triplet_loss:
       enabled: false
-      coef: 1.0
+      coef: 0.0
 
     generative_training:
       loss_coef: 0.0
