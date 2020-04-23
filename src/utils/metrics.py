@@ -29,6 +29,10 @@ def compute_forgetting_measure(accuracies_history: List[List[float]], after_task
     :param after_task_idx: up to which task (non-inclusive) to compute the metric
     :return: forgetting measure
     """
+    n_tasks = accuracies_history.shape[0]
+    assert accuracies_history.shape == (n_tasks, n_tasks), f"Wrong shape: {accuracies_history.shape}"
+    assert after_task_idx == -1 or after_task_idx > 0
+
     accuracies_history = np.array(accuracies_history)
     after_task_num = (after_task_idx + 1) if after_task_idx >= 0 else len(accuracies_history)
     prev_accs = accuracies_history[:after_task_num - 1, :after_task_num - 1]
@@ -172,7 +176,7 @@ def compute_ausuc_matrix(logits_history: np.ndarray, targets: List[int], class_s
     return np.array(ausuc_matrix)
 
 
-def compute_individual_accs_matrix(logits_history: np.ndarray, targets: List[int], class_splits: List[List[int]]) -> np.ndarray:
+def compute_individual_accs_matrix(logits_history: np.ndarray, targets: List[int], class_splits: List[List[int]], restrict_space: bool=False) -> np.ndarray:
     """
     Computes accuracy for each task for each timestep.
     You would like to use np.triu or np.triu_indices to get zero-shot accuracies
@@ -186,7 +190,7 @@ def compute_individual_accs_matrix(logits_history: np.ndarray, targets: List[int
     """
 
     # TODO: actually, we do a lot of computations that can be cached here :|
-    return np.array([[compute_acc_for_classes(l, targets, cs) for cs in class_splits] for l in logits_history])
+    return np.array([[compute_acc_for_classes(l, targets, cs, restrict_space=restrict_space) for cs in class_splits] for l in logits_history])
 
 
 def compute_task_transfer_matrix(logits_history: np.ndarray, targets: List[int], class_splits: List[List[int]]) -> np.ndarray:

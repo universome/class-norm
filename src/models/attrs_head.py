@@ -204,6 +204,12 @@ class RandomEmbeddingMPHead(MultiProtoHead):
         if self.config.get('dae.enabled'):
             self.encoder = create_sequential_model(self.config.dae.encoder_layers)
 
+        if self.config.get('after_fuse_identity_init'):
+            n_in, n_out = self.after_fuse_transform[0].weight.data.shape
+            assert n_in == n_out, f"Cannot use identity init for non-square transforms: {n_in, n_out}"
+            self.after_fuse_transform[0].weight.data.mul_(0.001)
+            self.after_fuse_transform[0].weight.data.add_(torch.eye(n_in))
+
     def get_transformed_noise(self, n_protos: int) -> Tensor:
         n_classes = self.attrs.shape[0]
         z_size = self.config.noise.transform_layers[0]

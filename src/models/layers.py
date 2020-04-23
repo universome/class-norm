@@ -282,5 +282,7 @@ def create_activation(activation: str) -> Callable:
         return nn.ReLU()
     elif activation == 'leaky_relu':
         return nn.LeakyReLU(0.2)
+    elif activation == 'tanh':
+        return nn.Tanh()
     else:
         raise NotImplementedError(f'Unknown activation type: {activation}')
