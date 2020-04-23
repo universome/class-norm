@@ -150,13 +150,16 @@ def compute_mmd_loss(feats_fake: Tensor, feats_real: Tensor, cov_diff_coef: floa
 
     mean_fake = feats_fake.mean(dim=0)
     mean_real = feats_real.mean(dim=0)
-    cov_fake = compute_covariance(feats_fake)
-    cov_real = compute_covariance(feats_real)
-
     means_diff = (mean_fake - mean_real).pow(2).mean()
-    cov_diff = (cov_fake - cov_real).pow(2).mean()
 
-    return means_diff + cov_diff_coef * cov_diff
+    if cov_diff_coef > 0:
+        cov_fake = compute_covariance(feats_fake)
+        cov_real = compute_covariance(feats_real)
+        cov_diff = (cov_fake - cov_real).pow(2).mean()
+
+        return means_diff + cov_diff_coef * cov_diff
+    else:
+        return means_diff
 
 
 def compute_diagonal_cov_reg(feats) -> Tensor:

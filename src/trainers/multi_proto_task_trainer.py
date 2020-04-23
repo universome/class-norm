@@ -16,6 +16,14 @@ from src.utils.losses import (
 
 
 class MultiProtoTaskTrainer(TaskTrainer):
+    def _after_init_hook(self):
+        if self.config.hp.get('reverse_clf.loss_coef'):
+            n_imgs_per_class = self.config.hp.reverse_clf.n_imgs_per_class
+            core_images = [[x for x, y in self.task_ds_train if y == c][:n_imgs_per_class] for c in self.classes]
+
+            self.core_images = torch.tensor(core_images) # [n_task_classes, n_imgs_per_class, *image_shape]
+            self.core_images = self.core_images.view(len(self.classes) * n_imgs_per_class, *self.core_images.shape[2:])
+
     def train_on_batch(self, batch):
         self.model.train()
 
@@ -112,6 +120,11 @@ class MultiProtoTaskTrainer(TaskTrainer):
             loss += self.config.hp.diagonal_cov_reg.loss_coef * diagonal_cov_reg
             self.writer.add_scalar(f'diagonal_cov_reg', diagonal_cov_reg.item(), self.num_iters_done)
 
+        if self.config.hp.get('reverse_clf.loss_coef'):
+            reverse_clf_loss = self.compute_reverse_clf_loss()
+            loss += self.config.hp.reverse_clf.loss_coef * reverse_clf_loss
+            self.writer.add_scalar(f'reverse_clf_loss', reverse_clf_loss.item(), self.num_iters_done)
+
         self.optim.zero_grad()
         loss.backward()
         if self.config.hp.get('clip_grad.value', float('inf')) < float('inf'):
@@ -131,6 +144,28 @@ class MultiProtoTaskTrainer(TaskTrainer):
 
         return reg
 
+    def compute_reverse_clf_loss(self) -> Tensor:
+        prototypes = self.model.head.generate_prototypes() # [n_protos, n_classes, hid_dim]
+        prototypes = prototypes[:, self.classes, :] # [n_protos, n_task_classes, hid_dim]
+        prototypes = normalize(prototypes, self.config.hp.head.scale.value) # [n_protos, n_task_classes, hid_dim]
+
+        n_protos = prototypes.size(0)
+        n_task_classes = len(self.classes)
+        n_imgs_per_class = self.config.hp.reverse_clf.n_imgs_per_class
+        hid_dim = prototypes.shape[2]
+
+        with torch.no_grad():
+            feats = self.model.embedder(self.core_images.to(self.device_name)) # [n_task_classes * n_imgs_per_class, hid_dim]
+            feats = feats.view(n_task_classes, n_imgs_per_class, hid_dim) # [n_task_classes, n_imgs_per_class, hid_dim]
+            feats = normalize(feats, self.config.hp.head.scale.value) # [n_task_classes, n_imgs_per_class, hid_dim]
+            centroids = feats.mean(dim=1) # [n_task_classes, hid_dim]
+            centroids = normalize(centroids, self.config.hp.head.scale.value) # [n_task_classes, hid_dim]
+
+        reverse_logits = prototypes @ centroids.T # [n_protos, n_task_classes, n_task_classes]
+        reverse_logits = reverse_logits.view(n_protos * n_task_classes, n_task_classes)
+        targets = torch.arange(n_task_classes).repeat(n_protos).to(self.device_name)
+
+        return F.cross_entropy(reverse_logits, targets)
 
     def compute_generative_loss(self):
         prototypes = self.model.head.generate_prototypes(self.config.hp.generative_training.num_protos) # [n_protos, n_classes, hid_dim]
@@ -146,7 +181,7 @@ class MultiProtoTaskTrainer(TaskTrainer):
         if self.config.hp.generative_training.type == 'gdpp':
             generative_loss = compute_gdpp_loss(prototypes, feats)
         elif self.config.hp.generative_training.type == 'mmd':
-            generative_loss = compute_mmd_loss(prototypes, feats)
+            generative_loss = compute_mmd_loss(prototypes, feats, self.config.hp.generative_training.cov_diff_coef)
         else:
             raise NotImplementedError(f'Unknown generative loss type: {self.config.hp.generative_training.type}')
 
