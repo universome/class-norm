@@ -114,3 +114,8 @@ golden_proto_linear:
         optim|groups|embedder|lr: [0.0005, 0.005]
         head|golden_proto|weight: [0.9, 0.75, 0.5, 0.25, 0.1, 0.0]
         generative_training|loss_coef: [0.0, 0.1, 1.0]
+
+diagonal_cov_reg:
+    grid:
+        diagonal_cov_reg|loss_coef: [1.0, 0.1, 0.01, 0.005, 0.001]
+        diagonal_cov_reg|batch_size: [100, 250]

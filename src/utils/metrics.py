@@ -1,6 +1,9 @@
 import copy
 from typing import List, Tuple
+
 import numpy as np
+import torch
+import torch.nn.functional as F
 
 from src.utils.data_utils import flatten, construct_output_mask
 
@@ -303,3 +306,20 @@ def remap_targets(targets: List[int], classes: List[int]) -> List[int]:
     :return: remapped classes
     """
     return [(classes.index(t) if t in classes else -1) for t in targets]
+
+
+def compute_cross_entropy_for_task(logits: np.ndarray, targets: np.ndarray, task_classes: np.ndarray):
+    """
+    :param logits: logits matrix. Size: [DATASET_SIZE, NUM_CLASSES]
+    :param targets: labels vector. Size:  [DATASET_SIZE]
+    :param task_classes: vector if classes. Size: [NUM_TASK_CLASSES]
+    """
+    assert logits.shape[0] == len(targets)
+
+    targets = np.array(remap_targets(targets, task_classes.tolist()))
+    task_samples_idx = np.where(targets != -1)[0]
+    targets = targets[task_samples_idx]
+    logits = logits[task_samples_idx][:, task_classes]
+    loss = F.cross_entropy(torch.from_numpy(logits).float(), torch.from_numpy(targets).long())
+
+    return loss.item()
