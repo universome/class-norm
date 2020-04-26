@@ -10,7 +10,7 @@ from src.models.layers import MILayer, ConcatLayer, create_sequential_model, cre
 
 
 def create_attrs_head(config: Config, attrs: np.ndarray) -> nn.Module:
-    config = config.common.overwrite(config[config.depth])
+    config = config.common.overwrite(config[config.model_type])
 
     return {
         'simple': SimpleAttrsHead,
@@ -220,72 +220,5 @@ class RandomEmbeddingMPHead(MultiProtoHead):
 
         prototypes = prototypes.view(n_classes, n_protos, self.config.hid_dim)
         prototypes = prototypes.permute(1, 0, 2)
-
-        return prototypes
-
-
-class DropoutMPH(MultiProtoHead):
-    def init_modules(self):
-        self.attrs_transform = create_sequential_model(self.config.attrs_transform.layers)
-
-    def compute_noise_attrs(self):
-        if self.config.dropout.type == 'bernoulli':
-            return self.compute_bernoulli_noised_attrs()
-        elif self.config.dropout.type == 'gaussian':
-            return self.compute_gaussian_noised_attrs()
-        else:
-            raise NotImplementedError(f'Unknown dropout type: {self.config.dropout.type}')
-
-    def compute_gaussian_noised_attrs(self):
-        n_protos = self.compute_n_protos()
-        n_classes, attr_dim = self.attrs.shape
-        noise = torch.randn(n_protos, n_classes, attr_dim).to(self.attrs.device)
-        noise *= self.config.dropout.std
-
-        return self.attrs.unsqueeze(0) + noise
-
-    def compute_bernoulli_noised_attrs(self):
-        n_protos = self.compute_n_protos()
-        n_classes, attr_dim = self.attrs.shape
-
-        if not self.training and self.compute_n_protos() == 1:
-            p = 0.0
-        else:
-            p = self.config.dropout.p
-
-        if self.config.dropout.level == 'attribute_wise':
-            scale = 1 / (1 - p)
-
-            # Creating a mask per prototype
-            masks = torch.rand(n_protos, attr_dim) >= p
-            masks = masks.view(1, n_protos, attr_dim).float()
-            masks = masks.to(self.attrs.device)
-
-            # Replicating attrs per each prototype
-            attrs = self.attrs.view(n_classes, 1, attr_dim)
-            attrs = attrs.repeat(1, n_protos, 1)
-
-            # Applying the masks
-            attrs = attrs * masks
-
-            # Scaling attrs during training
-            attrs = attrs * scale
-            attrs = attrs.permute(1, 0, 2) # [n_protos, n_classes, attr_dim]
-        elif self.config.dropout.level == 'element_wise':
-            attrs = self.attrs.view(n_classes, 1, attr_dim)
-            attrs = attrs.repeat(1, n_protos, 1)
-            attrs = attrs.permute(1, 0, 2)
-            attrs = F.dropout(attrs, p=p)
-        else:
-            raise NotImplementedError(f'Unknown dropout level: {self.config.dropout.level}')
-
-        return attrs
-
-    def generate_prototypes(self):
-        attrs = self.compute_noise_attrs() # [n_protos, n_clasess, attr_dim]
-        prototypes = self.attrs_transform(attrs)
-
-        assert prototypes.shape == (self.compute_n_protos(), self.attrs.shape[0], self.config.hid_dim), \
-            f"Wrong shape: {prototypes.shape}"
 
         return prototypes

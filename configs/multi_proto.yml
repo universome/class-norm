@@ -2,7 +2,8 @@ all:
   logging:
     save_knn_logits: True
     save_golden_logits: True
-
+    save_prototypes: True
+  inference_batch_size: 64
   task_trainer: "multi_proto"
   hp:
     clip_grad: {value: 10}
@@ -18,9 +19,9 @@ all:
     batch_size: 10
 
     diagonal_cov_reg:
-        loss_coef: 0.0
-        per_class: false
-        batch_size: 100
+      loss_coef: 0.0
+      per_class: false
+      batch_size: 100
 
     triplet_loss:
       enabled: false
@@ -36,6 +37,10 @@ all:
       loss_coef: 0.0
       n_imgs_per_class: 20
 
+    pull_golden_protos:
+      loss_coef: 0.0
+      n_imgs_per_class: 20
+
     fake_clf:
       loss_coef: 0.0
 
@@ -43,23 +48,26 @@ all:
     push_protos_apart_loss_coef: 0.0
 
     head:
-      depth: "deep"
+      model_type: "linear"
 
       common:
         type: "random_embeddings"
-        num_prototypes: 50
+        num_prototypes: 1
         hid_dim: 512
         fusing_type: "concat"
-        attrs_transform_layers: [312]
-        use_tanh_on_top: false # To be similar to gazsl
+        use_tanh_on_top: false # Enable to be similar to gazsl
         aggregation_type: "average_prototypes"
         test_aggregation_type: "average_prototypes"
 
+        attrs_transform:
+          layers: [312]
+          identity_init: false
+
         noise:
-          transform_layers: [100, 100]
-          identity_init: true
+          transform_layers: [100]
+          identity_init: false
           same_for_each_class: false
-          std: 1.0
+          std: 0.0
 
         golden_proto:
           enabled: false
