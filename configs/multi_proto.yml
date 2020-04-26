@@ -1,7 +1,8 @@
 all:
   logging:
-  #   save_knn_logits: True
-  #   save_golden_logits: True
+    save_knn_logits: True
+    save_golden_logits: True
+    save_train_logits: True
     save_prototypes: True
   inference_batch_size: 64
   task_trainer: "multi_proto"
@@ -9,7 +10,7 @@ all:
     clip_grad: {value: 10}
     optim:
         groups:
-            head: {lr: 0.005, momentum: 0.9}
+            head: {lr: 0.01, momentum: 0.9}
             embedder: {}
         kwargs: {lr: 0.003}
     use_class_attrs: true
@@ -47,11 +48,11 @@ all:
     push_protos_apart_loss_coef: 0.0
 
     head:
-      model_type: "linear"
+      model_type: "deep"
 
       common:
         type: "random_embeddings"
-        num_prototypes: 1
+        num_prototypes: 50
         hid_dim: 512
         fusing:
           type: "concat"
@@ -61,13 +62,12 @@ all:
 
         attrs_transform:
           layers: [312]
-          identity_init: false
+          identity_init: true
 
         noise:
           transform_layers: [100]
-          identity_init: false
           same_for_each_class: false
-          std: 0.0
+          std: 1.0
 
         golden_proto:
           enabled: false
@@ -84,14 +84,21 @@ all:
         after_fuse_transform:
           layers: [512]
           identity_init: false
+          bias: false
+        noise:
+            identity_init: true
 
       deep:
+        use_tanh_on_top: true # Enable to be similar to gazsl
         fusing:
           activation: "tanh"
+          normalize_to_unit_norm: true
         after_fuse_transform:
           layers: [512, 512]
           identity_init: true
           bias: false
+        noise:
+          identity_init: false
         renormalize_attrs_to_gaussian: true
 
 cub:

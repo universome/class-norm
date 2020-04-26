@@ -20,6 +20,7 @@ from src.models.autoencoder import AutoEncoder
 from src.dataloaders.load_data import load_data
 from src.dataloaders.utils import imagenet_normalization
 from src.utils.data_utils import split_classes_for_tasks, get_train_test_data_splits
+from src.utils.constants import DEBUG
 
 from src.trainers.basic_task_trainer import BasicTaskTrainer
 from src.trainers.agem_task_trainer import AgemTaskTrainer
@@ -158,6 +159,8 @@ class LLLTrainer(BaseTrainer):
         self.save_experiment_data()
 
     def save_logits_history(self):
+        if DEBUG: return
+
         if self.config.get('logging.save_logits'):
             self.logits_history.append(self.run_inference(self.ds_test))
 

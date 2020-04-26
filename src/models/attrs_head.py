@@ -156,10 +156,10 @@ class RandomEmbeddingMPHead(MultiProtoHead):
         if self.config.get('after_fuse_identity_init'):
             identity_init_(self.after_fuse_transform[0])
 
-        if self.config.noise.get('identity_init'):
+        if len(self.config.noise.transform_layers) > 1 and self.config.noise.get('identity_init'):
             identity_init_(self.noise_transform[0])
 
-        if self.config.attrs_transform.get('identity_init'):
+        if len(self.config.attrs_transform.layers) > 1 and self.config.attrs_transform.get('identity_init'):
             identity_init_(self.attrs_transform[0])
 
     def get_transformed_noise(self, n_protos: int, golden: bool=False) -> Tensor:
@@ -217,6 +217,10 @@ class RandomEmbeddingMPHead(MultiProtoHead):
         z_transormed = z_transormed.view(n_classes * n_protos, transformed_noise_size)
         attrs_transformed = attrs_transformed.unsqueeze(1).repeat(1, n_protos, 1).view(n_classes * n_protos, -1)
         contextualized_attrs = self.fuser(attrs_transformed, z_transormed) # [n_classes * n_protos, after_fuse_transform.layers[0]]
+
+        if self.config.fusing.get('normalize_to_unit_norm'):
+            contextualized_attrs = normalize(contextualized_attrs)
+
         prototypes = self.after_fuse_transform(contextualized_attrs) # [n_classes * n_protos, hid_dim]
 
         assert prototypes.shape == (n_classes * n_protos, self.config.hid_dim), f"Wrong shape: {prototypes.shape}"

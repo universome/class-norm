@@ -19,14 +19,30 @@ def load_dataset(
     img_paths = read_column(filename, 1)
     train_test_split = load_train_test_split(data_dir)
     img_paths = [p for (p, img_split) in zip(img_paths, train_test_split) if split == img_split]
+    labels = load_labels(img_paths)
 
     if DEBUG:
-        import random
-        img_paths = random.sample(img_paths, 100)
+        # import random
+        # img_paths = random.sample(img_paths, 200)
+        debug_idx = [labels.index(c) for c in range(200)]
+        img_paths = [img_paths[i] for i in debug_idx]
+        labels = load_labels(img_paths)
 
     imgs = load_imgs_from_folder(os.path.join(data_dir, 'images'), img_paths, target_shape)
     labels = load_labels(img_paths)
     if preprocess: imgs = preprocess_imgs(imgs)
+    if split == 'train': imgs, labels = shuffle_dataset(imgs, labels)
+
+    return list(zip(imgs, labels))
+
+
+def load_preprocessed_dataset(data_dir: PathLike, split: str='train', **kwargs)-> List[Tuple[np.ndarray, int]]:
+    if DEBUG:
+        return load_dataset(data_dir, split, **kwargs)
+
+    imgs = np.load(os.path.join(data_dir, f'{split}_images'))
+    labels = np.load(os.path.join(data_dir, f'{split}_labels'))
+
     if split == 'train': imgs, labels = shuffle_dataset(imgs, labels)
 
     return list(zip(imgs, labels))

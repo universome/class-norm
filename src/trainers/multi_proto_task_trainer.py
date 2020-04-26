@@ -26,7 +26,7 @@ class MultiProtoTaskTrainer(TaskTrainer):
         core_images = [[x for x, y in self.task_ds_train if y == c][:n_imgs_per_class] for c in self.classes]
 
         self.core_images = torch.tensor(core_images) # [n_task_classes, n_imgs_per_class, *image_shape]
-        self.core_images = self.core_images.view(len(self.classes) * n_imgs_per_class, *self.core_images.shape[2:])
+        self.core_images = self.core_images.view(-1, *self.core_images.shape[2:])
 
     def train_on_batch(self, batch):
         self.model.train()
@@ -159,17 +159,20 @@ class MultiProtoTaskTrainer(TaskTrainer):
         return reg
 
     def compute_pull_golden_protos_loss(self) -> Tensor:
-        protos = self.model.head.generate_prototypes(golden=True) # [1, n_classes, hid_dim]
+        protos = self.model.head.generate_prototypes(1, golden=True) # [1, n_classes, hid_dim]
         centroids = self.compute_centroids() # [n_task_classes, hid_dim]
+
+        protos = normalize(protos, self.config.hp.head.common.scale.value)
+        centroids = normalize(centroids, self.config.hp.head.common.scale.value)
 
         assert protos.shape == (1, self.config.data.num_classes, self.config.hp.head.common.hid_dim)
         assert centroids.shape == (len(self.classes), self.config.hp.head.common.hid_dim)
 
         protos = protos.squeeze(0) # [n_classes, hid_dim]
         protos = protos[self.classes] # [n_task_classes, hid_dim]
-        distances = (protos - centroids).norm().pow(2)
+        mean_dist = (protos - centroids).pow(2).mean()
 
-        return distances.mean()
+        return mean_dist
 
     def compute_centroids(self) -> Tensor:
         n_task_classes = len(self.classes)
@@ -202,13 +205,17 @@ class MultiProtoTaskTrainer(TaskTrainer):
         return F.cross_entropy(reverse_logits, targets)
 
     def compute_fake_clf_loss(self) -> Tensor:
-        prototypes = self.model.head.generate_prototypes() # [n_protos, n_classes, hid_dim]
-        prototypes = normalize(prototypes, self.model.head.config.scale.value) # [n_protos, n_classes, hid_dim]
-        centroids = prototypes.mean(axis=0) # [n_classes, hid_dim]
-        centroids = normalize(centroids, self.model.head.config.scale.value) # [n_classes, hid_dim]
+        normal_prototypes = self.model.head.generate_prototypes() # [n_protos, n_classes, hid_dim]
 
-        n_protos, n_classes, _ = prototypes.shape
-        fake_logits = prototypes @ centroids.T # [n_protos, n_classes, n_classes]
+        with torch.no_grad():
+            golden_prototypes = self.model.head.generate_prototypes(1, golden=True) # [1, n_classes, hid_dim]
+            golden_prototypes = golden_prototypes.squeeze(0)
+
+        golden_prototypes = normalize(golden_prototypes, self.model.head.config.scale.value) # [n_classes, hid_dim]
+        normal_prototypes = normalize(normal_prototypes, self.model.head.config.scale.value) # [n_classes, hid_dim]
+
+        n_protos, n_classes, _ = normal_prototypes.shape
+        fake_logits = normal_prototypes @ golden_prototypes.T # [n_protos, n_classes, n_classes]
         fake_logits = fake_logits.view(n_protos * n_classes, n_classes)
         targets = torch.arange(n_classes).repeat(n_protos).to(self.device_name) # [n_protos * n_classes]
 
