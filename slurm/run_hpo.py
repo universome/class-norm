@@ -46,7 +46,10 @@ def main():
 
 def run_hpo(args, experiments_cli_args):
     experiments_dir = os.path.join('/ibex/scratch/skoroki/experiments', args.experiment)
-    os.makedirs(experiments_dir, exist_ok=True)
+    logs_dir = os.path.join('/ibex/scratch/skoroki/logs', f'{args.experiment}')
+
+    os.makedirs(experiments_dir)
+    os.makedirs(logs_dir)
 
     for random_seed in range(1, args.num_runs + 1):
         common_cli_args = f'-c {args.config_name} -d {args.dataset} --experiments_dir {experiments_dir} -s {random_seed}'
@@ -59,9 +62,10 @@ def run_hpo(args, experiments_cli_args):
             else:
                 mem = '128G'
 
-            command = f'sbatch --mem {mem} --export=ALL,cli_args="{common_cli_args} {cli_args}" slurm/slurm_lll_job.sh'
+            command = f'sbatch -o {logs_dir}/output-%j.out --mem {mem} --export=ALL,cli_args="{common_cli_args} {cli_args}" slurm/slurm_lll_job.sh'
             # command = f'echo "sbatch --mem {mem} --export=ALL,cli_args=\"{common_cli_args} {cli_args}\" slurm/slurm_lll_job.sh"'
             os.system(command)
+            # print(command)
 
 
 if __name__ == "__main__":
