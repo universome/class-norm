@@ -31,14 +31,14 @@ class MultiProtoTaskTrainer(TaskTrainer):
         x = torch.from_numpy(np.array(batch[0])).to(self.device_name)
         y = torch.from_numpy(np.array(batch[1])).to(self.device_name)
 
-        if self.config.hp.head.get('dae.enabled'):
+        if self.model.head.config.get('dae.enabled'):
             with torch.no_grad():
                 feats = self.model.embedder(x)
             logits = self.model.head(feats)
             feats_rec = self.model.head.compute_dae_reconstructions(feats, y)
 
             rec_loss = torch.norm(feats_rec - feats, dim=1).mean()
-            loss += self.config.hp.head.dae.loss_coef * rec_loss
+            loss += self.model.head.config.dae.loss_coef * rec_loss
             self.writer.add_scalar('rec_loss', rec_loss.item(), self.num_iters_done)
 
         if self.config.hp.get('triplet_loss.enabled'):
@@ -80,7 +80,7 @@ class MultiProtoTaskTrainer(TaskTrainer):
         else:
             logits = self.model(x)
 
-        if self.config.hp.head.aggregation_type == 'individual_losses':
+        if self.model.head.config.aggregation_type == 'individual_losses':
             n_protos = logits.size(0) // y.size(0)
             batch_size = y.size(0)
             y = y.view(batch_size, 1).repeat(1, n_protos).view(batch_size * n_protos)
@@ -103,7 +103,7 @@ class MultiProtoTaskTrainer(TaskTrainer):
             protos_clf_targets = protos_clf_targets.unsqueeze(1).repeat(1, protos.size(0)) # [n_classes, n_protos]
             protos_clf_targets = protos_clf_targets.permute(1, 0) # [n_protos, n_classes]
             protos_main = protos.mean(dim=0) # [n_classes, hid_dim]
-            protos_main = normalize(protos_main, self.config.hp.head.scale.value) # [n_classes, hid_dim]
+            protos_main = normalize(protos_main, self.model.head.config.scale.value) # [n_classes, hid_dim]
             protos_clf_logits = protos @ protos_main.t() # [n_protos, n_classes, n_classes]
 
             protos_clf_loss = F.cross_entropy(protos_clf_logits, protos_clf_targets)
@@ -152,7 +152,7 @@ class MultiProtoTaskTrainer(TaskTrainer):
     def compute_reverse_clf_loss(self) -> Tensor:
         prototypes = self.model.head.generate_prototypes() # [n_protos, n_classes, hid_dim]
         prototypes = prototypes[:, self.classes, :] # [n_protos, n_task_classes, hid_dim]
-        prototypes = normalize(prototypes, self.config.hp.head.scale.value) # [n_protos, n_task_classes, hid_dim]
+        prototypes = normalize(prototypes, self.model.head.config.scale.value) # [n_protos, n_task_classes, hid_dim]
 
         n_protos = prototypes.size(0)
         n_task_classes = len(self.classes)
@@ -162,9 +162,9 @@ class MultiProtoTaskTrainer(TaskTrainer):
         with torch.no_grad():
             feats = self.model.embedder(self.core_images.to(self.device_name)) # [n_task_classes * n_imgs_per_class, hid_dim]
             feats = feats.view(n_task_classes, n_imgs_per_class, hid_dim) # [n_task_classes, n_imgs_per_class, hid_dim]
-            feats = normalize(feats, self.config.hp.head.scale.value) # [n_task_classes, n_imgs_per_class, hid_dim]
+            feats = normalize(feats, self.model.head.config.scale.value) # [n_task_classes, n_imgs_per_class, hid_dim]
             centroids = feats.mean(dim=1) # [n_task_classes, hid_dim]
-            centroids = normalize(centroids, self.config.hp.head.scale.value) # [n_task_classes, hid_dim]
+            centroids = normalize(centroids, self.model.head.config.scale.value) # [n_task_classes, hid_dim]
 
         reverse_logits = prototypes @ centroids.T # [n_protos, n_task_classes, n_task_classes]
         reverse_logits = reverse_logits.view(n_protos * n_task_classes, n_task_classes)
@@ -174,9 +174,9 @@ class MultiProtoTaskTrainer(TaskTrainer):
 
     def compute_fake_clf_loss(self) -> Tensor:
         prototypes = self.model.head.generate_prototypes() # [n_protos, n_classes, hid_dim]
-        prototypes = normalize(prototypes, self.config.hp.head.scale.value) # [n_protos, n_classes, hid_dim]
+        prototypes = normalize(prototypes, self.model.head.config.scale.value) # [n_protos, n_classes, hid_dim]
         centroids = prototypes.mean(axis=0) # [n_classes, hid_dim]
-        centroids = normalize(centroids, self.config.hp.head.scale.value) # [n_classes, hid_dim]
+        centroids = normalize(centroids, self.model.head.config.scale.value) # [n_classes, hid_dim]
 
         n_protos, n_classes, _ = prototypes.shape
         fake_logits = prototypes @ centroids.T # [n_protos, n_classes, n_classes]
@@ -211,6 +211,6 @@ class MultiProtoTaskTrainer(TaskTrainer):
 
         with torch.no_grad():
             prototypes = self.model.head.generate_prototypes()
-            prototypes = normalize(prototypes, self.config.hp.head.scale.value)
+            prototypes = normalize(prototypes, self.model.head.config.scale.value)
         filename = os.path.join(self.main_trainer.paths.custom_data_path, f'prototypes-{self.task_idx + 1}')
         np.save(filename, prototypes.cpu().numpy())

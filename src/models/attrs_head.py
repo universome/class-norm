@@ -6,15 +6,15 @@ import numpy as np
 from firelab.config import Config
 
 from src.utils.training_utils import normalize
-from src.models.layers import MILayer, ConcatLayer, create_sequential_model, create_fuser
+from src.models.layers import MILayer, ConcatLayer, create_sequential_model, create_fuser, identity_init_
 
 
 def create_attrs_head(config: Config, attrs: np.ndarray) -> nn.Module:
+    config = config.common.overwrite(config[config.depth])
+
     return {
         'simple': SimpleAttrsHead,
-        'multi_headed': MultiHeadedMPHead,
         'random_embeddings': RandomEmbeddingMPHead,
-        'static_embeddings': StaticEmbeddingMPHead,
         'dropout_attrs': DropoutMPH
     }[config.type](config, attrs)
 
@@ -90,9 +90,6 @@ class MultiProtoHead(nn.Module):
         if self.config.use_tanh_on_top:
             protos = F.tanh(protos)
 
-        if self.training:
-            feats = feats + torch.randn_like(feats) * self.config.feats_noise_std
-
         feats = normalize(feats, self.scale)
         protos = normalize(protos, self.scale)
 
@@ -154,10 +151,10 @@ class RandomEmbeddingMPHead(MultiProtoHead):
             self.encoder = create_sequential_model(self.config.dae.encoder_layers)
 
         if self.config.get('after_fuse_identity_init'):
-            n_in, n_out = self.after_fuse_transform[0].weight.data.shape
-            assert n_in == n_out, f"Cannot use identity init for non-square transforms: {n_in, n_out}"
-            self.after_fuse_transform[0].weight.data.mul_(0.001)
-            self.after_fuse_transform[0].weight.data.add_(torch.eye(n_in))
+            identity_init_(self.after_fuse_transform[0])
+
+        if self.config.noise.get('identity_init'):
+            identity_init_(self.noise_transform[0])
 
     def get_transformed_noise(self, n_protos: int, golden: bool=False) -> Tensor:
         n_classes = self.attrs.shape[0]
@@ -224,7 +221,7 @@ class RandomEmbeddingMPHead(MultiProtoHead):
         return prototypes
 
 
-class DropoutMPH(MultiHeadedMPHead):
+class DropoutMPH(MultiProtoHead):
     def init_modules(self):
         self.attrs_transform = create_sequential_model(self.config.attrs_transform_layers)
 

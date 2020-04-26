@@ -286,3 +286,11 @@ def create_activation(activation: str) -> Callable:
         return nn.Tanh()
     else:
         raise NotImplementedError(f'Unknown activation type: {activation}')
+
+
+def identity_init_(module: nn.Linear):
+    n_in, n_out = module.weight.data.shape
+    assert isinstance(module, nn.Linear), f"Not a linear module: {module}"
+    assert n_in == n_out, f"Cannot use identity init for non-square transforms: {n_in, n_out}"
+    module.weight.data.mul_(0.001)
+    module.weight.data.add_(torch.eye(n_in))
