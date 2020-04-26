@@ -22,7 +22,7 @@ def load_dataset(
 
     if DEBUG:
         import random
-        img_paths = random.sample(img_paths, 100)
+        img_paths = random.sample(img_paths, 1000)
 
     imgs = load_imgs_from_folder(os.path.join(data_dir, 'images'), img_paths, target_shape)
     labels = load_labels(img_paths)

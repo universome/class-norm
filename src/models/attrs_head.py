@@ -137,10 +137,10 @@ class MultiProtoHead(nn.Module):
 class RandomEmbeddingMPHead(MultiProtoHead):
     def init_modules(self):
         self.noise_transform = create_sequential_model(self.config.noise.transform_layers)
-        self.attrs_transform = create_sequential_model(self.config.attrs_transform_layers)
+        self.attrs_transform = create_sequential_model(self.config.attrs_transform.layers)
         self.fuser = create_fuser(
             self.config.fusing_type,
-            self.config.attrs_transform_layers[-1],
+            self.config.attrs_transform.layers[-1],
             self.config.noise.transform_layers[-1],
             self.config.after_fuse_transform_layers[0],
             activation=self.config.get('after_fuse_activation', ('relu' if len(self.config.after_fuse_transform_layers) > 1 else 'none'))
@@ -155,6 +155,9 @@ class RandomEmbeddingMPHead(MultiProtoHead):
 
         if self.config.noise.get('identity_init'):
             identity_init_(self.noise_transform[0])
+
+        if self.config.attrs_transform.get('identity_init'):
+            identity_init_(self.attrs_transform[0])
 
     def get_transformed_noise(self, n_protos: int, golden: bool=False) -> Tensor:
         n_classes = self.attrs.shape[0]
@@ -223,7 +226,7 @@ class RandomEmbeddingMPHead(MultiProtoHead):
 
 class DropoutMPH(MultiProtoHead):
     def init_modules(self):
-        self.attrs_transform = create_sequential_model(self.config.attrs_transform_layers)
+        self.attrs_transform = create_sequential_model(self.config.attrs_transform.layers)
 
     def compute_noise_attrs(self):
         if self.config.dropout.type == 'bernoulli':

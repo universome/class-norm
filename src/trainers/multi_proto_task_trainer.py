@@ -18,11 +18,15 @@ from src.utils.losses import (
 class MultiProtoTaskTrainer(TaskTrainer):
     def _after_init_hook(self):
         if self.config.hp.get('reverse_clf.loss_coef'):
-            n_imgs_per_class = self.config.hp.reverse_clf.n_imgs_per_class
-            core_images = [[x for x, y in self.task_ds_train if y == c][:n_imgs_per_class] for c in self.classes]
+            self._init_core_images(self.config.hp.reverse_clf.n_imgs_per_class)
+        elif self.config.hp.get('pull_golden_protos.loss_coef'):
+            self._init_core_images(self.config.hp.pull_golden_protos.n_imgs_per_class)
 
-            self.core_images = torch.tensor(core_images) # [n_task_classes, n_imgs_per_class, *image_shape]
-            self.core_images = self.core_images.view(len(self.classes) * n_imgs_per_class, *self.core_images.shape[2:])
+    def _init_core_images(self, n_imgs_per_class: int):
+        core_images = [[x for x, y in self.task_ds_train if y == c][:n_imgs_per_class] for c in self.classes]
+
+        self.core_images = torch.tensor(core_images) # [n_task_classes, n_imgs_per_class, *image_shape]
+        self.core_images = self.core_images.view(len(self.classes) * n_imgs_per_class, *self.core_images.shape[2:])
 
     def train_on_batch(self, batch):
         self.model.train()
@@ -130,6 +134,11 @@ class MultiProtoTaskTrainer(TaskTrainer):
             loss += self.config.hp.fake_clf.loss_coef * fake_clf_loss
             self.writer.add_scalar(f'fake_clf_loss', fake_clf_loss.item(), self.num_iters_done)
 
+        if self.config.hp.get('pull_golden_protos.loss_coef'):
+            pull_golden_protos_loss = self.compute_pull_golden_protos_loss()
+            loss += self.config.hp.pull_golden_protos.loss_coef * pull_golden_protos_loss
+            self.writer.add_scalar(f'pull_golden_protos_loss', pull_golden_protos_loss.item(), self.num_iters_done)
+
         self.optim.zero_grad()
         loss.backward()
         if self.config.hp.get('clip_grad.value', float('inf')) < float('inf'):
@@ -139,7 +148,7 @@ class MultiProtoTaskTrainer(TaskTrainer):
 
         self.writer.add_scalar('cls_loss', cls_loss.item(), self.num_iters_done)
 
-    def compute_diagonal_cov_reg(self):
+    def compute_diagonal_cov_reg(self) -> Tensor:
         if not self.config.hp.get('diagonal_cov_reg.loss_coef'): return torch.tensor(0.0)
 
         batch = self.sample_batch(self.task_ds_train, self.config.hp.diagonal_cov_reg.batch_size)
@@ -149,15 +158,23 @@ class MultiProtoTaskTrainer(TaskTrainer):
 
         return reg
 
-    def compute_reverse_clf_loss(self) -> Tensor:
-        prototypes = self.model.head.generate_prototypes() # [n_protos, n_classes, hid_dim]
-        prototypes = prototypes[:, self.classes, :] # [n_protos, n_task_classes, hid_dim]
-        prototypes = normalize(prototypes, self.model.head.config.scale.value) # [n_protos, n_task_classes, hid_dim]
+    def compute_pull_golden_protos_loss(self) -> Tensor:
+        protos = self.model.head.generate_prototypes(golden=True) # [1, n_classes, hid_dim]
+        centroids = self.compute_centroids() # [n_task_classes, hid_dim]
 
-        n_protos = prototypes.size(0)
+        assert protos.shape == (1, self.config.data.num_classes, self.config.hp.head.common.hid_dim)
+        assert centroids.shape == (len(self.classes), self.config.hp.head.common.hid_dim)
+
+        protos = protos.squeeze(0) # [n_classes, hid_dim]
+        protos = protos[self.classes] # [n_task_classes, hid_dim]
+        distances = (protos - centroids).norm().pow(2)
+
+        return distances.mean()
+
+    def compute_centroids(self) -> Tensor:
         n_task_classes = len(self.classes)
-        n_imgs_per_class = self.config.hp.reverse_clf.n_imgs_per_class
-        hid_dim = prototypes.shape[2]
+        hid_dim = self.config.hp.head.common.hid_dim
+        n_imgs_per_class = len(self.core_images) // n_task_classes
 
         with torch.no_grad():
             feats = self.model.embedder(self.core_images.to(self.device_name)) # [n_task_classes * n_imgs_per_class, hid_dim]
@@ -165,6 +182,18 @@ class MultiProtoTaskTrainer(TaskTrainer):
             feats = normalize(feats, self.model.head.config.scale.value) # [n_task_classes, n_imgs_per_class, hid_dim]
             centroids = feats.mean(dim=1) # [n_task_classes, hid_dim]
             centroids = normalize(centroids, self.model.head.config.scale.value) # [n_task_classes, hid_dim]
+
+        return centroids
+
+    def compute_reverse_clf_loss(self) -> Tensor:
+        prototypes = self.model.head.generate_prototypes() # [n_protos, n_classes, hid_dim]
+        prototypes = prototypes[:, self.classes, :] # [n_protos, n_task_classes, hid_dim]
+        prototypes = normalize(prototypes, self.model.head.config.scale.value) # [n_protos, n_task_classes, hid_dim]
+
+        n_protos = prototypes.size(0)
+        n_task_classes = len(self.classes)
+
+        centroids = self.compute_centroids()
 
         reverse_logits = prototypes @ centroids.T # [n_protos, n_task_classes, n_task_classes]
         reverse_logits = reverse_logits.view(n_protos * n_task_classes, n_task_classes)
