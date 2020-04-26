@@ -80,6 +80,8 @@ class LLLTrainer(BaseTrainer):
         self.episodic_memory_output_mask = []
         self.logits_history = []
         self.train_logits_history = []
+        self.knn_logits_history = []
+        self.golden_logits_history = []
 
         self.save_config()
 
@@ -129,11 +131,7 @@ class LLLTrainer(BaseTrainer):
         for task_idx in range(self.config.lll_setup.num_tasks):
             print(f'Starting task #{task_idx}')
 
-            if self.config.get('logging.save_logits'):
-               self.logits_history.append(self.run_inference(self.ds_test))
-
-            if self.config.get('logging.save_train_logits'):
-               self.train_logits_history.append(self.run_inference(self.ds_train))
+            self.save_logits_history()
 
             task_trainer = TASK_TRAINERS[self.config.task_trainer](self, task_idx)
 
@@ -156,15 +154,23 @@ class LLLTrainer(BaseTrainer):
             if self.config.get('should_checkpoint', False):
                 self.task_checkpoint(task_idx)
 
+        self.save_logits_history()
+        self.save_experiment_data()
+
+    def save_logits_history(self):
         if self.config.get('logging.save_logits'):
             self.logits_history.append(self.run_inference(self.ds_test))
+
+        if self.config.get('logging.save_knn_logits'):
+            self.knn_logits_history.append(self.run_inference(self.ds_test, model_kwargs={"aggregation_type": "shortest_distance"}))
+
+        if self.config.get('logging.save_golden_logits'):
+            self.golden_logits_history.append(self.run_inference(self.ds_test, model_kwargs={"aggregation_type": "golden_prototype"}))
 
         if self.config.get('logging.save_train_logits'):
             self.train_logits_history.append(self.run_inference(self.ds_train))
 
-        self.save_experiment_data()
-
-    def run_inference(self, dataset: List[Tuple[np.ndarray, int]]):
+    def run_inference(self, dataset: List[Tuple[np.ndarray, int]], model_kwargs={}):
         self.model.eval()
 
         if self.config.get('low_memory'):
@@ -199,7 +205,7 @@ class LLLTrainer(BaseTrainer):
                     logits = probs_mp.view(ds_size, n_classes, max_num_protos_per_class).sum(dim=2).log() # [ds_size, n_classes]
                     logits = logits.cpu().numpy()
             else:
-                logits = [self.model(torch.from_numpy(np.array(b)).to(self.device_name)).cpu().numpy() for b, _ in dataloader]
+                logits = [self.model(torch.from_numpy(np.array(b)).to(self.device_name), **model_kwargs).cpu().numpy() for b, _ in dataloader]
                 logits = np.vstack(logits)
 
         return logits
@@ -207,6 +213,8 @@ class LLLTrainer(BaseTrainer):
     def save_experiment_data(self):
         np.save(os.path.join(self.paths.custom_data_path, 'logits_history'), self.logits_history)
         np.save(os.path.join(self.paths.custom_data_path, 'train_logits_history'), self.train_logits_history)
+        np.save(os.path.join(self.paths.custom_data_path, 'knn_logits_history'), self.knn_logits_history)
+        np.save(os.path.join(self.paths.custom_data_path, 'golden_logits_history'), self.golden_logits_history)
         np.save(os.path.join(self.paths.custom_data_path, 'class_splits'), self.class_splits)
         np.save(os.path.join(self.paths.custom_data_path, 'targets'), [y for _, y in self.ds_test])
         np.save(os.path.join(self.paths.custom_data_path, 'train_targets'), [y for _, y in self.ds_train])

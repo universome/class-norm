@@ -1,4 +1,8 @@
 all:
+  logging:
+    save_knn_logits: True
+    save_golden_logits: True
+
   task_trainer: "multi_proto"
   hp:
     clip_grad: {value: 10}
@@ -30,7 +34,10 @@ all:
 
     reverse_clf:
       loss_coef: 0.0
-      n_imgs_per_class: 10
+      n_imgs_per_class: 20
+
+    fake_clf:
+      loss_coef: 0.0
 
     protos_clf_loss_coef: 0.0
     push_protos_apart_loss_coef: 0.0
@@ -46,13 +53,14 @@ all:
       attrs_transform_layers: [312]
       use_tanh_on_top: false # To be similar to gazsl
       aggregation_type: "average_prototypes"
+      test_aggregation_type: "average_prototypes"
 
       feats_noise_std: 0.0
 
       noise:
         transform_layers: [100]
         same_for_each_class: false
-        std: 0.0
+        std: 1.0
 
       golden_proto:
         enabled: false

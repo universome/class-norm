@@ -125,6 +125,11 @@ class MultiProtoTaskTrainer(TaskTrainer):
             loss += self.config.hp.reverse_clf.loss_coef * reverse_clf_loss
             self.writer.add_scalar(f'reverse_clf_loss', reverse_clf_loss.item(), self.num_iters_done)
 
+        if self.config.hp.get('fake_clf.loss_coef'):
+            fake_clf_loss = self.compute_fake_clf_loss()
+            loss += self.config.hp.fake_clf.loss_coef * fake_clf_loss
+            self.writer.add_scalar(f'fake_clf_loss', fake_clf_loss.item(), self.num_iters_done)
+
         self.optim.zero_grad()
         loss.backward()
         if self.config.hp.get('clip_grad.value', float('inf')) < float('inf'):
@@ -166,6 +171,19 @@ class MultiProtoTaskTrainer(TaskTrainer):
         targets = torch.arange(n_task_classes).repeat(n_protos).to(self.device_name)
 
         return F.cross_entropy(reverse_logits, targets)
+
+    def compute_fake_clf_loss(self) -> Tensor:
+        prototypes = self.model.head.generate_prototypes() # [n_protos, n_classes, hid_dim]
+        prototypes = normalize(prototypes, self.config.hp.head.scale.value) # [n_protos, n_classes, hid_dim]
+        centroids = prototypes.mean(axis=0) # [n_classes, hid_dim]
+        centroids = normalize(centroids, self.config.hp.head.scale.value) # [n_classes, hid_dim]
+
+        n_protos, n_classes, _ = prototypes.shape
+        fake_logits = prototypes @ centroids.T # [n_protos, n_classes, n_classes]
+        fake_logits = fake_logits.view(n_protos * n_classes, n_classes)
+        targets = torch.arange(n_classes).repeat(n_protos).to(self.device_name) # [n_protos * n_classes]
+
+        return F.cross_entropy(fake_logits, targets)
 
     def compute_generative_loss(self):
         prototypes = self.model.head.generate_prototypes(self.config.hp.generative_training.num_protos) # [n_protos, n_classes, hid_dim]
