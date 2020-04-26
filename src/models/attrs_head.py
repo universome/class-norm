@@ -15,7 +15,6 @@ def create_attrs_head(config: Config, attrs: np.ndarray) -> nn.Module:
     return {
         'simple': SimpleAttrsHead,
         'random_embeddings': RandomEmbeddingMPHead,
-        'dropout_attrs': DropoutMPH
     }[config.type](config, attrs)
 
 
@@ -41,7 +40,10 @@ class MultiProtoHead(nn.Module):
         super().__init__()
 
         self.config = config
+        if self.config.get('renormalize_attrs_to_gaussian'):
+            attrs = (attrs - attrs.mean(axis=0)) / attrs.std(axis=0)
         self.register_buffer('attrs', torch.from_numpy(attrs))
+
 
         self.init_modules()
         self.init_scaling()
@@ -139,13 +141,14 @@ class RandomEmbeddingMPHead(MultiProtoHead):
         self.noise_transform = create_sequential_model(self.config.noise.transform_layers)
         self.attrs_transform = create_sequential_model(self.config.attrs_transform.layers)
         self.fuser = create_fuser(
-            self.config.fusing_type,
+            self.config.fusing.type,
             self.config.attrs_transform.layers[-1],
             self.config.noise.transform_layers[-1],
-            self.config.after_fuse_transform_layers[0],
-            activation=self.config.get('after_fuse_activation', ('relu' if len(self.config.after_fuse_transform_layers) > 1 else 'none'))
+            self.config.after_fuse_transform.layers[0],
+            activation=self.config.fusing.get('activation', ('relu' if len(self.config.after_fuse_transform.layers) > 1 else 'none'))
         )
-        self.after_fuse_transform = create_sequential_model(self.config.after_fuse_transform_layers)
+        self.after_fuse_transform = create_sequential_model(
+            self.config.after_fuse_transform.layers, bias=self.config.after_fuse_transform.bias)
 
         if self.config.get('dae.enabled'):
             self.encoder = create_sequential_model(self.config.dae.encoder_layers)
@@ -190,7 +193,7 @@ class RandomEmbeddingMPHead(MultiProtoHead):
         z_transformed = self.noise_transform(z) # [batch_size, noise.transform_layers[-1]]
         attrs_transformed = self.attrs_transform(self.attrs) # [n_classes, attrs.transform_layers[-1]]
         attrs_transformed = attrs_transformed[y] # [batch_size, attrs.transform_layers[-1]]
-        contextualized_attrs = self.fuser(z_transformed, attrs_transformed) # [batch_size, after_fuse_transform_layers[0]]
+        contextualized_attrs = self.fuser(z_transformed, attrs_transformed) # [batch_size, after_fuse_transform.layers[0]]
         feats_rec = self.after_fuse_transform(contextualized_attrs) # [batch_size, hid_dim]
 
         assert feats.shape == feats_rec.shape, f"Wrong shape: {feats_rec.shape}"
@@ -213,7 +216,7 @@ class RandomEmbeddingMPHead(MultiProtoHead):
 
         z_transormed = z_transormed.view(n_classes * n_protos, transformed_noise_size)
         attrs_transformed = attrs_transformed.unsqueeze(1).repeat(1, n_protos, 1).view(n_classes * n_protos, -1)
-        contextualized_attrs = self.fuser(attrs_transformed, z_transormed) # [n_classes * n_protos, after_fuse_transform_layers[0]]
+        contextualized_attrs = self.fuser(attrs_transformed, z_transormed) # [n_classes * n_protos, after_fuse_transform.layers[0]]
         prototypes = self.after_fuse_transform(contextualized_attrs) # [n_classes * n_protos, hid_dim]
 
         assert prototypes.shape == (n_classes * n_protos, self.config.hid_dim), f"Wrong shape: {prototypes.shape}"
