@@ -10,7 +10,7 @@ all:
     clip_grad: {value: 10}
     optim:
         groups:
-            head: {lr: 0.01, momentum: 0.9}
+            head: {lr: 0.01, momentum: 0.9, weight_decay: 0.0001}
             embedder: {}
         kwargs: {lr: 0.003}
     use_class_attrs: true
@@ -52,7 +52,7 @@ all:
 
       common:
         type: "random_embeddings"
-        num_prototypes: 50
+        num_prototypes: 1
         hid_dim: 512
         fusing:
           type: "concat"
@@ -67,7 +67,7 @@ all:
         noise:
           transform_layers: [100]
           same_for_each_class: false
-          std: 1.0
+          std: 0.0
 
         golden_proto:
           enabled: false
@@ -89,7 +89,7 @@ all:
             identity_init: true
 
       deep:
-        use_tanh_on_top: true # Enable to be similar to gazsl
+        use_tanh_on_top: false # Enable to be similar to gazsl
         fusing:
           activation: "tanh"
           normalize_to_unit_norm: true
