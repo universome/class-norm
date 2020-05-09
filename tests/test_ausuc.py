@@ -21,7 +21,7 @@ def test_ausuc_on_random_data():
         #print(f'Slow: ({time() - start:.03f})', ausuc_slow)
 
         #start = time()
-        ausuc_fast = compute_ausuc(logits, targets, seen_classes_mask)[0]
+        ausuc_fast = compute_ausuc(logits, targets, seen_classes_mask)
         #print(f'Fast: ({time() - start:.03f})', ausuc_fast)
 
         assert np.abs(ausuc_slow - ausuc_fast) < 1e-2
@@ -35,5 +35,5 @@ def test_ausuc_on_edge_cases():
     logits[np.arange(ds_size), targets] += 1
     acc = (logits.argmax(axis=1) == targets).mean()
 
-    assert np.abs(compute_ausuc(logits, targets, np.ones(num_classes).astype(bool))[0] - acc * 100) < 1e-6
-    assert np.abs(compute_ausuc(logits, targets, np.zeros(num_classes).astype(bool))[0] - acc * 100) < 1e-6
+    assert np.abs(compute_ausuc(logits, targets, np.ones(num_classes).astype(bool)) - acc * 100) < 1e-6
+    assert np.abs(compute_ausuc(logits, targets, np.zeros(num_classes).astype(bool)) - acc * 100) < 1e-6
