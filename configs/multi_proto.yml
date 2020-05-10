@@ -9,10 +9,10 @@ all:
   hp:
     clip_grad: {value: 10}
     optim:
-        groups:
-            head: {lr: 0.001, momentum: 0.9}
-            embedder: {}
-        kwargs: {lr: 0.001}
+      groups:
+          head: {lr: 0.005, momentum: 0.9}
+          embedder: {}
+      kwargs: {lr: 0.001}
     use_class_attrs: true
     img_target_shape: [256, 256]
     max_num_epochs: 5
@@ -20,7 +20,7 @@ all:
 
     creativity_reg:
       fake_attrs_generation: "real"
-      loss_coef: 1.0
+      loss_coef: 0.0
 
     diagonal_cov_reg:
       loss_coef: 0.0
@@ -52,7 +52,7 @@ all:
     push_protos_apart_loss_coef: 0.0
 
     head:
-      model_type: "deep"
+      model_type: "linear"
 
       common:
         type: "random_embeddings"
@@ -65,7 +65,7 @@ all:
         test_aggregation_type: "average_prototypes"
 
         attrs_transform:
-          layers: [85]
+          layers: [312]
           identity_init: true
 
         noise:
@@ -80,6 +80,7 @@ all:
         scale:
           type: "constant"
           value: 10
+        # scale: 10.
 
       linear:
         fusing:
@@ -90,7 +91,7 @@ all:
           identity_init: false
           bias: false
         noise:
-            identity_init: true
+          identity_init: true
 
       deep:
         use_tanh_on_top: false # Enable to be similar to gazsl
