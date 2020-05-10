@@ -6,12 +6,17 @@ import numpy as np
 from firelab.config import Config
 
 from src.utils.training_utils import normalize
-from src.utils.gaussian import compute_ll_decomposed_gaussian_log_density
+from src.utils.gaussian import compute_ll_decomposed_gaussian_log_density, compute_diag_gaussian_log_density
 from src.models.layers import MILayer, ConcatLayer, create_sequential_model, create_fuser, identity_init_
 
 
 def create_attrs_head(config: Config, attrs: np.ndarray) -> nn.Module:
-    return GaussianHead(config, attrs)
+    if config.model_type == 'diag':
+        return DiagGaussianHead(config, attrs)
+    elif config.model_type == 'simple':
+        return SimpleHead(config, attrs)
+    else:
+        return GaussianHead(config, attrs)
 
 
 # class MultiProtoHead(nn.Module):
@@ -245,8 +250,54 @@ class GaussianHead(nn.Module):
 
         cov_l_inv = cov_l_inv_low_rank + cov_l_inv_diag
 
-        if self.config.normalize:
-            # x = normalize(x, detach=False) * self.config.scale
-            mean = normalize(mean, detach=False) * self.config.scale
+        # if self.config.normalize:
+        #     # x = normalize(x, detach=False) * self.config.scale
+        #     mean = torch.normalize(mean) * self.config.scale
 
         return compute_ll_decomposed_gaussian_log_density(x, mean, cov_l_inv)
+
+
+class DiagGaussianHead(nn.Module):
+    """
+    This head fits mean/covariance directly to the data
+    """
+    def __init__(self, config: Config, attrs: np.ndarray):
+        super().__init__()
+
+        self.config = config
+        self.register_buffer('attrs', torch.from_numpy(attrs))
+
+        self.compute_mean = nn.Linear(self.attrs.shape[1], self.config.hid_dim)
+        self.compute_cov_diag = nn.Linear(self.attrs.shape[1], self.config.hid_dim)
+
+    def forward(self, x: Tensor) -> Tensor:
+        mean = self.compute_mean(self.attrs) # [n_classes, hid_dim]
+        cov_diag = self.compute_cov_diag(self.attrs) # [n_classes, hid_dim]
+
+        if self.config.cov_diag_transform == 'tanh':
+            cov_diag = cov_diag.tanh() + 1 # Making it closer to 1 for stability
+        elif self.config.cov_diag_transform == 'sigmoid':
+            cov_diag = cov_diag.sigmoid()
+        elif self.config.cov_diag_transform == 'elu':
+            cov_diag = F.elu(cov_diag) + 1
+
+        if self.config.get('normalize_cov'):
+            cov_diag = normalize(cov_diag, self.config.scale)
+
+        return compute_diag_gaussian_log_density(x, mean, cov_diag)
+
+
+class SimpleHead(nn.Module):
+    def __init__(self, config, attrs):
+        super().__init__()
+
+        self.config = config
+        self.register_buffer('attrs', torch.from_numpy(attrs))
+        self.transform = nn.Linear(self.attrs.shape[1], self.config.hid_dim)
+
+    def forward(self, x: Tensor) -> Tensor:
+        protos = self.transform(self.attrs)
+        x = normalize(x, self.config.scale)
+        protos = normalize(protos, self.config.scale)
+
+        return x @ protos.t()
