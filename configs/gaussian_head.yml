@@ -16,11 +16,11 @@ all:
     max_num_epochs: 5
     batch_size: 10
     head:
+      model_type: "diag"
+      cov_diag_transform: "tanh"
       hid_dim: 512
-      gaussian_approx_rank: 5
+      # gaussian_approx_rank: 1
       aggregation_type: "gmm"
-      normalize: true
-      scale: 1.
 
     diagonal_cov_reg:
       loss_magnitude: 0.0
