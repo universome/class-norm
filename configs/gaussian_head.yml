@@ -1,0 +1,38 @@
+all:
+  logging:
+    save_train_logits: True
+    save_prototypes: True
+  inference_batch_size: 128
+  task_trainer: "multi_proto"
+  hp:
+    clip_grad: {value: 100}
+    optim:
+      groups:
+        head: {lr: 0.001}
+        embedder: {}
+      kwargs: {lr: 0.03}
+    use_class_attrs: true
+    img_target_shape: [256, 256]
+    max_num_epochs: 5
+    batch_size: 10
+    head:
+      hid_dim: 512
+      gaussian_approx_rank: 5
+      aggregation_type: "gmm"
+      normalize: true
+      scale: 1.
+
+    diagonal_cov_reg:
+      loss_magnitude: 0.0
+      per_class: false
+      batch_size: 100
+
+cub:
+  hp:
+    pretrained: true
+
+awa:
+  hp:
+    pretrained: false
+
+tiny_imagenet: {}

@@ -14,7 +14,6 @@ from src.utils.losses import (
     compute_diagonal_cov_reg
 )
 
-
 class MultiProtoTaskTrainer(TaskTrainer):
     def _after_init_hook(self):
         if self.config.hp.get('reverse_clf.loss_coef'):
@@ -84,11 +83,16 @@ class MultiProtoTaskTrainer(TaskTrainer):
         else:
             logits = self.model(x)
 
-        if self.model.head.config.aggregation_type == 'individual_losses':
+        if self.model.head.config.get('aggregation_type') == 'individual_losses':
             n_protos = logits.size(0) // y.size(0)
             batch_size = y.size(0)
             y = y.view(batch_size, 1).repeat(1, n_protos).view(batch_size * n_protos)
             cls_loss = self.criterion(prune_logits(logits, self.output_mask), y)
+        elif self.config.hp.head.get('aggregation_type') == 'gmm':
+            logits_for_true = logits[torch.arange(logits.size(0)), y] # [batch_size]
+            logits_pruned = prune_logits(logits, self.output_mask) # [batch_size, n_classes]
+            log_evidence = logits_pruned.logsumexp(dim=1) # [batch_size]
+            cls_loss = -(logits_for_true - log_evidence).mean()
         else:
             cls_loss = self.criterion(prune_logits(logits, self.output_mask), y)
 
@@ -119,9 +123,9 @@ class MultiProtoTaskTrainer(TaskTrainer):
             loss += self.config.hp.generative_training.loss_coef * generative_loss
             self.writer.add_scalar(f'{self.config.hp.generative_training.type}_loss', generative_loss.item(), self.num_iters_done)
 
-        if self.config.hp.get('diagonal_cov_reg.loss_coef'):
+        if self.config.hp.get('diagonal_cov_reg.loss_magnitude'):
             diagonal_cov_reg = self.compute_diagonal_cov_reg()
-            loss += self.config.hp.diagonal_cov_reg.loss_coef * diagonal_cov_reg
+            loss += self.config.hp.diagonal_cov_reg.loss_magnitude * diagonal_cov_reg / diagonal_cov_reg.abs().item()
             self.writer.add_scalar(f'diagonal_cov_reg', diagonal_cov_reg.item(), self.num_iters_done)
 
         if self.config.hp.get('reverse_clf.loss_coef'):
@@ -139,6 +143,11 @@ class MultiProtoTaskTrainer(TaskTrainer):
             loss += self.config.hp.pull_golden_protos.loss_coef * pull_golden_protos_loss
             self.writer.add_scalar(f'pull_golden_protos_loss', pull_golden_protos_loss.item(), self.num_iters_done)
 
+        # if self.config.hp.get('creativity_reg.loss_coef'):
+        #     creativity_reg_loss = self.compute_creativity_reg()
+        #     loss += self.config.hp.creativity_reg.loss_coef * creativity_reg_loss
+        #     self.writer.add_scalar(f'creativity_reg_loss', creativity_reg_loss.item(), self.num_iters_done)
+
         self.optim.zero_grad()
         loss.backward()
         if self.config.hp.get('clip_grad.value', float('inf')) < float('inf'):
@@ -147,6 +156,9 @@ class MultiProtoTaskTrainer(TaskTrainer):
         self.optim.step()
 
         self.writer.add_scalar('cls_loss', cls_loss.item(), self.num_iters_done)
+
+    # def compute_creativity_reg(self) -> Tensor:
+    #     protos = self.model.head.generate_prototypes()
 
     def compute_diagonal_cov_reg(self) -> Tensor:
         if not self.config.hp.get('diagonal_cov_reg.loss_coef'): return torch.tensor(0.0)
@@ -241,12 +253,12 @@ class MultiProtoTaskTrainer(TaskTrainer):
 
         return generative_loss
 
-    def _after_train_hook(self):
-        if not self.config.get('logging.save_prototypes'):
-            return
+    # def _after_train_hook(self):
+    #     if not self.config.get('logging.save_prototypes'):
+    #         return
 
-        with torch.no_grad():
-            prototypes = self.model.head.generate_prototypes()
-            prototypes = normalize(prototypes, self.model.head.config.scale.value)
-        filename = os.path.join(self.main_trainer.paths.custom_data_path, f'prototypes-{self.task_idx + 1}')
-        np.save(filename, prototypes.cpu().numpy())
+    #     with torch.no_grad():
+    #         prototypes = self.model.head.generate_prototypes()
+    #         prototypes = normalize(prototypes, self.model.head.config.scale.value)
+    #     filename = os.path.join(self.main_trainer.paths.custom_data_path, f'prototypes-{self.task_idx + 1}')
+    #     np.save(filename, prototypes.cpu().numpy())

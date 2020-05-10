@@ -18,7 +18,6 @@ from src.models.lgm_vae import LGMVAE
 from src.models.autoencoder import AutoEncoder
 
 from src.dataloaders.load_data import load_data
-from src.dataloaders.utils import imagenet_normalization
 from src.utils.data_utils import split_classes_for_tasks, get_train_test_data_splits
 from src.utils.constants import DEBUG
 
@@ -159,16 +158,15 @@ class LLLTrainer(BaseTrainer):
         self.save_experiment_data()
 
     def save_logits_history(self):
-        if DEBUG: return
-
         if self.config.get('logging.save_logits'):
             self.logits_history.append(self.run_inference(self.ds_test))
 
-        if self.config.get('logging.save_knn_logits'):
-            self.knn_logits_history.append(self.run_inference(self.ds_test, model_kwargs={"aggregation_type": "shortest_distance"}))
+        if DEBUG: return
+        # if self.config.get('logging.save_knn_logits'):
+        #     self.knn_logits_history.append(self.run_inference(self.ds_test, model_kwargs={"aggregation_type": "shortest_distance"}))
 
-        if self.config.get('logging.save_golden_logits'):
-            self.golden_logits_history.append(self.run_inference(self.ds_test, model_kwargs={"aggregation_type": "golden_prototype"}))
+        # if self.config.get('logging.save_golden_logits'):
+        #     self.golden_logits_history.append(self.run_inference(self.ds_test, model_kwargs={"aggregation_type": "golden_prototype"}))
 
         if self.config.get('logging.save_train_logits'):
             self.train_logits_history.append(self.run_inference(self.ds_train))
