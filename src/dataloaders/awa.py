@@ -7,7 +7,8 @@ from typing import List, Tuple
 import numpy as np
 
 from src.utils.constants import DEBUG
-from src.dataloaders.utils import read_column, shuffle_dataset, load_imgs, preprocess_imgs
+from src.dataloaders.utils import read_column, create_default_transform
+from src.dataloaders.dataset import ImageDataset
 
 
 def load_dataset_paths(data_dir: PathLike, split: str) -> List[Tuple[os.PathLike, int]]:
@@ -28,15 +29,11 @@ def load_dataset_paths(data_dir: PathLike, split: str) -> List[Tuple[os.PathLike
 
 def load_dataset(data_dir: PathLike,
                  split: str,
-                 target_shape: Tuple[int, int]=None,
-                 preprocess: bool=False) -> List[Tuple[np.ndarray, int]]:
+                 target_shape: Tuple[int, int]=None) -> List[Tuple[np.ndarray, int]]:
 
     img_paths, labels = zip(*load_dataset_paths(data_dir, split))
-    imgs = load_imgs(img_paths, target_shape)
-    if preprocess: imgs = preprocess_imgs(imgs)
-    if split == 'train': imgs, labels = shuffle_dataset(imgs, labels)
 
-    return list(zip(imgs, labels))
+    return ImageDataset(img_paths, labels, create_default_transform(target_shape))
 
 
 def load_class_attributes(data_dir: PathLike) -> np.ndarray:

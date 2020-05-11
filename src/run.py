@@ -1,6 +1,5 @@
 import sys; sys.path.append('.')
 import argparse
-from hashlib import sha256
 from typing import List, Dict, Any
 
 import numpy as np
@@ -22,12 +21,12 @@ def run(args: argparse.Namespace, config_cli_args: List[str]):
     fix_random_seed(config.random_seed, enable_cudnn_deterministic=True, disable_cudnn_benchmark=True)
 
     if config.has('validation_sequence'):
-        run_validation_sequence(config)
+        run_validation_sequence(args, config)
     else:
         LLLTrainer(config).start()
 
 
-def run_validation_sequence(config: Config):
+def run_validation_sequence(args: argparse.Namespace,config: Config):
     experiments_vals = generate_experiments_from_hpo_grid(config.validation_sequence.hpo_grid)
     experiments_vals = [{p.replace('|', '.'): v for p, v in exp.items()} for exp in experiments_vals]
     configs = [config.overwrite({'hp': Config(hp)}) for hp in experiments_vals]
@@ -43,6 +42,7 @@ def run_validation_sequence(config: Config):
             'logging.print_accuracy_after_task': False,
             'print_unseen_accuracy': False,
             'print_forgetting': True,
+            'exp_name': compute_experiment_name(args, config.hp)
         }))
         trainer = LLLTrainer(c)
         trainer.start()
@@ -79,12 +79,13 @@ def load_config(args: argparse.Namespace, config_cli_args: List[str]) -> Config:
 
     # Overwriting with CLI arguments
     config = config.overwrite(Config.read_from_cli())
-
-    hp_hash = sha256(str(config.hp).encode('utf-8')).hexdigest()[:10]
-    exp_name = f'{args.config_name}-{args.dataset}-{hp_hash}-{config.random_seed}'
-    config.set('exp_name', exp_name)
+    config.set('exp_name', compute_experiment_name(config.hp, args))
 
     return config
+
+
+def compute_experiment_name(config: Config, args: argparse.Namespace):
+    return f'{args.config_name}-{args.dataset}-{config.compute_hash()}-{config.random_seed}'
 
 
 if __name__ == '__main__':

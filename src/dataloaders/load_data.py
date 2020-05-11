@@ -14,7 +14,7 @@ SIMPLE_LOADERS = {
     'TinyImageNet': tiny_imagenet.load_dataset
 }
 
-def load_data(config: Config, img_target_shape: Tuple[int, int]=None, preprocess: bool=True) -> Tuple[ImageDataset, ImageDataset, np.ndarray]:
+def load_data(config: Config, img_target_shape: Tuple[int, int]=None) -> Tuple[ImageDataset, ImageDataset, np.ndarray]:
     if config.name == 'CUB':
         ds_train = cub.load_dataset(config.dir, split='train', target_shape=img_target_shape, in_memory=config.get('in_memory', False))
         ds_test = cub.load_dataset(config.dir, split='test', target_shape=img_target_shape, in_memory=config.get('in_memory', False))
