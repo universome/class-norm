@@ -1,3 +1,4 @@
+import random
 import os
 import pickle
 from os import PathLike
@@ -5,7 +6,8 @@ from typing import List, Tuple
 
 import numpy as np
 
-from .utils import read_column, shuffle_dataset, load_imgs, preprocess_imgs
+from src.utils.constants import DEBUG
+from src.dataloaders.utils import read_column, shuffle_dataset, load_imgs, preprocess_imgs
 
 
 def load_dataset_paths(data_dir: PathLike, split: str) -> List[Tuple[os.PathLike, int]]:
@@ -16,15 +18,10 @@ def load_dataset_paths(data_dir: PathLike, split: str) -> List[Tuple[os.PathLike
     labels = read_column(filename, 1)
     labels = [int(l) for l in labels]
 
-    # import random
-    # chosen_idx = np.arange(len(img_paths)).tolist()
-    # chosen_idx = random.sample(chosen_idx, 500)
-    # img_paths = [img_paths[i] for i in chosen_idx]
-    # labels = [labels[i] for i in chosen_idx]
-    # img_paths = img_paths[:1000]
-    # labels = list(range(50)) * 20
-    # img_paths = img_paths[:16]
-    # labels = [0, 1, 2, 3] * 4
+    if DEBUG:
+        chosen_idx = random.sample(range(len(labels)), 200)
+        img_paths = [img_paths[i] for i in chosen_idx]
+        labels = [labels[i] for i in chosen_idx]
 
     return list(zip(img_paths, labels))
 

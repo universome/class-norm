@@ -15,11 +15,7 @@ import torchvision.transforms.functional as TVF
 
 from src.models.classifier import ResnetEmbedder
 from src.models.layers import ResNetConvEmbedder
-
-IMAGENET_MEAN = [0.485, 0.456, 0.406]
-IMAGENET_STD = [0.229, 0.224, 0.225]
-imagenet_normalization = transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD )
-imagenet_denormalization = lambda x: x * torch.tensor(IMAGENET_STD)[:, None, None] + torch.tensor(IMAGENET_MEAN)[:, None, None]
+from src.utils.constants import IMAGENET_MEAN, IMAGENET_STD
 
 
 def read_column(filename:PathLike, column_idx:int, sep: str=' ') -> List[str]:
@@ -52,28 +48,50 @@ def load_imgs(img_paths: List[PathLike], target_shape=None) -> List[np.ndarray]:
 def load_img(img_path: PathLike, target_shape: Tuple[int, int]=None, preprocess: bool=False):
     img = cv2.imread(img_path)
 
+    # TODO: should we first resize and then preprocess or on the contrary?
+    if preprocess:
+        img = normalize_img(img)
+
     if target_shape != None:
         img = cv2.resize(img, target_shape)
 
-    # TODO: should be first resize and then preprocess or on the contrary?
-    if preprocess:
-        img = preprocess_img(img)
-
-    return img.astype(np.float32)
+    return img
 
 
 def preprocess_imgs(imgs: List[np.ndarray]) -> List[np.ndarray]:
-    return [preprocess_img(img) for img in tqdm(imgs, desc='[Preprocessing]')]
+    return [normalize_img(img).transpose(2, 0, 1) for img in tqdm(imgs, desc='[Preprocessing]')]
 
 
-def preprocess_img(img: np.ndarray) -> np.ndarray:
-    return imagenet_normalization(torch.from_numpy(img.transpose(2, 0, 1)) / 255).numpy()
+def normalize_img(img: np.ndarray) -> np.ndarray:
+    assert img.dtype == np.uint8, f"Wrong image type: {img.dtype}"
+    assert img.shape[2] == 3, f"Wrong image shape: {img.shape}"
+
+    img = img.astype(np.float32) / 255
+    mean = IMAGENET_MEAN.reshape(1, 1, 3)
+    std = IMAGENET_STD.reshape(1, 1, 3)
+    img_normalized = (img - mean) / std
+
+    return img_normalized.astype(np.float32)
+
+
+def default_transform(img: np.ndarray, target_shape: Tuple[int]=None) -> np.ndarray:
+    if not target_shape is None:
+        result = cv2.resize(img, target_shape)
+
+    result = normalize_img(result)
+    result = result.transpose(2, 0, 1)
+
+    return result
+
+
+def create_default_transform(target_shape: Tuple[int]) -> np.ndarray:
+    return lambda x: default_transform(x, target_shape)
 
 
 def create_custom_dataset(paths_dataset, target_shape):
     def preprocessor(img):
         img = cv2.resize(img, target_shape)
-        img = preprocess_img(img)
+        img = normalize_img(img).transpose(2, 0, 1)
         img = img.astype(np.float32)
 
         return img
@@ -114,7 +132,7 @@ def extract_features_for_dataset(
 
 
 def extract_features(imgs: List[np.ndarray], embedder: nn.Module, batch_size: int=64, verbose: bool=True) -> List[np.ndarray]:
-    dataloader = DataLoader(imgs, batch_size=batch_size)
+    dataloader = DataLoader(imgs, batch_size=batch_size, num_workers=4)
     device = get_module_device(embedder)
     result = []
 

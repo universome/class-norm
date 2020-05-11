@@ -15,7 +15,7 @@ all:
       kwargs: {}
     use_class_attrs: true
     img_target_shape: [256, 256]
-    max_num_epochs: 5
+    max_num_epochs: 1
     batch_size: 10
     head:
       init:

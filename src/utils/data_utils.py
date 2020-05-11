@@ -3,21 +3,34 @@ import warnings
 from typing import List, Tuple, Any
 
 import numpy as np
-from torch.utils.data import Dataset
+from torch.utils.data import Subset
 from skimage.transform import resize
 from firelab.config import Config
 
+from src.dataloaders.dataset import ImageDataset
 
-def get_data_splits(class_splits:List[List[int]], dataset) -> List[Dataset]:
+
+def get_data_splits(class_splits: List[List[int]], dataset: ImageDataset) -> List[ImageDataset]:
     return [get_subset_by_labels(dataset, cls_group) for cls_group in class_splits]
 
 
-def get_train_test_data_splits(class_splits:List[List[int]], ds_train:Dataset, ds_test:Dataset) -> List[Tuple[Dataset, Dataset]]:
+def get_train_test_data_splits(class_splits:List[List[int]], ds_train: ImageDataset, ds_test: ImageDataset) -> List[Tuple[ImageDataset, ImageDataset]]:
     data_splits_train = get_data_splits(class_splits, ds_train)
     data_splits_test = get_data_splits(class_splits, ds_test)
     data_splits = list(zip(data_splits_train, data_splits_test))
 
     return data_splits
+
+
+def get_subset_by_labels(dataset: ImageDataset, labels: List[int]) -> List[int]:
+    """
+    Finds objects with specific labels and returns them
+    """
+    subset_labels = set(labels)
+    subset_idx = [i for i, y in enumerate(dataset.labels) if y in subset_labels]
+    subset = Subset(dataset, subset_idx)
+
+    return subset
 
 
 def split_classes_for_tasks(config: Config) -> List[List[int]]:
@@ -55,16 +68,6 @@ def split_classes_for_tasks(config: Config) -> List[List[int]]:
     return splits
 
 
-def get_subset_by_labels(dataset, labels: List[int]) -> List[int]:
-    """
-    Finds objects with specific labels and returns them
-    """
-    labels = set(labels)
-    subset = [(x,y) for x,y in dataset if y in labels]
-
-    return subset
-
-
 def construct_output_mask(classes: List[int], total_num_classes:int) -> np.ndarray:
     """Returns 1D array of the output mask"""
 
@@ -76,7 +79,7 @@ def construct_output_mask(classes: List[int], total_num_classes:int) -> np.ndarr
     return mask
 
 
-def resize_dataset(dataset:Dataset, w:int, h:int) -> Dataset:
+def resize_dataset(dataset: ImageDataset, w:int, h:int) -> ImageDataset:
     return [(resize(x, (w, h)), y) for x, y in dataset]
 
 

@@ -25,11 +25,12 @@ cub:
     name: "CUB"
     dir: "/tmp/skoroki/data/CUB_200_2011"
     num_classes: &cub_num_classes 200
+    in_memory: true
 
   lll_setup:
-    num_classes_per_task: 20
+    num_classes_per_task: 10
     num_classes: *cub_num_classes
-    num_tasks: 10
+    num_tasks: 20
 
   hp:
     classifier: {pretrained: true}
@@ -62,7 +63,7 @@ cub_conv_feats:
 awa:
   data:
     name: "AWA"
-    dir: "data/Animals_with_Attributes2"
+    dir: "/tmp/skoroki/data/Animals_with_Attributes2"
     num_classes: &awa_num_classes 50
 
   lll_setup:

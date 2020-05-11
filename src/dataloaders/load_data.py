@@ -4,6 +4,7 @@ from firelab.config import Config
 
 from src.dataloaders import cub, feats, awa, svhn, mnist, cifar, tiny_imagenet
 from src.dataloaders.utils import extract_resnet_features_for_dataset
+from src.dataloaders.dataset import ImageDataset
 
 
 SIMPLE_LOADERS = {
@@ -14,29 +15,22 @@ SIMPLE_LOADERS = {
     'TinyImageNet': tiny_imagenet.load_dataset
 }
 
-def load_data(config: Config, img_target_shape: Tuple[int, int]=None,
-              preprocess: bool=True, low_memory: bool=False,
-              normalized_attrs: bool=False) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def load_data(config: Config, img_target_shape: Tuple[int, int]=None, preprocess: bool=True) -> Tuple[ImageDataset, ImageDataset, np.ndarray]:
     if config.name == 'CUB':
-        ds_train = cub.load_dataset(config.dir, split='train', target_shape=img_target_shape, preprocess=preprocess)
-        ds_test = cub.load_dataset(config.dir, split='test', target_shape=img_target_shape, preprocess=preprocess)
-        class_attributes = cub.load_class_attributes(config.dir, normalized=normalized_attrs).astype(np.float32)
+        ds_train = cub.load_dataset(config.dir, split='train', target_shape=img_target_shape, in_memory=config.in_memory)
+        ds_test = cub.load_dataset(config.dir, split='test', target_shape=img_target_shape, in_memory=config.in_memory)
+        class_attributes = cub.load_class_attributes(config.dir).astype(np.float32)
     elif config.name == 'CUB_EMBEDDINGS':
         ds_train = feats.load_dataset(config.dir, config.input_type, split='train')
         ds_test = feats.load_dataset(config.dir, config.input_type, split='test')
-        class_attributes = cub.load_class_attributes(config.dir, normalized=normalized_attrs).astype(np.float32)
+        class_attributes = cub.load_class_attributes(config.dir).astype(np.float32)
     elif config.name == 'AWA':
-        if low_memory:
-            ds_train = awa.load_dataset_paths(config.dir, split='train')
-            ds_test = awa.load_dataset_paths(config.dir, split='test')
-        else:
-            ds_train = awa.load_dataset(config.dir, split='train', target_shape=img_target_shape, preprocess=preprocess)
-            ds_test = awa.load_dataset(config.dir, split='test', target_shape=img_target_shape, preprocess=preprocess)
-
+        ds_train = awa.load_dataset(config.dir, split='train', target_shape=img_target_shape)
+        ds_test = awa.load_dataset(config.dir, split='test', target_shape=img_target_shape)
         class_attributes = awa.load_class_attributes(config.dir).astype(np.float32)
     elif config.name == 'TinyImageNet':
-        ds_train = tiny_imagenet.load_dataset(config.dir, split='train', target_shape=img_target_shape, preprocess=preprocess)
-        ds_test = tiny_imagenet.load_dataset(config.dir, split='val', target_shape=img_target_shape, preprocess=preprocess)
+        ds_train = tiny_imagenet.load_dataset(config.dir, split='train', target_shape=img_target_shape)
+        ds_test = tiny_imagenet.load_dataset(config.dir, split='val', target_shape=img_target_shape)
         class_attributes = None
     elif config.name in SIMPLE_LOADERS.keys():
         ds_train = SIMPLE_LOADERS[config.name](config.dir, split='train')

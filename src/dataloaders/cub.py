@@ -6,14 +6,16 @@ from typing import List, Tuple, Callable
 import numpy as np
 from torch.utils.data import Dataset
 
-from src.dataloaders.utils import read_column, shuffle_dataset, load_imgs_from_folder, preprocess_imgs
+from src.dataloaders.utils import read_column, shuffle_dataset, create_default_transform
+from src.dataloaders.dataset import ImageDataset
 from src.utils.constants import DEBUG
+
 
 def load_dataset(
         data_dir: PathLike,
         split: str='train',
         target_shape: Tuple[int, int]=None,
-        preprocess: bool=False) -> List[Tuple[np.ndarray, int]]:
+        in_memory: bool=False) -> List[Tuple[np.ndarray, int]]:
 
     filename = os.path.join(data_dir, 'images.txt')
     img_paths = read_column(filename, 1)
@@ -28,12 +30,9 @@ def load_dataset(
         img_paths = [img_paths[i] for i in debug_idx]
         labels = load_labels(img_paths)
 
-    imgs = load_imgs_from_folder(os.path.join(data_dir, 'images'), img_paths, target_shape)
-    labels = load_labels(img_paths)
-    if preprocess: imgs = preprocess_imgs(imgs)
-    if split == 'train': imgs, labels = shuffle_dataset(imgs, labels)
+    img_paths = [os.path.join(data_dir, 'images', p) for p in img_paths]
 
-    return list(zip(imgs, labels))
+    return ImageDataset(img_paths, labels, create_default_transform(target_shape), in_memory=in_memory)
 
 
 def load_preprocessed_dataset(data_dir: PathLike, split: str='train', **kwargs)-> List[Tuple[np.ndarray, int]]:

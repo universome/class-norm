@@ -108,10 +108,7 @@ class LLLTrainer(BaseTrainer):
 
     def init_dataloaders(self):
         self.ds_train, self.ds_test, self.class_attributes = load_data(
-            self.config.data,
-            self.config.hp.get('img_target_shape'),
-            low_memory=self.config.get('low_memory', False),
-            normalized_attrs=self.config.hp.get('normalized_attrs', False))
+            self.config.data, self.config.hp.get('img_target_shape'))
 
         if self.config.data.has('classes_to_use'):
             self.ds_train = filter_out_classes(self.ds_train, self.config.data.classes_to_use)
@@ -132,9 +129,6 @@ class LLLTrainer(BaseTrainer):
             print(f'Starting task #{task_idx}')
 
             self.save_logits_history()
-
-            # if self.config.get('logging.print_forgetting_before_task'):
-            #     print(f'Forgetting: {self.compute_forgetting()}')
 
             task_trainer = TASK_TRAINERS[self.config.task_trainer](self, task_idx)
 
@@ -170,6 +164,7 @@ class LLLTrainer(BaseTrainer):
 
 
     def save_logits_history(self):
+        print('Saving logits history... ', end='')
         if self.config.get('logging.save_logits'):
             self.logits_history.append(self.run_inference(self.ds_test))
 
@@ -182,14 +177,12 @@ class LLLTrainer(BaseTrainer):
 
         if self.config.get('logging.save_train_logits'):
             self.train_logits_history.append(self.run_inference(self.ds_train))
+        print('Done')
 
     def run_inference(self, dataset: List[Tuple[np.ndarray, int]], model_kwargs={}):
         self.model.eval()
 
-        if self.config.get('low_memory'):
-            dataset = create_custom_dataset(dataset, self.config.hp.img_target_shape)
-
-        dataloader = DataLoader(dataset, batch_size=self.config.get('inference_batch_size', self.config.hp.batch_size))
+        dataloader = DataLoader(dataset, batch_size=self.config.get('inference_batch_size', self.config.hp.batch_size), num_workers=4)
 
         with torch.no_grad():
             if self.config.hp.get('use_oracle_prototypes') or self.config.hp.get('use_oracle_softmax_mean'):
@@ -218,7 +211,7 @@ class LLLTrainer(BaseTrainer):
                     logits = probs_mp.view(ds_size, n_classes, max_num_protos_per_class).sum(dim=2).log() # [ds_size, n_classes]
                     logits = logits.cpu().numpy()
             else:
-                logits = [self.model(torch.from_numpy(np.array(b)).to(self.device_name), **model_kwargs).cpu().numpy() for b, _ in dataloader]
+                logits = [self.model(torch.from_numpy(np.array(b)).to(self.device_name), **model_kwargs).cpu().numpy() for b, _ in tqdm(dataloader, desc='Running inference')]
                 logits = np.vstack(logits)
 
         return logits

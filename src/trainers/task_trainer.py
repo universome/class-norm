@@ -70,12 +70,9 @@ class TaskTrainer:
             batch_size = self.config.hp.batch_size
 
         return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle,
-                          collate_fn=lambda b: list(zip(*b)))
+                          collate_fn=lambda b: list(zip(*b)), num_workers=4)
 
     def load_dataset(self, dataset: List[Tuple[Any, int]]):
-        if self.config.get('low_memory'):
-            dataset = create_custom_dataset(dataset, self.config.hp.img_target_shape)
-
         dl = self.create_dataloader(dataset, shuffle=False, batch_size=1)
         ds = [(x[0], y[0]) for x, y in dl]
 
@@ -177,8 +174,6 @@ class TaskTrainer:
 
     def sample_from_memory(self, batch_size: int) -> Tuple[Tensor, Tensor]:
         samples = random.choices(self.episodic_memory, k=batch_size)
-        if self.config.get('low_memory'):
-            samples = self.load_dataset(samples)
         x, y = zip(*samples)
         x = torch.from_numpy(np.array(x)).to(self.device_name)
         y = torch.tensor(y).to(self.device_name)
