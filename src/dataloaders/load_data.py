@@ -2,13 +2,12 @@ from typing import Tuple
 import numpy as np
 from firelab.config import Config
 
-from src.dataloaders import cub, feats, awa, svhn, mnist, cifar, tiny_imagenet
+from src.dataloaders import cub, feats, awa, mnist, cifar, tiny_imagenet
 from src.dataloaders.utils import extract_resnet_features_for_dataset
 from src.dataloaders.dataset import ImageDataset
 
 
 SIMPLE_LOADERS = {
-    'SVHN': svhn.load_dataset,
     'MNIST': mnist.load_dataset,
     'CIFAR10': lambda *args, **kwargs: cifar.load_dataset(*args, **kwargs, num_classes=10),
     'CIFAR100': lambda *args, **kwargs: cifar.load_dataset(*args, **kwargs, num_classes=100),

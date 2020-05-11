@@ -7,12 +7,12 @@ all:
   inference_batch_size: 128
   task_trainer: "multi_proto"
   hp:
-    clip_grad: {value: 10}
+    # clip_grad: {value: 10}
     optim:
       groups:
-        head: {lr: 0.01, momentum: 0.9}
-        embedder: {lr: 0.01}
-      kwargs: {}
+        head: {}
+        embedder: {}
+      kwargs: {lr: 0.001}
     use_class_attrs: true
     img_target_shape: [256, 256]
     max_num_epochs: 1
@@ -40,8 +40,8 @@ all:
       clip_grad|value: [10, 100]
       optim|groups|head|lr: [0.01, 0.001, 0.0001]
       # optim|groups|head|momentum: [0.0, 0.9]
-      # optim|groups|embedder|lr: [0.01, 0.001]
-      # head|init|type: ["xavier_normal", "xavier_uniform"]
+      optim|groups|embedder|lr: [0.01, 0.001]
+      head|init|type: ["xavier_normal", "xavier_uniform"]
 
 cub:
   hp:

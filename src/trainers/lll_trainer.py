@@ -10,12 +10,6 @@ from tqdm import tqdm
 import yaml
 
 from src.models.classifier import ResnetClassifier, FeatClassifier
-from src.models.feat_gan_classifier import FeatGANClassifier
-from src.models.gan import GAN
-from src.models.gan_64x64 import GAN64x64
-from src.models.lgm import LGM
-from src.models.lgm_vae import LGMVAE
-from src.models.autoencoder import AutoEncoder
 
 from src.dataloaders.load_data import load_data
 from src.utils.data_utils import split_classes_for_tasks, get_train_test_data_splits
@@ -25,13 +19,7 @@ from src.trainers.basic_task_trainer import BasicTaskTrainer
 from src.trainers.agem_task_trainer import AgemTaskTrainer
 from src.trainers.ewc_task_trainer import EWCTaskTrainer
 from src.trainers.mas_task_trainer import MASTaskTrainer
-from src.trainers.mergazsl_task_trainer import MeRGAZSLTaskTrainer
 from src.trainers.joint_task_trainer import JointTaskTrainer
-from src.trainers.gm_gan_task_trainer import GMGANTaskTrainer
-from src.trainers.lgm_task_trainer import LGMTaskTrainer
-from src.trainers.lgm_vae_task_trainer import LGMVAETaskTrainer
-from src.trainers.lgm_aegan_task_trainer import LGMAEGANTaskTrainer
-from src.trainers.lifelong_ae_task_trainer import LifeLongAETaskTrainer
 from src.trainers.dem_task_trainer import DEMTaskTrainer
 from src.trainers.icarl_task_trainer import iCarlTaskTrainer
 from src.trainers.multi_proto_task_trainer import MultiProtoTaskTrainer
@@ -46,13 +34,7 @@ TASK_TRAINERS = {
     'agem': AgemTaskTrainer,
     'ewc': EWCTaskTrainer,
     'mas': MASTaskTrainer,
-    'mergazsl': MeRGAZSLTaskTrainer,
     'joint': JointTaskTrainer,
-    'gm_gan': GMGANTaskTrainer,
-    'lgm': LGMTaskTrainer,
-    'lgm_vae': LGMVAETaskTrainer,
-    'lgm_aegan': LGMAEGANTaskTrainer,
-    'lifelong_ae': LifeLongAETaskTrainer,
     'dem': DEMTaskTrainer,
     'icarl': iCarlTaskTrainer,
     'multi_proto': MultiProtoTaskTrainer
@@ -60,13 +42,7 @@ TASK_TRAINERS = {
 
 MODELS = {
     'simple_classifier': ResnetClassifier,
-    'feat_gan_classifier': FeatGANClassifier,
-    'lgm': LGM,
-    'lgm_vae': LGMVAE,
     'feat_classifier': FeatClassifier,
-    'gm_gan': GAN,
-    'gm_gan_64x64': GAN64x64,
-    'autoencoder': AutoEncoder
 }
 
 class LLLTrainer(BaseTrainer):
