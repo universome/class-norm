@@ -19,7 +19,7 @@ all:
       init: {type: "xavier_normal"}
       hid_dim: 512
       gaussian_approx_rank: 5
-      cov_diag_transform: "tanh"
+      cov_diag_transform: "elu"
 
     diagonal_cov_reg:
       loss_magnitude: 0.0
@@ -29,10 +29,20 @@ all:
   validation_sequence:
     num_tasks: 3
     hpo_grid:
-      clip_grad|value: [10, 100]
-      optim|kwargs|lr: [0.01, 0.001, 0.0001]
-      head|init|type: ["xavier_normal", "xavier_uniform"]
-      head|cov_diag_transform: ["tanh", "sigmoid", "elu"]
+      gaussian:
+        clip_grad|value: [10, 100]
+        optim|kwargs|lr: [0.01, 0.001, 0.0001]
+        head|init|type: ["xavier_normal", "xavier_uniform"]
+        head|init|gain: [0.01, 0.1, 0.5, 1.0]
+        head|cov_diag_transform: ["elu"]
+        # diagonal_cov_reg|loss_magnitude: [0.0, 0.1, 1.0]
+
+      simple:
+        clip_grad|value: [10, 100]
+        optim|kwargs|lr: [0.01, 0.001, 0.0001]
+        head|init|type: ["xavier_normal", "xavier_uniform"]
+        head|init|gain: [0.01, 0.1, 0.5, 1.0]
+
 
 cub:
   hp:

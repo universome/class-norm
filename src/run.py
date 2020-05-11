@@ -26,11 +26,13 @@ def run(args: argparse.Namespace, config_cli_args: List[str]):
         LLLTrainer(config).start()
 
 
-def run_validation_sequence(args: argparse.Namespace,config: Config):
-    experiments_vals = generate_experiments_from_hpo_grid(config.validation_sequence.hpo_grid)
+def run_validation_sequence(args: argparse.Namespace, config: Config):
+    experiments_vals = generate_experiments_from_hpo_grid(config.validation_sequence.hpo_grid[config.hp.head.model_type])
     experiments_vals = [{p.replace('|', '.'): v for p, v in exp.items()} for exp in experiments_vals]
     configs = [config.overwrite({'hp': Config(hp)}) for hp in experiments_vals]
     scores = []
+
+    print(f'Number of random experiments: {len(configs)}')
 
     for i, c in enumerate(configs):
         print('<==== Running HPs ====>')
@@ -40,8 +42,8 @@ def run_validation_sequence(args: argparse.Namespace,config: Config):
             'lll_setup.num_tasks': c.validation_sequence.num_tasks,
             'logging.save_train_logits': False,
             'logging.print_accuracy_after_task': False,
-            'print_unseen_accuracy': False,
-            'print_forgetting': True,
+            'logging.print_unseen_accuracy': False,
+            'logging.print_forgetting': False,
             'exp_name': compute_experiment_name(args, config.hp)
         }))
         trainer = LLLTrainer(c)
@@ -79,13 +81,13 @@ def load_config(args: argparse.Namespace, config_cli_args: List[str]) -> Config:
 
     # Overwriting with CLI arguments
     config = config.overwrite(Config.read_from_cli())
-    config.set('exp_name', compute_experiment_name(config.hp, args))
+    config.set('exp_name', compute_experiment_name(args, config.hp))
 
     return config
 
 
-def compute_experiment_name(config: Config, args: argparse.Namespace):
-    return f'{args.config_name}-{args.dataset}-{config.compute_hash()}-{config.random_seed}'
+def compute_experiment_name(args: argparse.Namespace, config: Config):
+    return f'{args.config_name}-{args.dataset}-{config.compute_hash()}-{args.random_seed}'
 
 
 if __name__ == '__main__':

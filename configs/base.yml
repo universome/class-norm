@@ -66,8 +66,8 @@ awa:
     num_classes: &awa_num_classes 50
 
   lll_setup:
-    num_tasks: 5
-    num_classes_per_task: 10
+    num_tasks: 10
+    num_classes_per_task: 5
     num_classes: *awa_num_classes
 
   hp:
