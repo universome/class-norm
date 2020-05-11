@@ -25,7 +25,6 @@ cub:
     name: "CUB"
     dir: "/tmp/skoroki/data/CUB_200_2011"
     num_classes: &cub_num_classes 200
-    in_memory: true
 
   lll_setup:
     num_classes_per_task: 10

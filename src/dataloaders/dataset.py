@@ -1,5 +1,5 @@
 from os import PathLike
-from typing import List, Callable, Tuple
+from typing import List, Callable, Tuple, Iterable
 
 import numpy as np
 from torch.utils.data import Dataset
@@ -40,3 +40,14 @@ class ImageDataset(Dataset):
 
     def __len__(self) -> int:
         return len(self.img_paths)
+
+    def filter_out_classes(self, classes_to_keep: Iterable[int]) -> "ImageDataset":
+        classes_to_keep = set(classes_to_keep)
+        idx_to_keep = [i for i, l in enumerate(self.labels) if l in classes_to_keep]
+
+        return ImageDataset(
+            [self.img_paths[i] for i in idx_to_keep],
+            [self.labels[i] for i in idx_to_keep],
+            self.transform,
+            self.in_memory
+        )

@@ -36,10 +36,10 @@ from src.trainers.dem_task_trainer import DEMTaskTrainer
 from src.trainers.icarl_task_trainer import iCarlTaskTrainer
 from src.trainers.multi_proto_task_trainer import MultiProtoTaskTrainer
 
-from src.utils.data_utils import construct_output_mask, filter_out_classes, compute_class_centroids
+from src.utils.data_utils import construct_output_mask, compute_class_centroids, flatten
 from src.utils.training_utils import normalize
 from src.dataloaders.utils import create_custom_dataset, extract_features_for_dataset
-from src.utils.metrics import compute_unseen_classes_acc_history, compute_individual_accs_matrix, compute_forgetting_measure
+from src.utils.metrics import compute_unseen_classes_acc_history, compute_seen_classes_acc_history, compute_individual_accs_matrix, compute_forgetting_measure
 
 TASK_TRAINERS = {
     'basic': BasicTaskTrainer,
@@ -109,12 +109,13 @@ class LLLTrainer(BaseTrainer):
     def init_dataloaders(self):
         self.ds_train, self.ds_test, self.class_attributes = load_data(
             self.config.data, self.config.hp.get('img_target_shape'))
+        self.class_splits = split_classes_for_tasks(self.config.lll_setup, self.config.random_seed)
+        classes_used = set(flatten(self.class_splits))
 
-        if self.config.data.has('classes_to_use'):
-            self.ds_train = filter_out_classes(self.ds_train, self.config.data.classes_to_use)
-            self.ds_test = filter_out_classes(self.ds_test, self.config.data.classes_to_use)
+        if len(classes_used) < self.config.data.num_classes:
+            self.ds_train = self.ds_train.filter_out_classes(classes_used)
+            self.ds_test = self.ds_test.filter_out_classes(classes_used)
 
-        self.class_splits = split_classes_for_tasks(self.config.lll_setup)
         self.data_splits = get_train_test_data_splits(self.class_splits, self.ds_train, self.ds_test)
 
         for task_idx, task_classes in enumerate(self.class_splits):
@@ -126,7 +127,7 @@ class LLLTrainer(BaseTrainer):
         self.task_trainers = [] # TODO: this is memory-leaky :|
 
         for task_idx in range(self.config.lll_setup.num_tasks):
-            print(f'Starting task #{task_idx}')
+            # print(f'Starting task #{task_idx}')
 
             self.save_logits_history()
 
@@ -164,7 +165,6 @@ class LLLTrainer(BaseTrainer):
 
 
     def save_logits_history(self):
-        print('Saving logits history... ', end='')
         if self.config.get('logging.save_logits'):
             self.logits_history.append(self.run_inference(self.ds_test))
 
@@ -177,7 +177,6 @@ class LLLTrainer(BaseTrainer):
 
         if self.config.get('logging.save_train_logits'):
             self.train_logits_history.append(self.run_inference(self.ds_train))
-        print('Done')
 
     def run_inference(self, dataset: List[Tuple[np.ndarray, int]], model_kwargs={}):
         self.model.eval()
@@ -202,7 +201,7 @@ class LLLTrainer(BaseTrainer):
                     n_classes = self.config.data.num_classes
 
                     feats_train = normalize(torch.from_numpy(np.array([x for x, _ in ds_train_feats])), self.config.hp.head.scale.value) # [train_ds_size, hid_dim]
-                    classes_train = np.array([y for _, y in self.ds_train])
+                    classes_train = self.ds_train.labels
                     class_idx = [np.where(classes_train == c)[0][:max_num_protos_per_class] for c in range(n_classes)] # [n_classes, n_protos]
                     feats_train = torch.stack([feats_train[idx] for idx in class_idx]) # [n_classes, n_protos, hid_dim]
                     logits_mp = feats_train @ feats.t() # [n_classes, n_protos, ds_size]
@@ -211,7 +210,7 @@ class LLLTrainer(BaseTrainer):
                     logits = probs_mp.view(ds_size, n_classes, max_num_protos_per_class).sum(dim=2).log() # [ds_size, n_classes]
                     logits = logits.cpu().numpy()
             else:
-                logits = [self.model(torch.from_numpy(np.array(b)).to(self.device_name), **model_kwargs).cpu().numpy() for b, _ in tqdm(dataloader, desc='Running inference')]
+                logits = [self.model(torch.from_numpy(np.array(b)).to(self.device_name), **model_kwargs).cpu().numpy() for b, _ in dataloader]
                 logits = np.vstack(logits)
 
         return logits
@@ -222,8 +221,8 @@ class LLLTrainer(BaseTrainer):
         np.save(os.path.join(self.paths.custom_data_path, 'knn_logits_history'), self.knn_logits_history)
         np.save(os.path.join(self.paths.custom_data_path, 'golden_logits_history'), self.golden_logits_history)
         np.save(os.path.join(self.paths.custom_data_path, 'class_splits'), self.class_splits)
-        np.save(os.path.join(self.paths.custom_data_path, 'targets'), [y for _, y in self.ds_test])
-        np.save(os.path.join(self.paths.custom_data_path, 'train_targets'), [y for _, y in self.ds_train])
+        np.save(os.path.join(self.paths.custom_data_path, 'targets'), self.ds_test.labels)
+        np.save(os.path.join(self.paths.custom_data_path, 'train_targets'), self.ds_train.labels)
 
         if self.config.get('logging.save_final_model'):
             self.checkpoint('final-model')
@@ -237,13 +236,23 @@ class LLLTrainer(BaseTrainer):
 
     def compute_forgetting(self):
         """Computes forgetting for the latest task"""
-        targets = [y for x, y in self.ds_test]
+        targets = self.ds_test.labels
         accs_matrix = compute_individual_accs_matrix(self.logits_history[1:], targets, self.class_splits)
 
         return [compute_forgetting_measure(accs_matrix, i) for i in range(1, len(accs_matrix))]
 
     def compute_unseen_accuracy(self):
         """Computes unseen accuracy for the latest task"""
-        targets = [y for x, y in self.ds_test]
+        targets = self.ds_test.labels
 
         return compute_unseen_classes_acc_history(self.logits_history[:-1], targets, self.class_splits, restrict_space=False)
+
+    def compute_harmonic_mean_accuracy(self) -> np.ndarray:
+        targets = self.ds_test.labels
+        values_unseen = compute_unseen_classes_acc_history(self.logits_history[:-1], targets, self.class_splits, restrict_space=False)
+        values_seen = compute_seen_classes_acc_history(self.logits_history[1:], targets, self.class_splits, restrict_space=False)
+        values_unseen = np.array(values_unseen)
+        values_seen = np.array(values_seen)
+        values = 2 * values_unseen[1:] * values_seen[:-1] / (values_unseen[1:] + values_seen[:-1] + 1e-8)
+
+        return values

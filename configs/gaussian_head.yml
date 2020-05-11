@@ -1,9 +1,9 @@
 all:
   logging:
-    save_train_logits: True
-    save_prototypes: True
-    print_unseen_accuracy: True
-    print_forgetting: True
+    save_train_logits: true
+    save_prototypes: true
+    print_unseen_accuracy: true
+    print_forgetting: true
   inference_batch_size: 128
   task_trainer: "multi_proto"
   hp:
@@ -33,6 +33,15 @@ all:
       loss_magnitude: 0.0
       per_class: false
       batch_size: 100
+
+  validation_sequence:
+    num_tasks: 3
+    hpo_grid:
+      clip_grad|value: [10, 100]
+      optim|groups|head|lr: [0.01, 0.001, 0.0001]
+      # optim|groups|head|momentum: [0.0, 0.9]
+      # optim|groups|embedder|lr: [0.01, 0.001]
+      # head|init|type: ["xavier_normal", "xavier_uniform"]
 
 cub:
   hp:

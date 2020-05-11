@@ -17,8 +17,8 @@ SIMPLE_LOADERS = {
 
 def load_data(config: Config, img_target_shape: Tuple[int, int]=None, preprocess: bool=True) -> Tuple[ImageDataset, ImageDataset, np.ndarray]:
     if config.name == 'CUB':
-        ds_train = cub.load_dataset(config.dir, split='train', target_shape=img_target_shape, in_memory=config.in_memory)
-        ds_test = cub.load_dataset(config.dir, split='test', target_shape=img_target_shape, in_memory=config.in_memory)
+        ds_train = cub.load_dataset(config.dir, split='train', target_shape=img_target_shape, in_memory=config.get('in_memory', False))
+        ds_test = cub.load_dataset(config.dir, split='test', target_shape=img_target_shape, in_memory=config.get('in_memory', False))
         class_attributes = cub.load_class_attributes(config.dir).astype(np.float32)
     elif config.name == 'CUB_EMBEDDINGS':
         ds_train = feats.load_dataset(config.dir, config.input_type, split='train')
