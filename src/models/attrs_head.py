@@ -11,210 +11,211 @@ from src.models.layers import MILayer, ConcatLayer, create_sequential_model, cre
 
 
 def create_attrs_head(config: Config, attrs: np.ndarray) -> nn.Module:
-    if config.model_type == 'linear':
-        return RandomEmbeddingMPHead(config.common.overwrite(config[config.model_type]), attrs)
-        # return SimpleHead(config.common, attrs)
+    # if config.model_type == 'linear':
+    #     return RandomEmbeddingMPHead(config.common.overwrite(config[config.model_type]), attrs)
 
     if config.model_type == 'diag':
         return DiagGaussianHead(config, attrs)
     elif config.model_type == 'simple':
         return SimpleHead(config, attrs)
-    else:
+    elif config.model_type == 'gaussian':
         return GaussianHead(config, attrs)
+    else:
+        raise NotImplementedError(f"Unknown model type: {config.model_type}")
 
 
-class MultiProtoHead(nn.Module):
-    def __init__(self, config: Config, attrs: np.ndarray):
-        super().__init__()
+# class MultiProtoHead(nn.Module):
+#     def __init__(self, config: Config, attrs: np.ndarray):
+#         super().__init__()
 
-        self.config = config
-        if self.config.get('renormalize_attrs_to_gaussian'):
-            attrs = (attrs - attrs.mean(axis=0)) / attrs.std(axis=0)
-        self.register_buffer('attrs', torch.from_numpy(attrs))
+#         self.config = config
+#         if self.config.get('renormalize_attrs_to_gaussian'):
+#             attrs = (attrs - attrs.mean(axis=0)) / attrs.std(axis=0)
+#         self.register_buffer('attrs', torch.from_numpy(attrs))
 
-        self.init_modules()
-        self.init_scaling()
+#         self.init_modules()
+#         self.init_scaling()
 
-    def generate_prototypes(self, *args, **kwargs) -> Tensor:
-        raise NotImplementedError('You forgot to implement `.generate_prototypes()` method')
+#     def generate_prototypes(self, *args, **kwargs) -> Tensor:
+#         raise NotImplementedError('You forgot to implement `.generate_prototypes()` method')
 
-    def compute_n_protos(self) -> int:
-        if (not self.training and self.config.get('num_test_prototypes')):
-            return self.config.num_test_prototypes
-        else:
-            return self.config.num_prototypes
+#     def compute_n_protos(self) -> int:
+#         if (not self.training and self.config.get('num_test_prototypes')):
+#             return self.config.num_test_prototypes
+#         else:
+#             return self.config.num_prototypes
 
-    def init_scaling(self):
-        if self.config.scale.type == 'learnable':
-            self.scale = nn.Parameter(torch.tensor(self.config.scale.value))
-        elif self.config.scale.type == 'constant':
-            self.register_buffer('scale', torch.tensor(self.config.scale.value))
-        else:
-            raise NotImplementedError(f'Unknown scaling type: {self.config.scale.type}')
+#     def init_scaling(self):
+#         if self.config.scale.type == 'learnable':
+#             self.scale = nn.Parameter(torch.tensor(self.config.scale.value))
+#         elif self.config.scale.type == 'constant':
+#             self.register_buffer('scale', torch.tensor(self.config.scale.value))
+#         else:
+#             raise NotImplementedError(f'Unknown scaling type: {self.config.scale.type}')
 
-    def get_aggregation_type(self):
-        train_time_aggr = self.config.get('aggregation_type', 'average_prototypes')
+#     def get_aggregation_type(self):
+#         train_time_aggr = self.config.get('aggregation_type', 'average_prototypes')
 
-        if self.training:
-            return train_time_aggr
-        else:
-            return self.config.get('test_aggregation_type', train_time_aggr)
+#         if self.training:
+#             return train_time_aggr
+#         else:
+#             return self.config.get('test_aggregation_type', train_time_aggr)
 
-    def forward(self, feats: Tensor, return_protos: bool=False, aggregation_type: str=None):
-        aggregation_type = aggregation_type or self.get_aggregation_type()
-        batch_size = feats.size(0)
-        n_protos = self.compute_n_protos()
-        n_classes = self.attrs.shape[0]
-        hid_dim = self.config.hid_dim
+#     def forward(self, feats: Tensor, return_protos: bool=False, aggregation_type: str=None):
+#         aggregation_type = aggregation_type or self.get_aggregation_type()
+#         batch_size = feats.size(0)
+#         n_protos = self.compute_n_protos()
+#         n_classes = self.attrs.shape[0]
+#         hid_dim = self.config.hid_dim
 
-        if aggregation_type == "golden_prototype":
-            n_protos = 1
-            protos = self.generate_prototypes(n_protos=n_protos, golden=True)
-        else:
-            protos = self.generate_prototypes()
+#         if aggregation_type == "golden_prototype":
+#             n_protos = 1
+#             protos = self.generate_prototypes(n_protos=n_protos, golden=True)
+#         else:
+#             protos = self.generate_prototypes()
 
-        assert protos.shape == (n_protos, n_classes, hid_dim)
-        assert feats.shape == (batch_size, hid_dim)
+#         assert protos.shape == (n_protos, n_classes, hid_dim)
+#         assert feats.shape == (batch_size, hid_dim)
 
-        if self.config.use_tanh_on_top:
-            protos = F.tanh(protos)
+#         if self.config.use_tanh_on_top:
+#             protos = F.tanh(protos)
 
-        feats = normalize(feats, self.scale)
-        protos = normalize(protos, self.scale)
+#         feats = normalize(feats, self.scale)
+#         protos = normalize(protos, self.scale)
 
-        if aggregation_type == 'average_prototypes':
-            if n_protos > 1 and self.config.get('golden_proto.enabled') and self.config.golden_proto.weight != "same":
-                # Distribute remaining weights equally between other prototypes
-                weight_others = (1 - self.config.golden_proto.weight) / (n_protos - 1)
-                protos_weighted = protos
-                protos_weighted[0] *= self.config.golden_proto.weight
-                protos_weighted[1:] *= weight_others
-                main_protos = protos_weighted.mean(dim=0) # [n_classes, hid_dim]
-            else:
-                main_protos = protos.mean(dim=0) # [n_classes, hid_dim]
+#         if aggregation_type == 'average_prototypes':
+#             if n_protos > 1 and self.config.get('golden_proto.enabled') and self.config.golden_proto.weight != "same":
+#                 # Distribute remaining weights equally between other prototypes
+#                 weight_others = (1 - self.config.golden_proto.weight) / (n_protos - 1)
+#                 protos_weighted = protos
+#                 protos_weighted[0] *= self.config.golden_proto.weight
+#                 protos_weighted[1:] *= weight_others
+#                 main_protos = protos_weighted.mean(dim=0) # [n_classes, hid_dim]
+#             else:
+#                 main_protos = protos.mean(dim=0) # [n_classes, hid_dim]
 
-            main_protos = normalize(main_protos, self.scale) # Normalizing once again
-            logits = torch.matmul(feats, main_protos.t()) # [batch_size, n_classes]
-        elif aggregation_type == 'golden_prototype':
-            assert n_protos == 1
-            logits = torch.matmul(feats, protos.squeeze(0).t()) # [batch_size, n_classes]
-        elif aggregation_type == 'mean_distance':
-            protos_for_dist = protos.view(n_protos * n_classes, hid_dim).unsqueeze(0) # [1, n_protos * n_classes, hid_dim]
-            distances = (feats.unsqueeze(1) - protos_for_dist).norm(dim=2).pow(2) # [batch_size, n_protos * n_classes]
-            distances = distances.view(batch_size, n_protos, n_classes) # [batch_size, n_protos, n_classes]
-            logits = -distances.mean(dim=1) # [batch_size, n_classes]
-        elif aggregation_type == 'shortest_distance':
-            protos_for_dist = protos.view(n_protos * n_classes, hid_dim).unsqueeze(0) # [1, n_protos * n_classes, hid_dim]
-            distances = (feats.unsqueeze(1) - protos_for_dist).norm(dim=2).pow(2) # [batch_size, n_protos * n_classes]
-            distances = distances.view(batch_size, n_protos, n_classes) # [batch_size, n_protos, n_classes]
-            logits = -(distances.min(dim=1)[0]) # [batch_size, n_classes]
-        elif aggregation_type == 'softmax':
-            logit_groups = protos @ feats.t() # [n_protos, n_classes, batch_size]
-            logit_groups = logit_groups.permute(2, 1, 0) # [batch_size, n_protos, n_classes]
-            prob_groups = logit_groups.view(batch_size, n_protos * n_classes).softmax(dim=1) # [batch_suze, n_protos * n_classes]
-            probs = prob_groups.view(batch_size, n_protos, n_classes).sum(dim=1) # [batch_size x n_classes]
-            logits = probs.log() # [batch_size x n_classes]
-        else:
-            raise NotImplementedError(f'Unknown aggregation_type: {aggregation_type}')
+#             main_protos = normalize(main_protos, self.scale) # Normalizing once again
+#             logits = torch.matmul(feats, main_protos.t()) # [batch_size, n_classes]
+#         elif aggregation_type == 'golden_prototype':
+#             assert n_protos == 1
+#             logits = torch.matmul(feats, protos.squeeze(0).t()) # [batch_size, n_classes]
+#         elif aggregation_type == 'mean_distance':
+#             protos_for_dist = protos.view(n_protos * n_classes, hid_dim).unsqueeze(0) # [1, n_protos * n_classes, hid_dim]
+#             distances = (feats.unsqueeze(1) - protos_for_dist).norm(dim=2).pow(2) # [batch_size, n_protos * n_classes]
+#             distances = distances.view(batch_size, n_protos, n_classes) # [batch_size, n_protos, n_classes]
+#             logits = -distances.mean(dim=1) # [batch_size, n_classes]
+#         elif aggregation_type == 'shortest_distance':
+#             protos_for_dist = protos.view(n_protos * n_classes, hid_dim).unsqueeze(0) # [1, n_protos * n_classes, hid_dim]
+#             distances = (feats.unsqueeze(1) - protos_for_dist).norm(dim=2).pow(2) # [batch_size, n_protos * n_classes]
+#             distances = distances.view(batch_size, n_protos, n_classes) # [batch_size, n_protos, n_classes]
+#             logits = -(distances.min(dim=1)[0]) # [batch_size, n_classes]
+#         elif aggregation_type == 'softmax':
+#             logit_groups = protos @ feats.t() # [n_protos, n_classes, batch_size]
+#             logit_groups = logit_groups.permute(2, 1, 0) # [batch_size, n_protos, n_classes]
+#             prob_groups = logit_groups.view(batch_size, n_protos * n_classes).softmax(dim=1) # [batch_suze, n_protos * n_classes]
+#             probs = prob_groups.view(batch_size, n_protos, n_classes).sum(dim=1) # [batch_size x n_classes]
+#             logits = probs.log() # [batch_size x n_classes]
+#         else:
+#             raise NotImplementedError(f'Unknown aggregation_type: {aggregation_type}')
 
-        if return_protos:
-            return logits, protos
-        else:
-            return logits
+#         if return_protos:
+#             return logits, protos
+#         else:
+#             return logits
 
 
-class RandomEmbeddingMPHead(MultiProtoHead):
-    def init_modules(self):
-        self.noise_transform = create_sequential_model(self.config.noise.transform_layers)
-        self.attrs_transform = create_sequential_model(self.config.attrs_transform.layers)
-        self.fuser = create_fuser(
-            self.config.fusing.type,
-            self.config.attrs_transform.layers[-1],
-            self.config.noise.transform_layers[-1],
-            self.config.after_fuse_transform.layers[0],
-            activation=self.config.fusing.get('activation', ('relu' if len(self.config.after_fuse_transform.layers) > 1 else 'none'))
-        )
-        self.after_fuse_transform = create_sequential_model(
-            self.config.after_fuse_transform.layers, bias=self.config.after_fuse_transform.bias)
+# class RandomEmbeddingMPHead(MultiProtoHead):
+#     def init_modules(self):
+#         self.noise_transform = create_sequential_model(self.config.noise.transform_layers)
+#         self.attrs_transform = create_sequential_model(self.config.attrs_transform.layers)
+#         self.fuser = create_fuser(
+#             self.config.fusing.type,
+#             self.config.attrs_transform.layers[-1],
+#             self.config.noise.transform_layers[-1],
+#             self.config.after_fuse_transform.layers[0],
+#             activation=self.config.fusing.get('activation', ('relu' if len(self.config.after_fuse_transform.layers) > 1 else 'none'))
+#         )
+#         self.after_fuse_transform = create_sequential_model(
+#             self.config.after_fuse_transform.layers, bias=self.config.after_fuse_transform.bias)
 
-        if self.config.get('dae.enabled'):
-            self.encoder = create_sequential_model(self.config.dae.encoder_layers)
+#         if self.config.get('dae.enabled'):
+#             self.encoder = create_sequential_model(self.config.dae.encoder_layers)
 
-        if self.config.get('after_fuse_identity_init'):
-            identity_init_(self.after_fuse_transform[0])
+#         if self.config.get('after_fuse_identity_init'):
+#             identity_init_(self.after_fuse_transform[0])
 
-        if len(self.config.noise.transform_layers) > 1 and self.config.noise.get('identity_init'):
-            identity_init_(self.noise_transform[0])
+#         if len(self.config.noise.transform_layers) > 1 and self.config.noise.get('identity_init'):
+#             identity_init_(self.noise_transform[0])
 
-        if len(self.config.attrs_transform.layers) > 1 and self.config.attrs_transform.get('identity_init'):
-            identity_init_(self.attrs_transform[0])
+#         if len(self.config.attrs_transform.layers) > 1 and self.config.attrs_transform.get('identity_init'):
+#             identity_init_(self.attrs_transform[0])
 
-    def get_transformed_noise(self, n_protos: int, golden: bool=False) -> Tensor:
-        n_classes = self.attrs.shape[0]
-        z_size = self.config.noise.transform_layers[0]
+#     def get_transformed_noise(self, n_protos: int, golden: bool=False) -> Tensor:
+#         n_classes = self.attrs.shape[0]
+#         z_size = self.config.noise.transform_layers[0]
 
-        if self.config.noise.same_for_each_class:
-            noise = torch.randn(1, n_protos, z_size, device=self.attrs.device)
-            noise = noise.repeat(n_classes, 1, 1)
-        else:
-            noise = torch.randn(n_classes, n_protos, z_size, device=self.attrs.device)
+#         if self.config.noise.same_for_each_class:
+#             noise = torch.randn(1, n_protos, z_size, device=self.attrs.device)
+#             noise = noise.repeat(n_classes, 1, 1)
+#         else:
+#             noise = torch.randn(n_classes, n_protos, z_size, device=self.attrs.device)
 
-        if golden:
-            noise[:, 0, :] = 0. # First noise emb is zero.
+#         if golden:
+#             noise[:, 0, :] = 0. # First noise emb is zero.
 
-        noise = noise * self.config.noise.std
-        transformed_noise = self.noise_transform(noise) # [n_classes, n_protos, proto_emb_size]
+#         noise = noise * self.config.noise.std
+#         transformed_noise = self.noise_transform(noise) # [n_classes, n_protos, proto_emb_size]
 
-        return transformed_noise
+#         return transformed_noise
 
-    def compute_dae_reconstructions(self, feats: Tensor, y: Tensor) -> Tensor:
-        if self.config.dae.input_noise_type == 'bernoulli':
-            feats_noised = F.dropout(feats, self.config.dae.input_dropout_p)
-        elif self.config.dae.input_noise_type == 'gaussian':
-            feats_noised = feats + torch.randn_like(feats) * self.config.dae.input_std
-        else:
-            raise NotImplementedError('Unknown input noise type: {self.config.dae.input_noise_type}')
+#     def compute_dae_reconstructions(self, feats: Tensor, y: Tensor) -> Tensor:
+#         if self.config.dae.input_noise_type == 'bernoulli':
+#             feats_noised = F.dropout(feats, self.config.dae.input_dropout_p)
+#         elif self.config.dae.input_noise_type == 'gaussian':
+#             feats_noised = feats + torch.randn_like(feats) * self.config.dae.input_std
+#         else:
+#             raise NotImplementedError('Unknown input noise type: {self.config.dae.input_noise_type}')
 
-        z = self.encoder(feats_noised) # [batch_size, z_size]
-        z += torch.randn_like(z) * self.config.dae.get('codes_std', 0.)
-        z_transformed = self.noise_transform(z) # [batch_size, noise.transform_layers[-1]]
-        attrs_transformed = self.attrs_transform(self.attrs) # [n_classes, attrs.transform_layers[-1]]
-        attrs_transformed = attrs_transformed[y] # [batch_size, attrs.transform_layers[-1]]
-        contextualized_attrs = self.fuser(z_transformed, attrs_transformed) # [batch_size, after_fuse_transform.layers[0]]
-        feats_rec = self.after_fuse_transform(contextualized_attrs) # [batch_size, hid_dim]
+#         z = self.encoder(feats_noised) # [batch_size, z_size]
+#         z += torch.randn_like(z) * self.config.dae.get('codes_std', 0.)
+#         z_transformed = self.noise_transform(z) # [batch_size, noise.transform_layers[-1]]
+#         attrs_transformed = self.attrs_transform(self.attrs) # [n_classes, attrs.transform_layers[-1]]
+#         attrs_transformed = attrs_transformed[y] # [batch_size, attrs.transform_layers[-1]]
+#         contextualized_attrs = self.fuser(z_transformed, attrs_transformed) # [batch_size, after_fuse_transform.layers[0]]
+#         feats_rec = self.after_fuse_transform(contextualized_attrs) # [batch_size, hid_dim]
 
-        assert feats.shape == feats_rec.shape, f"Wrong shape: {feats_rec.shape}"
+#         assert feats.shape == feats_rec.shape, f"Wrong shape: {feats_rec.shape}"
 
-        return feats_rec
+#         return feats_rec
 
-    def generate_prototypes(self, n_protos: int=None, golden: bool=False) -> Tensor:
-        n_protos = self.compute_n_protos() if n_protos is None else n_protos
+#     def generate_prototypes(self, n_protos: int=None, golden: bool=False) -> Tensor:
+#         n_protos = self.compute_n_protos() if n_protos is None else n_protos
 
-        if golden:
-            z_transormed = self.get_transformed_noise(n_protos, self.config.golden_proto.enabled) # [n_classes, n_protos, transformed_noise_size]
-        else:
-            z_transormed = self.get_transformed_noise(n_protos, True)
+#         if golden:
+#             z_transormed = self.get_transformed_noise(n_protos, self.config.golden_proto.enabled) # [n_classes, n_protos, transformed_noise_size]
+#         else:
+#             z_transormed = self.get_transformed_noise(n_protos, True)
 
-        attrs_transformed = self.attrs_transform(self.attrs) # [n_classes, transformed_attrs_size]
+#         attrs_transformed = self.attrs_transform(self.attrs) # [n_classes, transformed_attrs_size]
 
-        assert z_transormed.shape[0] == attrs_transformed.shape[0]
+#         assert z_transormed.shape[0] == attrs_transformed.shape[0]
 
-        n_classes, n_protos, transformed_noise_size = z_transormed.shape
-        z_transormed = z_transormed.view(n_classes * n_protos, transformed_noise_size)
-        attrs_transformed = attrs_transformed.unsqueeze(1).repeat(1, n_protos, 1).view(n_classes * n_protos, -1)
-        contextualized_attrs = self.fuser(attrs_transformed, z_transormed) # [n_classes * n_protos, after_fuse_transform.layers[0]]
+#         n_classes, n_protos, transformed_noise_size = z_transormed.shape
+#         z_transormed = z_transormed.view(n_classes * n_protos, transformed_noise_size)
+#         attrs_transformed = attrs_transformed.unsqueeze(1).repeat(1, n_protos, 1).view(n_classes * n_protos, -1)
+#         contextualized_attrs = self.fuser(attrs_transformed, z_transormed) # [n_classes * n_protos, after_fuse_transform.layers[0]]
 
-        if self.config.fusing.get('normalize_to_unit_norm'):
-            contextualized_attrs = normalize(contextualized_attrs)
+#         if self.config.fusing.get('normalize_to_unit_norm'):
+#             contextualized_attrs = normalize(contextualized_attrs)
 
-        prototypes = self.after_fuse_transform(contextualized_attrs) # [n_classes * n_protos, hid_dim]
+#         prototypes = self.after_fuse_transform(contextualized_attrs) # [n_classes * n_protos, hid_dim]
 
-        assert prototypes.shape == (n_classes * n_protos, self.config.hid_dim), f"Wrong shape: {prototypes.shape}"
+#         assert prototypes.shape == (n_classes * n_protos, self.config.hid_dim), f"Wrong shape: {prototypes.shape}"
 
-        prototypes = prototypes.view(n_classes, n_protos, self.config.hid_dim)
-        prototypes = prototypes.permute(1, 0, 2)
+#         prototypes = prototypes.view(n_classes, n_protos, self.config.hid_dim)
+#         prototypes = prototypes.permute(1, 0, 2)
 
-        return prototypes
+#         return prototypes
 
 
 class GaussianHead(nn.Module):
@@ -232,6 +233,25 @@ class GaussianHead(nn.Module):
         self.compute_cov_l_inv_right = nn.Linear(self.attrs.shape[1], self.config.hid_dim * self.config.gaussian_approx_rank)
         self.compute_cov_l_inv_diag = nn.Linear(self.attrs.shape[1], self.config.hid_dim)
 
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        if self.config.init.type == 'xavier_normal':
+            torch.nn.init.xavier_normal_(self.compute_mean.weight, gain=self.config.init.get('gain', 1.))
+            torch.nn.init.xavier_normal_(self.compute_cov_l_inv_left.weight, gain=self.config.init.get('gain', 1.))
+            torch.nn.init.xavier_normal_(self.compute_cov_l_inv_right.weight, gain=self.config.init.get('gain', 1.))
+            torch.nn.init.xavier_normal_(self.compute_cov_l_inv_diag.weight, gain=self.config.init.get('gain', 1.))
+        elif self.config.init.type == 'xavier_uniform':
+            torch.nn.init.xavier_uniform_(self.compute_mean.weight, gain=self.config.init.get('gain', 1.))
+            torch.nn.init.xavier_uniform_(self.compute_cov_l_inv_left.weight, gain=self.config.init.get('gain', 1.))
+            torch.nn.init.xavier_uniform_(self.compute_cov_l_inv_right.weight, gain=self.config.init.get('gain', 1.))
+            torch.nn.init.xavier_uniform_(self.compute_cov_l_inv_diag.weight, gain=self.config.init.get('gain', 1.))
+        elif self.config.init.type == 'orthogonal':
+            torch.nn.init.orthogonal_(self.compute_mean.weight)
+            torch.nn.init.orthogonal_(self.compute_cov_l_inv_left.weight)
+            torch.nn.init.orthogonal_(self.compute_cov_l_inv_right.weight)
+            torch.nn.init.orthogonal_(self.compute_cov_l_inv_diag.weight)
+
     def forward(self, x: Tensor) -> Tensor:
         """
         Computes log-density for each attr
@@ -242,7 +262,22 @@ class GaussianHead(nn.Module):
         cov_l_inv_left = self.compute_cov_l_inv_left(self.attrs) # [n_classes, hid_dim * rank]
         cov_l_inv_right = self.compute_cov_l_inv_right(self.attrs) # [n_classes, hid_dim * rank]
         cov_l_inv_diag = self.compute_cov_l_inv_diag(self.attrs) # [n_classes, hid_dim]
-        cov_l_inv_diag = cov_l_inv_diag.tanh() + 1 # Making it closer to 1 for stability
+
+        if self.config.cov_diag_transform == 'tanh':
+            cov_l_inv_diag = cov_l_inv_diag.tanh() + 1 # Making it closer to 1 for stability
+        elif self.config.cov_diag_transform == 'sigmoid':
+            cov_l_inv_diag = cov_l_inv_diag.sigmoid() + 0.5
+        elif self.config.cov_diag_transform == 'elu':
+            cov_l_inv_diag = F.elu(cov_l_inv_diag) + 1
+
+        # print(f'[norm] mean: {cov_l_inv_diag.norm(dim=1).mean() :.03f}. std: {cov_l_inv_diag.norm(dim=1).std() :.03f}')
+        # avg_norm = cov_l_inv_diag.norm(dim=1).mean().item()
+        # cov_l_inv_diag = normalize(cov_l_inv_diag, avg_norm, detach=True)
+        # x = normalize(x, x.norm(dim=1).mean().item())
+        # mean = normalize(mean, x.norm(dim=1).mean().item())
+
+        # print(f'[cov] Avg min: {cov_l_inv_diag.min(dim=1)[0].mean(): .03f}. Mean: {cov_l_inv_diag.mean(): .03f}. Avg max: {cov_l_inv_diag.max(dim=1)[0].mean(): .03f}')
+        # print(f'[mean] Avg min: {mean.min(dim=1)[0].mean(): .03f}. Mean: {mean.mean(): .03f}. Avg max: {mean.max(dim=1)[0].mean(): .03f}')
 
         cov_l_inv_left = cov_l_inv_left.view(n_classes, hid_dim, rank) # [n_classes, hid_dim, rank]
         cov_l_inv_right = cov_l_inv_right.view(n_classes, hid_dim, rank).permute(0, 2, 1) # [n_classes, rank, hid_dim]
@@ -273,6 +308,19 @@ class DiagGaussianHead(nn.Module):
         self.compute_mean = nn.Linear(self.attrs.shape[1], self.config.hid_dim)
         self.compute_cov_diag = nn.Linear(self.attrs.shape[1], self.config.hid_dim)
 
+        if self.config.init.type == 'xavier_normal':
+            torch.nn.init.xavier_normal_(self.compute_mean.weight, gain=self.config.init.get('gain', 1.))
+            torch.nn.init.xavier_normal_(self.compute_cov_diag.weight, gain=self.config.init.get('gain', 1.))
+        elif self.config.init.type == 'xavier_uniform':
+            torch.nn.init.xavier_uniform_(self.compute_mean.weight, gain=self.config.init.get('gain', 1.))
+            torch.nn.init.xavier_uniform_(self.compute_cov_diag.weight, gain=self.config.init.get('gain', 1.))
+        elif self.config.init.type == 'orthogonal':
+            torch.nn.init.orthogonal_(self.compute_mean.weight)
+            torch.nn.init.orthogonal_(self.compute_cov_diag.weight)
+
+        torch.nn.init.zeros_(self.compute_mean.bias)
+        torch.nn.init.zeros_(self.compute_cov_diag.bias)
+
     def forward(self, x: Tensor) -> Tensor:
         mean = self.compute_mean(self.attrs) # [n_classes, hid_dim]
         cov_diag = self.compute_cov_diag(self.attrs) # [n_classes, hid_dim]
@@ -298,15 +346,18 @@ class SimpleHead(nn.Module):
         self.register_buffer('attrs', torch.from_numpy(attrs))
         self.transform = nn.Linear(self.attrs.shape[1], self.config.hid_dim)
 
-        if self.config.init == "orthogonal":
+        if self.config.init.type == "orthogonal":
             torch.nn.init.orthogonal_(self.transform.weight)
-        elif self.config.init == "xavier_normal":
-            torch.nn.init.xavier_normal_(self.transform.weight)
+        elif self.config.init.type == "xavier_normal":
+            torch.nn.init.xavier_normal_(self.transform.weight, gain=self.config.init.get('gain', 1.))
+        elif self.config.init.type == "xavier_uniform":
+            torch.nn.init.xavier_uniform_(self.transform.weight, gain=self.config.init.get('gain', 1.))
 
     def forward(self, x: Tensor) -> Tensor:
-        #inputs = torch.cat([self.attrs, torch.zeros(self.attrs.size(0), 100, device=x.device)], dim=1)
         protos = self.transform(self.attrs)
-        x = normalize(x, self.config.scale)
-        protos = normalize(protos, self.config.scale)
+        # print(f'[x norm] mean: {x.norm(dim=1).mean() :.03f}. std: {x.norm(dim=1).std() :.03f}')
+        # print(f'[p norm] mean: {protos.norm(dim=1).mean() :.03f}. std: {protos.norm(dim=1).std() :.03f}')
+        x = normalize(x, 10)
+        protos = normalize(protos, 10)
 
         return x @ protos.t()

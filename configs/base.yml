@@ -23,7 +23,7 @@ all:
 cub:
   data:
     name: "CUB"
-    dir: "data/CUB_200_2011"
+    dir: "/tmp/skoroki/data/CUB_200_2011"
     num_classes: &cub_num_classes 200
 
   lll_setup:

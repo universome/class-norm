@@ -39,7 +39,7 @@ from src.trainers.multi_proto_task_trainer import MultiProtoTaskTrainer
 from src.utils.data_utils import construct_output_mask, filter_out_classes, compute_class_centroids
 from src.utils.training_utils import normalize
 from src.dataloaders.utils import create_custom_dataset, extract_features_for_dataset
-
+from src.utils.metrics import compute_unseen_classes_acc_history, compute_individual_accs_matrix, compute_forgetting_measure
 
 TASK_TRAINERS = {
     'basic': BasicTaskTrainer,
@@ -133,6 +133,9 @@ class LLLTrainer(BaseTrainer):
 
             self.save_logits_history()
 
+            # if self.config.get('logging.print_forgetting_before_task'):
+            #     print(f'Forgetting: {self.compute_forgetting()}')
+
             task_trainer = TASK_TRAINERS[self.config.task_trainer](self, task_idx)
 
             self.task_trainers.append(task_trainer)
@@ -156,6 +159,15 @@ class LLLTrainer(BaseTrainer):
 
         self.save_logits_history()
         self.save_experiment_data()
+
+        if self.config.get('logging.print_unseen_accuracy'):
+            values = self.compute_unseen_accuracy()
+            print(f'Unseen accuracy (mean: {np.mean(values): .03f}): {", ".join([f"{a: 0.4f}" for a in values])}')
+
+        if self.config.get('logging.print_forgetting'):
+            values = self.compute_forgetting()
+            print(f'Forgetting (mean: {np.mean(values): .03f}): {", ".join([f"{a: 0.4f}" for a in values])}')
+
 
     def save_logits_history(self):
         if self.config.get('logging.save_logits'):
@@ -229,3 +241,16 @@ class LLLTrainer(BaseTrainer):
     def checkpoint(self, model_name: str):
         path = os.path.join(self.paths.checkpoints_path, f'{model_name}.pt')
         torch.save(self.model.state_dict(), path)
+
+    def compute_forgetting(self):
+        """Computes forgetting for the latest task"""
+        targets = [y for x, y in self.ds_test]
+        accs_matrix = compute_individual_accs_matrix(self.logits_history[1:], targets, self.class_splits)
+
+        return [compute_forgetting_measure(accs_matrix, i) for i in range(1, len(accs_matrix))]
+
+    def compute_unseen_accuracy(self):
+        """Computes unseen accuracy for the latest task"""
+        targets = [y for x, y in self.ds_test]
+
+        return compute_unseen_classes_acc_history(self.logits_history[:-1], targets, self.class_splits, restrict_space=False)
