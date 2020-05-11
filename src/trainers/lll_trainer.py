@@ -112,7 +112,7 @@ class LLLTrainer(BaseTrainer):
             self.task_trainers.append(task_trainer)
 
             if self.config.has('start_task') and self.num_tasks_learnt < self.config.start_task:
-                pass
+                continue
             else:
                 task_trainer.start()
 

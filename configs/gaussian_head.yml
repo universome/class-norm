@@ -8,7 +8,7 @@ all:
   task_trainer: "multi_proto"
   hp:
     clip_grad: {value: 10}
-    optim: {kwargs: {lr: 0.001}}
+    optim: {kwargs: {lr: 0.01}}
     use_class_attrs: true
     img_target_shape: [256, 256]
     max_num_epochs: 1
@@ -16,7 +16,7 @@ all:
 
     head:
       model_type: "gaussian"
-      init: {type: "xavier_normal"}
+      init: {type: "xavier_uniform", gain: 0.1}
       hid_dim: 512
       gaussian_approx_rank: 5
       cov_diag_transform: "elu"
@@ -33,15 +33,14 @@ all:
         clip_grad|value: [10, 100]
         optim|kwargs|lr: [0.01, 0.001, 0.0001]
         head|init|type: ["xavier_normal", "xavier_uniform"]
-        head|init|gain: [0.01, 0.1, 0.5, 1.0]
-        head|cov_diag_transform: ["elu"]
+        head|init|gain: [0.1, 1.0]
         # diagonal_cov_reg|loss_magnitude: [0.0, 0.1, 1.0]
 
       simple:
         clip_grad|value: [10, 100]
         optim|kwargs|lr: [0.01, 0.001, 0.0001]
         head|init|type: ["xavier_normal", "xavier_uniform"]
-        head|init|gain: [0.01, 0.1, 0.5, 1.0]
+        head|init|gain: [0.1, 1.0]
 
 
 cub:
