@@ -8,39 +8,40 @@ all:
   task_trainer: "multi_proto"
   hp:
     clip_grad: {value: 10}
-    optim: {kwargs: {lr: 0.01}}
+    optim: {kwargs: {lr: 0.01}, decrease_lr_coef: 0.9}
     use_class_attrs: true
     img_target_shape: [256, 256]
     max_num_epochs: 1
     batch_size: 10
 
     head:
-      model_type: "gaussian"
+      model_type: "gmm"
       init: {type: "xavier_uniform", gain: 0.1}
       hid_dim: 512
       gaussian_approx_rank: 5
       cov_diag_transform: "elu"
+      aggregation_type: "gmm"
 
-    diagonal_cov_reg:
-      loss_magnitude: 0.0
-      per_class: false
-      batch_size: 100
+    # diagonal_cov_reg:
+    #   loss_magnitude: 1.0
+    #   per_class: false
+    #   batch_size: 100
 
-  validation_sequence:
-    num_tasks: 3
-    hpo_grid:
-      gaussian:
-        clip_grad|value: [10, 100]
-        optim|kwargs|lr: [0.01, 0.001, 0.0001]
-        head|init|type: ["xavier_normal", "xavier_uniform"]
-        head|init|gain: [0.1, 1.0]
-        # diagonal_cov_reg|loss_magnitude: [0.0, 0.1, 1.0]
+  # validation_sequence:
+  #   num_tasks: 3
+  #   hpo_grid:
+  #     gmm:
+  #       clip_grad|value: [10, 100]
+  #       optim|kwargs|lr: [0.01, 0.001, 0.0001]
+  #       head|init|type: ["xavier_normal", "xavier_uniform"]
+  #       head|init|gain: [0.1, 1.0]
+  #       # diagonal_cov_reg|loss_magnitude: [0.0, 0.1, 1.0]
 
-      simple:
-        clip_grad|value: [10, 100]
-        optim|kwargs|lr: [0.01, 0.001, 0.0001]
-        head|init|type: ["xavier_normal", "xavier_uniform"]
-        head|init|gain: [0.1, 1.0]
+  #     simple:
+  #       clip_grad|value: [10, 100]
+  #       optim|kwargs|lr: [0.01, 0.001, 0.0001]
+  #       head|init|type: ["xavier_normal", "xavier_uniform"]
+  #       head|init|gain: [0.1, 1.0]
 
 
 cub:

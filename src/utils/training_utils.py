@@ -42,6 +42,28 @@ def construct_per_group_optimizer(model: nn.Module, optim_config: Config) -> tor
     return construct_optimizer(groups, optim_config)
 
 
+def decrease_lr_in_optim_config(conf: Config, num_tasks_learnt: int) -> Config:
+    """
+    Creates a new optim config with a decreased LR
+    """
+    if num_tasks_learnt <= 0 or not conf.has('decrease_lr_coef'):
+        return conf.clone()
+
+    decrease_coef = conf.decrease_lr_coef ** num_tasks_learnt
+
+    # Updating LR in the main kwargs
+    if conf.kwargs.has('lr'):
+        target_lr = conf.kwargs.lr * decrease_coef
+        conf = conf.overwrite({'kwargs': {'lr': target_lr}})
+
+    if conf.kwargs.has('groups'):
+        groups_with_lr = [g for g in conf.groups[g].keys() if conf.groups[g].has('lr')]
+        conf = conf.overwrite({'groups': {
+            g: conf.groups[g].overwrite({'lr': conf.groups[g].lr}) for g in groups_with_lr}})
+
+    return conf
+
+
 def compute_accuracy(logits: Tensor, targets: Tensor, *args, **kwargs) -> Tensor:
     return compute_guessed(logits, targets, *args, **kwargs).mean()
 

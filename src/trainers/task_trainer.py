@@ -13,7 +13,7 @@ from tqdm import tqdm
 from firelab.config import Config
 
 from src.utils.data_utils import construct_output_mask, flatten
-from src.utils.training_utils import construct_optimizer, construct_per_group_optimizer
+from src.utils.training_utils import construct_optimizer, construct_per_group_optimizer, decrease_lr_in_optim_config
 from src.dataloaders.utils import create_custom_dataset
 
 
@@ -56,10 +56,15 @@ class TaskTrainer:
         self.writer = SummaryWriter(os.path.join(self.main_trainer.paths.logs_path, f'task_{self.task_idx}'), flush_secs=5)
 
     def construct_optimizer(self):
-        if self.config.hp.optim.has('groups'):
-            return construct_per_group_optimizer(self.model, self.config.hp.optim)
+        if self.config.hp.optim.get('reuse') and self.task_idx > 0:
+            return self.get_previous_trainer().optim
+
+        optim_conf = decrease_lr_in_optim_config(self.config.hp.optim, self.task_idx - self.config.get('start_task', 0))
+
+        if optim_conf.has('groups'):
+            return construct_per_group_optimizer(self.model, optim_conf)
         else:
-            return construct_optimizer(self.model.parameters(), self.config.hp.optim)
+            return construct_optimizer(self.model.parameters(), optim_conf)
 
     def init_dataloaders(self):
         self.train_dataloader = self.create_dataloader(self.task_ds_train, shuffle=True)
