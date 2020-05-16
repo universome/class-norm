@@ -81,21 +81,30 @@ class MultiProtoTaskTrainer(TaskTrainer):
         # if self.config.hp.get('protos_clf_loss_coef') or self.config.hp.get('push_protos_apart_loss_coef'):
         #     logits, protos = self.model(x, return_protos=True)
         # else:
-        logits = self.model(x)
+        feats = self.model.embedder(x)
+        logits = self.model.head(feats)
 
-        # if self.model.head.config.get('aggregation_type') == 'individual_losses':
-        #     n_protos = logits.size(0) // y.size(0)
-        #     batch_size = y.size(0)
-        #     y = y.view(batch_size, 1).repeat(1, n_protos).view(batch_size * n_protos)
-        #     cls_loss = self.criterion(prune_logits(logits, self.output_mask), y)
-        # elif self.config.hp.head.get('aggregation_type') == 'gmm':
-        #     logits_for_true = logits[torch.arange(logits.size(0)), y] # [batch_size]
-        #     logits_pruned = prune_logits(logits, self.output_mask) # [batch_size, n_classes]
-        #     log_evidence = logits_pruned.logsumexp(dim=1) # [batch_size]
-        #     cls_loss = -(logits_for_true - log_evidence).mean()
-        # else:
-        cls_loss = self.criterion(prune_logits(logits, self.output_mask), y)
+        if self.model.head.config.get('aggregation_type') == 'individual_losses':
+            n_protos = logits.size(0) // y.size(0)
+            batch_size = y.size(0)
+            y = y.view(batch_size, 1).repeat(1, n_protos).view(batch_size * n_protos)
+            cls_loss = self.criterion(prune_logits(logits, self.output_mask), y)
+        elif self.model.head.config.get('aggregation_type') == 'gmm':
+            logits_for_true = logits[torch.arange(logits.size(0)), y] # [batch_size]
+            logits_pruned = prune_logits(logits, self.output_mask) # [batch_size, n_classes]
+            log_evidence = logits_pruned.logsumexp(dim=1) # [batch_size]
+            cls_loss = -(logits_for_true - log_evidence).mean()
+        else:
+            cls_loss = self.criterion(prune_logits(logits, self.output_mask), y)
+
         loss += cls_loss * self.config.get('cls_loss.coef', 1.0)
+
+        # if self.config.hp.head.model_type == 'gmm':
+        #     gen_logits = self.model.head(feats.detach())
+        #     logits_for_true = gen_logits[torch.arange(gen_logits.size(0)), y] # [batch_size]
+        #     gen_loss = logits_for_true.mean()
+
+        # loss += 0.1 * gen_loss
 
         # if self.config.hp.get('push_protos_apart_loss_coef', 0.0) > 0:
         #     mean_distance = compute_mean_distance(protos)
@@ -120,10 +129,10 @@ class MultiProtoTaskTrainer(TaskTrainer):
         #     loss += self.config.hp.generative_training.loss_coef * generative_loss
         #     self.writer.add_scalar(f'{self.config.hp.generative_training.type}_loss', generative_loss.item(), self.num_iters_done)
 
-        # if self.config.hp.get('diagonal_cov_reg.loss_magnitude'):
-        #     diagonal_cov_reg = self.compute_diagonal_cov_reg()
-        #     loss += self.config.hp.diagonal_cov_reg.loss_magnitude * diagonal_cov_reg / diagonal_cov_reg.abs().item()
-        #     self.writer.add_scalar(f'diagonal_cov_reg', diagonal_cov_reg.item(), self.num_iters_done)
+        if self.config.hp.get('diagonal_cov_reg.loss_magnitude'):
+            diagonal_cov_reg = self.compute_diagonal_cov_reg()
+            loss += self.config.hp.diagonal_cov_reg.loss_magnitude * diagonal_cov_reg / diagonal_cov_reg.abs().item()
+            self.writer.add_scalar(f'diagonal_cov_reg', diagonal_cov_reg.item(), self.num_iters_done)
 
         # if self.config.hp.get('reverse_clf.loss_coef'):
         #     reverse_clf_loss = self.compute_reverse_clf_loss()
@@ -157,15 +166,15 @@ class MultiProtoTaskTrainer(TaskTrainer):
     # def compute_creativity_reg(self) -> Tensor:
     #     protos = self.model.head.generate_prototypes()
 
-    # def compute_diagonal_cov_reg(self) -> Tensor:
-    #     if not self.config.hp.get('diagonal_cov_reg.loss_coef'): return torch.tensor(0.0)
+    def compute_diagonal_cov_reg(self) -> Tensor:
+        if not self.config.hp.get('diagonal_cov_reg.loss_coef'): return torch.tensor(0.0)
 
-    #     batch = self.sample_batch(self.task_ds_train, self.config.hp.diagonal_cov_reg.batch_size)
-    #     x = torch.from_numpy(np.array(batch[0])).to(self.device_name)
-    #     feats = self.model.embedder(x)
-    #     reg = compute_diagonal_cov_reg(feats)
+        batch = self.sample_batch(self.task_ds_train, self.config.hp.diagonal_cov_reg.batch_size)
+        x = torch.from_numpy(np.array(batch[0])).to(self.device_name)
+        feats = self.model.embedder(x)
+        reg = compute_diagonal_cov_reg(feats)
 
-    #     return reg
+        return reg
 
     # def compute_pull_golden_protos_loss(self) -> Tensor:
     #     protos = self.model.head.generate_prototypes(1, golden=True) # [1, n_classes, hid_dim]

@@ -55,8 +55,7 @@ def compute_ll_decomposed_gaussian_log_density(x: Tensor, mean: Tensor, cov_l_in
     assert cov_l_inv.shape == (n_dists, feat_dim, feat_dim), f"Wrong shape: {cov_l_inv.shape}"
 
     const_term = -0.5 * feat_dim * torch.tensor(2 * pi, device=x.device).log()
-    det_inv = torch.diagonal(cov_l_inv, dim1=1, dim2=2).pow(2).prod(dim=1) # [n_dists]
-    logdet_term = 0.5 * det_inv.log() # [n_dists]
+    logdet_term = 0.5 * torch.diagonal(cov_l_inv, dim1=1, dim2=2).pow(2).log().sum(dim=1) # [n_dists]
     # xt_lt_inv_product = (x.view(batch_size, feat_dim, 1) * cov_l_inv.permute(2, 1, 0).view()).sum(dim=1) # [batch_size, feat_dim, n_dists]
     #exp_term_lhs = x.view(batch_size, feat_dim, 1) - mean.permute() # [batch_size]
     x_minus_mu = (x.view(batch_size, feat_dim, 1) - mean.permute(1, 0).view(1, feat_dim, n_dists)) # [batch_size, feat_dim, n_dists]
@@ -66,7 +65,8 @@ def compute_ll_decomposed_gaussian_log_density(x: Tensor, mean: Tensor, cov_l_in
     assert x_minus_mu_t_with_l_t_product.shape == (batch_size, feat_dim, n_dists)
 
     exp_term = -0.5 * x_minus_mu_t_with_l_t_product.pow(2).sum(dim=1) # [batch_size, n_dists]
-    result = const_term + logdet_term.unsqueeze(0) + exp_term
+    # result = const_term + logdet_term.unsqueeze(0) + exp_term
+    result = exp_term
 
     return result
 

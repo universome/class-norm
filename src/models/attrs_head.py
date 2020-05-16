@@ -18,7 +18,7 @@ def create_attrs_head(config: Config, attrs: np.ndarray) -> nn.Module:
         return DiagGaussianHead(config, attrs)
     elif config.model_type == 'simple':
         return SimpleHead(config, attrs)
-    elif config.model_type == 'gaussian':
+    elif config.model_type == 'gmm':
         return GaussianHead(config, attrs)
     else:
         raise NotImplementedError(f"Unknown model type: {config.model_type}")
@@ -270,10 +270,15 @@ class GaussianHead(nn.Module):
         elif self.config.cov_diag_transform == 'elu':
             cov_l_inv_diag = F.elu(cov_l_inv_diag) + 1
 
+        # x = normalize(x, 10.)
+        # cov_l_inv_diag = normalize(cov_l_inv_diag, 10.)
+        # mean = normalize(mean, 10.)
+
         # print(f'[norm] mean: {cov_l_inv_diag.norm(dim=1).mean() :.03f}. std: {cov_l_inv_diag.norm(dim=1).std() :.03f}')
         # avg_norm = cov_l_inv_diag.norm(dim=1).mean().item()
-        # cov_l_inv_diag = normalize(cov_l_inv_diag, avg_norm, detach=True)
-        # x = normalize(x, x.norm(dim=1).mean().item())
+        cov_l_inv_diag = normalize(cov_l_inv_diag, 10)
+        x = normalize(x, 10)
+        mean = torch.zeros_like(mean)
         # mean = normalize(mean, x.norm(dim=1).mean().item())
 
         # print(f'[cov] Avg min: {cov_l_inv_diag.min(dim=1)[0].mean(): .03f}. Mean: {cov_l_inv_diag.mean(): .03f}. Avg max: {cov_l_inv_diag.max(dim=1)[0].mean(): .03f}')
@@ -286,7 +291,8 @@ class GaussianHead(nn.Module):
         cov_l_inv_low_rank = torch.matmul(cov_l_inv_left, cov_l_inv_right) # [n_classes, hid_dim, hid_dim]
         cov_l_inv_low_rank = cov_l_inv_low_rank.tril(diagonal=-1) # [n_classes, hid_dim, hid_dim]
 
-        cov_l_inv = cov_l_inv_low_rank + cov_l_inv_diag
+        # cov_l_inv = cov_l_inv_low_rank + cov_l_inv_diag
+        cov_l_inv = cov_l_inv_diag
 
         # if self.config.normalize:
         #     # x = normalize(x, detach=False) * self.config.scale
@@ -355,8 +361,6 @@ class SimpleHead(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         protos = self.transform(self.attrs)
-        # print(f'[x norm] mean: {x.norm(dim=1).mean() :.03f}. std: {x.norm(dim=1).std() :.03f}')
-        # print(f'[p norm] mean: {protos.norm(dim=1).mean() :.03f}. std: {protos.norm(dim=1).std() :.03f}')
         x = normalize(x, 10)
         protos = normalize(protos, 10)
 
