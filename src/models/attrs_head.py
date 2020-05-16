@@ -228,10 +228,10 @@ class GaussianHead(nn.Module):
         self.config = config
         self.register_buffer('attrs', torch.from_numpy(attrs))
 
-        self.compute_mean = nn.Linear(self.attrs.shape[1], self.config.hid_dim)
+        self.compute_mean = nn.Linear(self.attrs.shape[1], self.config.hid_dim, bias=False)
         self.compute_cov_l_inv_left = nn.Linear(self.attrs.shape[1], self.config.hid_dim * self.config.gaussian_approx_rank)
         self.compute_cov_l_inv_right = nn.Linear(self.attrs.shape[1], self.config.hid_dim * self.config.gaussian_approx_rank)
-        self.compute_cov_l_inv_diag = nn.Linear(self.attrs.shape[1], self.config.hid_dim)
+        self.compute_cov_l_inv_diag = nn.Linear(self.attrs.shape[1], self.config.hid_dim, bias=False)
 
         self.reset_parameters()
 
@@ -262,41 +262,25 @@ class GaussianHead(nn.Module):
         cov_l_inv_left = self.compute_cov_l_inv_left(self.attrs) # [n_classes, hid_dim * rank]
         cov_l_inv_right = self.compute_cov_l_inv_right(self.attrs) # [n_classes, hid_dim * rank]
         cov_l_inv_diag = self.compute_cov_l_inv_diag(self.attrs) # [n_classes, hid_dim]
+        cov_l_inv_diag = cov_l_inv_diag.abs() # [n_classes, hid_dim]
 
-        if self.config.cov_diag_transform == 'tanh':
-            cov_l_inv_diag = cov_l_inv_diag.tanh() + 1 # Making it closer to 1 for stability
-        elif self.config.cov_diag_transform == 'sigmoid':
-            cov_l_inv_diag = cov_l_inv_diag.sigmoid() + 0.5
-        elif self.config.cov_diag_transform == 'elu':
-            cov_l_inv_diag = F.elu(cov_l_inv_diag) + 1
-
-        # x = normalize(x, 10.)
-        # cov_l_inv_diag = normalize(cov_l_inv_diag, 10.)
-        # mean = normalize(mean, 10.)
-
-        # print(f'[norm] mean: {cov_l_inv_diag.norm(dim=1).mean() :.03f}. std: {cov_l_inv_diag.norm(dim=1).std() :.03f}')
-        # avg_norm = cov_l_inv_diag.norm(dim=1).mean().item()
-        cov_l_inv_diag = normalize(cov_l_inv_diag, 10)
-        x = normalize(x, 10)
-        mean = torch.zeros_like(mean)
-        # mean = normalize(mean, x.norm(dim=1).mean().item())
-
-        # print(f'[cov] Avg min: {cov_l_inv_diag.min(dim=1)[0].mean(): .03f}. Mean: {cov_l_inv_diag.mean(): .03f}. Avg max: {cov_l_inv_diag.max(dim=1)[0].mean(): .03f}')
-        # print(f'[mean] Avg min: {mean.min(dim=1)[0].mean(): .03f}. Mean: {mean.mean(): .03f}. Avg max: {mean.max(dim=1)[0].mean(): .03f}')
+        x = normalize(x, 10.)
+        cov_l_inv_diag = normalize(cov_l_inv_diag, 10.)
+        # mean = normalize(mean)
+        # mean = torch.zeros_like(mean)
 
         cov_l_inv_left = cov_l_inv_left.view(n_classes, hid_dim, rank) # [n_classes, hid_dim, rank]
         cov_l_inv_right = cov_l_inv_right.view(n_classes, hid_dim, rank).permute(0, 2, 1) # [n_classes, rank, hid_dim]
         cov_l_inv_diag = torch.diag_embed(cov_l_inv_diag) # [n_classes, hid_dim, hid_dim]
 
+        cov_l_inv_left = normalize(cov_l_inv_left, dim=1)
+        cov_l_inv_right = normalize(cov_l_inv_right, dim=2)
+
         cov_l_inv_low_rank = torch.matmul(cov_l_inv_left, cov_l_inv_right) # [n_classes, hid_dim, hid_dim]
         cov_l_inv_low_rank = cov_l_inv_low_rank.tril(diagonal=-1) # [n_classes, hid_dim, hid_dim]
 
-        # cov_l_inv = cov_l_inv_low_rank + cov_l_inv_diag
-        cov_l_inv = cov_l_inv_diag
-
-        # if self.config.normalize:
-        #     # x = normalize(x, detach=False) * self.config.scale
-        #     mean = torch.normalize(mean) * self.config.scale
+        cov_l_inv = cov_l_inv_low_rank + cov_l_inv_diag
+        # cov_l_inv = cov_l_inv_diag
 
         return compute_ll_decomposed_gaussian_log_density(x, mean, cov_l_inv)
 
@@ -330,13 +314,7 @@ class DiagGaussianHead(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         mean = self.compute_mean(self.attrs) # [n_classes, hid_dim]
         cov_diag = self.compute_cov_diag(self.attrs) # [n_classes, hid_dim]
-
-        if self.config.cov_diag_transform == 'tanh':
-            cov_diag = cov_diag.tanh() + 1 # Making it closer to 1 for stability
-        elif self.config.cov_diag_transform == 'sigmoid':
-            cov_diag = cov_diag.sigmoid()
-        elif self.config.cov_diag_transform == 'elu':
-            cov_diag = F.elu(cov_diag) + 1
+        cov_diag = cov_diag.abs() # [n_classes, hid_dim]
 
         if self.config.get('normalize_cov'):
             cov_diag = normalize(cov_diag, self.config.scale)
@@ -361,7 +339,7 @@ class SimpleHead(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         protos = self.transform(self.attrs)
-        x = normalize(x, 10)
-        protos = normalize(protos, 10)
+        x = normalize(x.pow(2), 10)
+        protos = normalize(protos.pow(2), 10)
 
         return x @ protos.t()

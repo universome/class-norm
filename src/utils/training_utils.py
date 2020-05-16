@@ -87,8 +87,8 @@ def prune_logits(logits: Tensor, output_mask:np.ndarray) -> Tensor:
     return pruned
 
 
-def normalize(data: Tensor, scale_value: float=1., detach: bool=False) -> Tensor:
-    norms = data.norm(dim=-1, keepdim=True)
+def normalize(data: Tensor, scale_value: float=1., detach: bool=False, dim=-1) -> Tensor:
+    norms = data.norm(dim=dim, keepdim=True)
     norms = norms.detach() if detach else norms
 
     return scale_value * (data / norms)

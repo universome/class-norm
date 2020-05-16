@@ -56,6 +56,7 @@ def compute_ll_decomposed_gaussian_log_density(x: Tensor, mean: Tensor, cov_l_in
 
     const_term = -0.5 * feat_dim * torch.tensor(2 * pi, device=x.device).log()
     logdet_term = 0.5 * torch.diagonal(cov_l_inv, dim1=1, dim2=2).pow(2).log().sum(dim=1) # [n_dists]
+    # assert torch.all(torch.isfinite(logdet_term)), f"Bad logdet: {logdet_term}"
     # xt_lt_inv_product = (x.view(batch_size, feat_dim, 1) * cov_l_inv.permute(2, 1, 0).view()).sum(dim=1) # [batch_size, feat_dim, n_dists]
     #exp_term_lhs = x.view(batch_size, feat_dim, 1) - mean.permute() # [batch_size]
     x_minus_mu = (x.view(batch_size, feat_dim, 1) - mean.permute(1, 0).view(1, feat_dim, n_dists)) # [batch_size, feat_dim, n_dists]
@@ -67,6 +68,7 @@ def compute_ll_decomposed_gaussian_log_density(x: Tensor, mean: Tensor, cov_l_in
     exp_term = -0.5 * x_minus_mu_t_with_l_t_product.pow(2).sum(dim=1) # [batch_size, n_dists]
     # result = const_term + logdet_term.unsqueeze(0) + exp_term
     result = exp_term
+    # result = exp_term * 2
 
     return result
 
