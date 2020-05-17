@@ -18,7 +18,7 @@ all:
 
     rehearsal:
       batch_size: 10
-      loss_coef: 0.0
+      loss_coef: 1.0
       n_samples_per_class: 5
 
     head:

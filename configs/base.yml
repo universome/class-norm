@@ -10,14 +10,14 @@ all:
     print_accuracy_after_task: true
     save_frequency: "iter"
   hp:
-    max_num_epochs: 5
+    max_num_epochs: 1
     batch_size: 10
     model:
       type: "simple_classifier"
     classifier:
       pretrained: false
       resnet_n_layers: 18
-    optim: {type: "sgd", kwargs: {lr: 0.003}}
+    optim: {type: "sgd", kwargs: {lr: 0.01}}
     # optim: {type: "adam", kwargs: {lr: 0.001, betas: [0.0, 0.9]}}
 
 cub:

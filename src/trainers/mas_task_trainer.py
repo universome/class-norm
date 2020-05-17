@@ -4,10 +4,10 @@ import torch
 from torch import Tensor
 
 from src.utils.weights_importance import compute_mse_grad
-from src.trainers.ewc_task_trainer import EWCTaskTrainer
+from src.trainers.ewc_online_task_trainer import EWCOnlineTaskTrainer
 
 
-class MASTaskTrainer(EWCTaskTrainer):
+class MASTaskTrainer(EWCOnlineTaskTrainer):
     def _after_init_hook(self):
         prev_trainer = self.get_previous_trainer()
 

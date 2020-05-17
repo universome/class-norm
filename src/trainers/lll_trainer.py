@@ -17,7 +17,7 @@ from src.utils.constants import DEBUG
 
 from src.trainers.basic_task_trainer import BasicTaskTrainer
 from src.trainers.agem_task_trainer import AgemTaskTrainer
-from src.trainers.ewc_task_trainer import EWCTaskTrainer
+from src.trainers.ewc_online_task_trainer import EWCOnlineTaskTrainer
 from src.trainers.mas_task_trainer import MASTaskTrainer
 from src.trainers.joint_task_trainer import JointTaskTrainer
 from src.trainers.dem_task_trainer import DEMTaskTrainer
@@ -32,7 +32,7 @@ from src.utils.metrics import compute_unseen_classes_acc_history, compute_seen_c
 TASK_TRAINERS = {
     'basic': BasicTaskTrainer,
     'agem': AgemTaskTrainer,
-    'ewc': EWCTaskTrainer,
+    'ewc_online': EWCOnlineTaskTrainer,
     'mas': MASTaskTrainer,
     'joint': JointTaskTrainer,
     'dem': DEMTaskTrainer,

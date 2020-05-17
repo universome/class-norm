@@ -1,0 +1,11 @@
+all:
+  task_trainer: "ewc_online"
+  hp:
+    fisher: {gamma: 0.95}
+
+cub:
+  hp:
+    fisher: {loss_coef: 10}
+awa:
+  hp:
+    fisher: {loss_coef: 100}

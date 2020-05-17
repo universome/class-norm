@@ -56,7 +56,7 @@ def compute_grad(model: nn.Module, criterion: nn.Module, dataloader: DataLoader,
     grad = torch.zeros(num_params).to(device)
 
     for x, y in dataloader:
-        x = torch.from_numpy(x).to(device)
+        x = torch.from_numpy(np.array(x)).to(device)
         y = torch.tensor(y).to(device)
         logits = model(x)
         pruned_logits = prune_logits(logits, output_mask)
