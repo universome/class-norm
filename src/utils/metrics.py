@@ -312,7 +312,7 @@ def compute_cross_entropy_for_task(logits: np.ndarray, targets: np.ndarray, task
     """
     :param logits: logits matrix. Size: [DATASET_SIZE, NUM_CLASSES]
     :param targets: labels vector. Size:  [DATASET_SIZE]
-    :param task_classes: vector if classes. Size: [NUM_TASK_CLASSES]
+    :param task_classes: vector of classes. Size: [NUM_TASK_CLASSES]
     """
     assert logits.shape[0] == len(targets)
 
@@ -323,3 +323,15 @@ def compute_cross_entropy_for_task(logits: np.ndarray, targets: np.ndarray, task
     loss = F.cross_entropy(torch.from_numpy(logits).float(), torch.from_numpy(targets).long())
 
     return loss.item()
+
+
+def compute_next_task_acc(logits: np.ndarray, targets: np.ndarray, task_classes: np.ndarray):
+    """
+    Computes zero-shot accuracy for the next task
+    - param logits: logits matrix. Size: [DATASET_SIZE, NUM_CLASSES]
+    - param targets: labels vector. Size:  [DATASET_SIZE]
+    - param task_classes: vector of classes. Size: [NUM_TASK_CLASSES]
+
+    - return next_task_accs: vector of accuracies [NUM_TASK_CLASSES]
+    """
+    return [compute_acc_for_classes(logits[t], targets, cs) for t, s in enumerate(task_classes)]
