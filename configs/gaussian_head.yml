@@ -16,11 +16,16 @@ all:
     max_num_epochs: 1
     batch_size: 10
 
+    rehearsal:
+      batch_size: 10
+      loss_coef: 0.0
+      n_samples_per_class: 5
+
     head:
       model_type: "gmm"
       init: {type: "xavier_uniform", gain: 0.1}
       hid_dim: 512
-      gaussian_approx_rank: 5
+      gaussian_approx_rank: 50
       aggregation_type: "gmm"
 
     # diagonal_cov_reg:

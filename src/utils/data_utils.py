@@ -108,8 +108,8 @@ def flatten(list_of_lists: List[List[Any]]) -> List[Any]:
     return [x for list in list_of_lists for x in list]
 
 
-def sample_instances_for_em(ds: List[Tuple[np.ndarray, int]], class_idx: int, size: int) -> List[Tuple[np.ndarray, int]]:
-    class_samples = [(x, y) for x, y in ds if y == class_idx]
-    memory = random.sample(class_samples, min(size, len(class_samples)))
+def sample_instances_for_em(ds: ImageDataset, chosen_class: int, size: int) -> ImageDataset:
+    class_idx = [i for i, (_, y) in enumerate(ds) if y == chosen_class]
+    idx_to_add = random.sample(class_idx, min(size, len(class_idx)))
 
-    return memory
+    return Subset(ds, idx_to_add)

@@ -51,3 +51,14 @@ class ImageDataset(Dataset):
             self.transform,
             self.in_memory
         )
+
+    def tolist(self) -> "ImageDataset":
+        return [xy for xy in self]
+
+    def get_subset(self, idx) -> "ImageDataset":
+        return ImageDataset(
+            [self.img_paths[i] for i in idx],
+            [self.labels[i] for i in idx],
+            self.transform,
+            self.in_memory
+        )

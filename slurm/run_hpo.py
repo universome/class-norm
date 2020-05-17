@@ -49,14 +49,7 @@ def run_hpo(args, experiments_cli_args):
         common_cli_args = f'-c {args.config_name} -d {args.dataset} --experiments_dir {experiments_dir} -s {random_seed}'
 
         for cli_args in experiments_cli_args:
-            if args.dataset == 'cub':
-                mem = '64G'
-            elif args.dataset == 'awa':
-                mem = '256G'
-            else:
-                mem = '128G'
-
-            command = f'sbatch -o {logs_dir}/output-%j.out --mem {mem} --export=ALL,cli_args="{common_cli_args} {cli_args}" slurm/slurm_lll_job.sh'
+            command = f'sbatch -o {logs_dir}/output-%j.out --mem 32G --export=ALL,cli_args="{common_cli_args} {cli_args}" slurm/slurm_lll_job.sh'
             # command = f'echo "sbatch --mem {mem} --export=ALL,cli_args=\"{common_cli_args} {cli_args}\" slurm/slurm_lll_job.sh"'
             os.system(command)
             # print(command)

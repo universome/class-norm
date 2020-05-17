@@ -7,6 +7,7 @@ from torch.nn.utils import clip_grad_norm_
 
 from src.trainers.task_trainer import TaskTrainer
 from src.utils.training_utils import prune_logits, normalize
+from src.utils.data_utils import sample_instances_for_em
 from src.utils.losses import (
     compute_mean_distance,
     compute_gdpp_loss,
@@ -16,16 +17,24 @@ from src.utils.losses import (
 
 class MultiProtoTaskTrainer(TaskTrainer):
     def _after_init_hook(self):
-        if self.config.hp.get('reverse_clf.loss_coef'):
-            self._init_core_images(self.config.hp.reverse_clf.n_imgs_per_class)
-        elif self.config.hp.get('pull_golden_protos.loss_coef'):
-            self._init_core_images(self.config.hp.pull_golden_protos.n_imgs_per_class)
+        # if self.config.hp.get('reverse_clf.loss_coef'):
+        #     self._init_core_images(self.config.hp.reverse_clf.n_imgs_per_class)
+        # elif self.config.hp.get('pull_golden_protos.loss_coef'):
+        #     self._init_core_images(self.config.hp.pull_golden_protos.n_imgs_per_class)
 
-    def _init_core_images(self, n_imgs_per_class: int):
-        core_images = [[x for x, y in self.task_ds_train if y == c][:n_imgs_per_class] for c in self.classes]
+        if self.config.hp.get('rehearsal.loss_coef'):
+            self.init_episodic_memory()
 
-        self.core_images = torch.tensor(core_images) # [n_task_classes, n_imgs_per_class, *image_shape]
-        self.core_images = self.core_images.view(-1, *self.core_images.shape[2:])
+    def update_episodic_memory(self):
+        for c in self.classes:
+            mem = sample_instances_for_em(self.task_ds_train, c, self.config.hp.rehearsal.n_samples_per_class)
+            self.episodic_memory.extend([xy for xy in mem])
+
+    # def _init_core_images(self, n_imgs_per_class: int):
+    #     core_images = [[x for x, y in self.task_ds_train if y == c][:n_imgs_per_class] for c in self.classes]
+
+    #     self.core_images = torch.tensor(core_images) # [n_task_classes, n_imgs_per_class, *image_shape]
+    #     self.core_images = self.core_images.view(-1, *self.core_images.shape[2:])
 
     def train_on_batch(self, batch):
         self.model.train()
@@ -99,6 +108,11 @@ class MultiProtoTaskTrainer(TaskTrainer):
 
         loss += cls_loss * self.config.get('cls_loss.coef', 1.0)
 
+        if self.task_idx > 0 and self.config.hp.get('rehearsal.loss_coef'):
+            rehearsal_loss = self.compute_rehearsal_loss()
+            loss += self.config.hp.rehearsal.loss_coef * rehearsal_loss
+            self.writer.add_scalar('rehearsal_loss', rehearsal_loss.item(), self.num_iters_done)
+
         # if self.config.hp.head.model_type == 'gmm':
         #     gen_logits = self.model.head(feats.detach())
         #     logits_for_true = gen_logits[torch.arange(gen_logits.size(0)), y] # [batch_size]
@@ -109,7 +123,6 @@ class MultiProtoTaskTrainer(TaskTrainer):
         # if self.config.hp.get('push_protos_apart_loss_coef', 0.0) > 0:
         #     mean_distance = compute_mean_distance(protos)
         #     loss += self.config.hp.push_protos_apart_loss_coef * (-1 * mean_distance)
-
         #     self.writer.add_scalar('mean_distance', mean_distance.item(), self.num_iters_done)
 
         # if self.config.hp.get('protos_clf_loss_coef', 0.0) > 0:
@@ -175,6 +188,12 @@ class MultiProtoTaskTrainer(TaskTrainer):
         reg = compute_diagonal_cov_reg(feats)
 
         return reg
+
+    def compute_rehearsal_loss(self) -> Tensor:
+        X, y = self.sample_from_memory(self.config.hp.rehearsal.batch_size)
+        logits = prune_logits(self.model(X), self.seen_classes_mask)
+
+        return F.cross_entropy(logits, y)
 
     # def compute_pull_golden_protos_loss(self) -> Tensor:
     #     protos = self.model.head.generate_prototypes(1, golden=True) # [1, n_classes, hid_dim]
