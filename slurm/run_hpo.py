@@ -32,13 +32,11 @@ def main():
 
     if args.count:
         print(f'Total number of experiments: {len(experiments_cli_args)} x [{args.num_runs} seed] = {len(experiments_cli_args) * args.num_runs}')
-    elif args.print:
-        print('\n'.join(experiments_cli_args))
     else:
-        run_hpo(args, experiments_cli_args)
+        run_hpo(args, experiments_cli_args, print_only=args.print)
 
 
-def run_hpo(args, experiments_cli_args):
+def run_hpo(args, experiments_cli_args, print_only: bool=False):
     experiments_dir = os.path.join('/ibex/scratch/skoroki/experiments', args.experiment)
     logs_dir = os.path.join('/ibex/scratch/skoroki/logs', f'{args.experiment}')
 
@@ -49,10 +47,11 @@ def run_hpo(args, experiments_cli_args):
         common_cli_args = f'-c {args.config_name} -d {args.dataset} --experiments_dir {experiments_dir} -s {random_seed}'
 
         for cli_args in experiments_cli_args:
-            command = f'sbatch -o {logs_dir}/output-%j.out --mem 32G --export=ALL,cli_args="{common_cli_args} {cli_args}" slurm/slurm_lll_job.sh'
-            # command = f'echo "sbatch --mem {mem} --export=ALL,cli_args=\"{common_cli_args} {cli_args}\" slurm/slurm_lll_job.sh"'
-            os.system(command)
-            # print(command)
+            command = f'sbatch --account=conf-2020-neurips -o {logs_dir}/output-%j.out --mem 32G --export=ALL,cli_args="{common_cli_args} {cli_args}" slurm/slurm_lll_job.sh'
+            if print_only:
+                print(command)
+            else:
+                os.system(command)
 
 
 if __name__ == "__main__":

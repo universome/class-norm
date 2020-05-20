@@ -27,7 +27,7 @@ def run(args: argparse.Namespace, config_cli_args: List[str]):
 
 
 def run_validation_sequence(args: argparse.Namespace, config: Config):
-    experiments_vals = generate_experiments_from_hpo_grid(config.validation_sequence.hpo_grid[config.hp.head.model_type])
+    experiments_vals = generate_experiments_from_hpo_grid(config.validation_sequence.hpo_grid)
     experiments_vals = [{p.replace('|', '.'): v for p, v in exp.items()} for exp in experiments_vals]
     configs = [config.overwrite({'hp': Config(hp)}) for hp in experiments_vals]
     scores = []

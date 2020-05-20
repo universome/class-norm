@@ -1,9 +1,14 @@
-deep_model:
+xavier_init:
   grid:
-    pull_golden_protos|loss_coef: [0.0, 0.1, 1.0]
-    fake_clf|loss_coef: [0.0, 0.1, 1.0]
-    head|common|noise|transform_layers: ["100-", "100-100"]
-    head|common|attrs_transform|layers: ["312-", "312-312"]
-    #head|common|use_tanh_on_top: [true, false]
-    head|deep|after_fuse_transform|identity_init: [true, false]
-    optim|groups|head|lr: [0.005, 0.01, 0.05]
+    head|init|type: ["proper"]
+    head|init|proper_std_type: ["fan_in", "fan_out", "fan_harmonic"]
+
+xavier_init:
+  grid:
+    head|init|type: ["xavier"]
+
+kaiming_init:
+  grid:
+    head|init|type: ["kaiming"]
+    head|init|mode: ["fan_in", "fan_out"]
+
