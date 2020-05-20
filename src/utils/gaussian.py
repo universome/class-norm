@@ -68,7 +68,6 @@ def compute_ll_decomposed_gaussian_log_density(x: Tensor, mean: Tensor, cov_l_in
     exp_term = -0.5 * x_minus_mu_t_with_l_t_product.pow(2).sum(dim=1) # [batch_size, n_dists]
     # result = const_term + logdet_term.unsqueeze(0) + exp_term
     result = exp_term
-    # result = exp_term * 2
 
     return result
 

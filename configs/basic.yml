@@ -7,12 +7,3 @@ cub: {hp: {pretrained: true}}
 awa: {}
 tiny_imagenet: {}
 cifar100: {}
-
-cifar100_embeddings:
-  hp:
-    use_class_attrs: false
-    model:
-      type: "feat_classifier"
-    classifier:
-      data_dim: 512
-      hid_dim: 1024

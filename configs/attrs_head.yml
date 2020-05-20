@@ -1,0 +1,29 @@
+all:
+  task_trainer: "basic"
+  hp:
+    use_class_attrs: true
+    clip_grad: {value: 10}
+    optim:
+      groups:
+        head: {lr: 0.01, momentum: 0.9}
+        embedder: {lr: 0.01}
+      # decrease_lr_coef: 0.9
+    use_class_attrs: true
+    img_target_shape: [256, 256]
+    max_num_epochs: 1
+    batch_size: 10
+
+    head:
+      init:
+        type: "xavier"
+        proper_std_type: "fan_in"
+        dist_type: "uniform"
+        n_classes: 10 # per task
+
+        gain: 1.0
+      scale: 10
+      hid_dim: 512
+      # normalize_attrs: true
+
+cub: {hp: {pretrained: true}}
+awa: {}

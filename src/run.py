@@ -39,6 +39,7 @@ def run_validation_sequence(args: argparse.Namespace, config: Config):
         print(experiments_vals[i])
 
         c = c.overwrite(Config({
+            'experiments_dir': f'{config.experiments_dir}-val-seqs',
             'lll_setup.num_tasks': c.validation_sequence.num_tasks,
             'logging.save_train_logits': False,
             'logging.print_accuracy_after_task': False,

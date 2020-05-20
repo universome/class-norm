@@ -23,7 +23,7 @@ all:
 cub:
   data:
     name: "CUB"
-    dir: "/tmp/skoroki/data/CUB_200_2011"
+    dir: "/tmp/skoroki/czsl/data/CUB_200_2011"
     num_classes: &cub_num_classes 200
 
   lll_setup:
@@ -35,34 +35,10 @@ cub:
     classifier: {pretrained: true}
     img_target_shape: [224, 224]
 
-cub_embeddings:
-  data:
-    name: "CUB_EMBEDDINGS"
-    dir: "data/CUB_EMBEDDINGS"
-    num_classes: *cub_num_classes
-    input_type: "resnet18_feat"
-    feat_level: "fc"
-
-  lll_setup:
-    num_tasks: 10
-    num_classes_per_task: 20
-
-cub_conv_feats:
-  data:
-    name: "CUB_EMBEDDINGS"
-    dir: "data/CUB_EMBEDDINGS"
-    num_classes: *cub_num_classes
-    input_type: "resnet50_conv"
-    feat_level: "conv"
-
-  lll_setup:
-    num_tasks: 10
-    num_classes_per_task: 20
-
 awa:
   data:
     name: "AWA"
-    dir: "/tmp/skoroki/data/Animals_with_Attributes2"
+    dir: "/tmp/skoroki/czsl/data/Animals_with_Attributes2"
     num_classes: &awa_num_classes 50
 
   lll_setup:
@@ -112,19 +88,6 @@ cifar100:
     num_tasks: 10
     num_classes_per_task: 10
 
-cifar100_embeddings:
-  data:
-    name: "CIFAR100_EMBEDDINGS"
-    dir: "data/CIFAR100_EMBEDDINGS"
-    num_classes: *cifar100_num_classes
-    input_type: "resnet18_feat"
-    feat_level: "fc"
-
-  lll_setup:
-    num_tasks: 10
-    num_classes_per_task: 10
-    num_classes: *cifar100_num_classes
-
 tiny_imagenet:
   data:
     name: "TinyImageNet"
@@ -139,4 +102,6 @@ tiny_imagenet:
     num_classes_per_task: 25
 
   hp:
-    optim: {type: "adam", kwargs: {"lr": 0.001}}
+    optim:
+      type: "adam"
+      kwargs: {"lr": 0.001}
