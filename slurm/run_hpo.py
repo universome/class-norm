@@ -6,7 +6,7 @@ from typing import Dict, List, Any, Callable
 
 from firelab.config import Config
 
-from .utils import generate_experiments_from_hpo_grid
+from utils import generate_experiments_from_hpo_grid
 
 
 def read_args() -> argparse.Namespace:
@@ -40,14 +40,14 @@ def run_hpo(args, experiments_cli_args, print_only: bool=False):
     experiments_dir = os.path.join('/ibex/scratch/skoroki/experiments', args.experiment)
     logs_dir = os.path.join('/ibex/scratch/skoroki/logs', f'{args.experiment}')
 
-    os.makedirs(experiments_dir)
-    os.makedirs(logs_dir)
+    os.makedirs(experiments_dir, exist_ok=True)
+    os.makedirs(logs_dir, exist_ok=True)
 
     for random_seed in range(1, args.num_runs + 1):
         common_cli_args = f'-c {args.config_name} -d {args.dataset} --experiments_dir {experiments_dir} -s {random_seed}'
 
         for cli_args in experiments_cli_args:
-            command = f'sbatch --account=conf-2020-neurips -o {logs_dir}/output-%j.out --mem 32G --export=ALL,cli_args="{common_cli_args} {cli_args}" slurm/slurm_lll_job.sh'
+            command = f'sbatch --account=conf-2020-neurips -o {logs_dir}/output-%j.log --mem 32G --export=ALL,cli_args="{common_cli_args} {cli_args}" slurm/slurm_lll_job.sh'
             if print_only:
                 print(command)
             else:
