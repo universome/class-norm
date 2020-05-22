@@ -27,9 +27,9 @@ cub:
     num_classes: &cub_num_classes 200
 
   lll_setup:
-    num_classes_per_task: 10
+    num_classes_per_task: 20
     num_classes: *cub_num_classes
-    num_tasks: 20
+    num_tasks: 10
 
   hp:
     classifier: {pretrained: true}

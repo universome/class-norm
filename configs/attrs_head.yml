@@ -23,7 +23,7 @@ all:
         type: "proper"
         proper_std_type: "fan_in"
         dist_type: "uniform"
-        n_classes: 10 # per task
+        n_classes: 20 # per task
       scale: 10
       hid_dim: 512
       # normalize_attrs: true
@@ -34,7 +34,6 @@ all:
       optim|groups|head|lr: [0.001, 0.005, 0.01, 0.05]
       optim|groups|embedder|lr: [0.001, 0.01]
       head|normalize_attrs: [true, false]
-      head|init|dist_type: ["normal", "uniform"]
 
 cub: {hp: {pretrained: true}}
 awa: {}

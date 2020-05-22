@@ -26,10 +26,18 @@ class AttrsHead(nn.Module):
         if self.config.init.type == "orthogonal":
             init.orthogonal_(self.transform.weight, gain=self.config.init.get('gain', 1.0))
         elif self.config.init.type == "xavier":
-            initializer = {'normal': init.xavier_normal_, 'uniform': init.xavier_uniform_}[self.config.init.dist_type]
+            initializer = {
+                'normal': init.xavier_normal_,
+                'uniform': init.xavier_uniform_
+            }[self.config.init.dist_type]
+
             initializer(self.transform.weight, gain=self.config.init.get('gain', 1.0))
         elif self.config.init.type == "kaiming":
-            initializer = {'normal': init.kaiming_normal_, 'uniform': init.kaiming_uniform_}[self.config.init.dist_type]
+            initializer = {
+                'normal': init.kaiming_normal_,
+                'uniform': init.kaiming_uniform_
+            }[self.config.init.dist_type]
+
             initializer(self.transform.weight,
                 mode=self.config.init.get('mode', 'fan_in'),
                 nonlinearity=self.config.init.get('nonlinearity', 'leaky_relu'))
