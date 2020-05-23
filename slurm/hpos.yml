@@ -3,14 +3,17 @@ proper_init:
     head|init|type: ["proper"]
     head|init|proper_std_type: ["fan_in", "fan_out", "fan_harmonic"]
     head|init|dist_type: ["normal", "uniform"]
+    head|normalize_attrs: [true, false]
 
 xavier_init:
   grid:
     head|init|type: ["xavier"]
     head|init|dist_type: ["normal", "uniform"]
+    head|normalize_attrs: [true, false]
 
 kaiming_init:
   grid:
     head|init|type: ["kaiming"]
     head|init|mode: ["fan_in", "fan_out"]
     head|init|dist_type: ["normal", "uniform"]
+    head|normalize_attrs: [true, false]

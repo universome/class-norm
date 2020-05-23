@@ -10,7 +10,7 @@ all:
     print_accuracy_after_task: true
     save_frequency: "iter"
   hp:
-    max_num_epochs: 1
+    max_num_epochs: 5
     batch_size: 10
     model:
       type: "simple_classifier"
