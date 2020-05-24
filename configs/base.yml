@@ -105,3 +105,18 @@ tiny_imagenet:
     optim:
       type: "adam"
       kwargs: {"lr": 0.001}
+
+
+sun:
+  data:
+    name: "SUN"
+    dir: "/tmp/skoroki/czsl/data/SUN"
+    num_classes: &sun_num_classes 717
+
+  lll_setup:
+    num_classes: *sun_num_classes
+    task_sizes: [47, 47, 47, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48]
+    num_tasks: 15
+
+  hp:
+    classifier: {pretrained: true}

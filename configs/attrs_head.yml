@@ -37,5 +37,6 @@ all:
   #     optim|groups|embedder|lr: [0.001, 0.01]
   #     head|normalize_attrs: [true, false]
 
-cub: {hp: {pretrained: true}}
+cub: {}
 awa: {}
+sun: {}

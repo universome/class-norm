@@ -2,7 +2,7 @@ from typing import Tuple
 import numpy as np
 from firelab.config import Config
 
-from src.dataloaders import cub, feats, awa, mnist, cifar, tiny_imagenet
+from src.dataloaders import cub, feats, awa, mnist, cifar, tiny_imagenet, sun
 from src.dataloaders.utils import extract_resnet_features_for_dataset
 from src.dataloaders.dataset import ImageDataset
 
@@ -27,6 +27,10 @@ def load_data(config: Config, img_target_shape: Tuple[int, int]=None) -> Tuple[I
         ds_train = awa.load_dataset(config.dir, split='train', target_shape=img_target_shape)
         ds_test = awa.load_dataset(config.dir, split='test', target_shape=img_target_shape)
         class_attributes = awa.load_class_attributes(config.dir).astype(np.float32)
+    elif config.name == 'SUN':
+        ds_train = sun.load_dataset(config.dir, split='train', target_shape=img_target_shape)
+        ds_test = sun.load_dataset(config.dir, split='val', target_shape=img_target_shape)
+        class_attributes = sun.load_class_attributes(config.dir).astype(np.float32)
     elif config.name == 'TinyImageNet':
         ds_train = tiny_imagenet.load_dataset(config.dir, split='train', target_shape=img_target_shape)
         ds_test = tiny_imagenet.load_dataset(config.dir, split='val', target_shape=img_target_shape)
