@@ -1,19 +1,45 @@
 proper_init:
+  search_type: "random"
+  num_experiments: 50
   grid:
     head|init|type: ["proper"]
+    head|normalize_attrs: [true]
+    head|normalize: [false]
+
     head|init|proper_std_type: ["fan_in", "fan_out", "fan_harmonic"]
     head|init|dist_type: ["normal", "uniform"]
-    head|normalize_attrs: [true, false]
+    optim|groups|head|lr: [0.0001, 0.0005, 0.001, 0.005, 0.01]
+    optim|groups|embedder|lr: [0.0001, 0.0005, 0.001, 0.005, 0.01]
+    optim|decrease_lr_coef: [1.0, 0.95, 0.9, 0.75, 0.5]
+    clip_grad: [1, 5, 10, 50, 100, 1000, 100000000]
 
 xavier_init:
+  search_type: "random"
+  num_experiments: 50
   grid:
     head|init|type: ["xavier"]
+    head|normalize_attrs: [false]
+    head|normalize: [true]
+
     head|init|dist_type: ["normal", "uniform"]
-    head|normalize_attrs: [true, false]
+    optim|groups|head|lr: [0.0001, 0.0005, 0.001, 0.005, 0.01]
+    optim|groups|embedder|lr: [0.0001, 0.0005, 0.001, 0.005, 0.01]
+    optim|decrease_lr_coef: [1.0, 0.95, 0.9, 0.75, 0.5]
+    head|scale: [1.0, 2.5, 5.0, 10.0, 20.0]
+    clip_grad: [1, 5, 10, 50, 100, 1000, 100000000]
 
 kaiming_init:
+  search_type: "random"
+  num_experiments: 50
   grid:
     head|init|type: ["kaiming"]
+    head|normalize_attrs: [false]
+    head|normalize: [true]
+
     head|init|mode: ["fan_in", "fan_out"]
     head|init|dist_type: ["normal", "uniform"]
-    head|normalize_attrs: [true, false]
+    optim|groups|head|lr: [0.0001, 0.0005, 0.001, 0.005, 0.01]
+    optim|groups|embedder|lr: [0.0001, 0.0005, 0.001, 0.005, 0.01]
+    optim|decrease_lr_coef: [1.0, 0.95, 0.9, 0.75, 0.5]
+    head|scale: [1.0, 2.5, 5.0, 10.0, 20.0]
+    clip_grad: [1, 5, 10, 50, 100, 1000, 100000000]

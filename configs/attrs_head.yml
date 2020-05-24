@@ -1,32 +1,34 @@
 all:
-  task_trainer: "basic"
+  task_trainer: "multi_proto"
   logging:
     save_train_logits: true
     save_prototypes: true
     print_unseen_accuracy: true
     print_forgetting: true
   hp:
+    max_num_epochs: 5
     use_class_attrs: true
     clip_grad: {value: 10}
     optim:
       groups:
-        head: {lr: 0.005, momentum: 0.9}
+        head: {lr: 0.001, momentum: 0.9}
         embedder: {lr: 0.003}
-      # decrease_lr_coef: 0.9
     use_class_attrs: true
     img_target_shape: [256, 256]
-    max_num_epochs: 1
     batch_size: 10
 
     head:
+      has_bias: false
       init:
         type: "proper"
         proper_std_type: "fan_in"
         dist_type: "uniform"
-        n_classes: 20 # per task
+        n_classes: 10 # per task
+        # gain: 0.5
       scale: 10
       hid_dim: 512
-      # normalize_attrs: true
+      normalize: false
+      normalize_attrs: true
 
   # validation_sequence:
   #   num_tasks: 3

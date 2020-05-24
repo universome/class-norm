@@ -19,7 +19,7 @@ class AttrsHead(nn.Module):
             attrs = (attrs - attrs.mean(axis=0)) / attrs.std(axis=0)
         self.register_buffer('attrs', torch.from_numpy(attrs))
 
-        self.transform = nn.Linear(self.attrs.shape[1], self.config.hid_dim)
+        self.transform = nn.Linear(self.attrs.shape[1], self.config.hid_dim, bias=self.config.get('has_bias', True))
         self.init_weights()
 
     def init_weights(self):
@@ -32,6 +32,13 @@ class AttrsHead(nn.Module):
             }[self.config.init.dist_type]
 
             initializer(self.transform.weight, gain=self.config.init.get('gain', 1.0))
+            # import math
+            # fan_in, fan_out = init._calculate_fan_in_and_fan_out(self.transform.weight)
+            # std = 0.5 * math.sqrt(2.0 / float(fan_in + fan_out))
+            # a = math.sqrt(3.0) * std  # Calculate uniform bounds from standard deviation
+            # print(a, std)
+
+            # init._no_grad_uniform_(self.transform.weight, -a, a)
         elif self.config.init.type == "kaiming":
             initializer = {
                 'normal': init.kaiming_normal_,
@@ -40,7 +47,7 @@ class AttrsHead(nn.Module):
 
             initializer(self.transform.weight,
                 mode=self.config.init.get('mode', 'fan_in'),
-                nonlinearity=self.config.init.get('nonlinearity', 'leaky_relu'))
+                nonlinearity=self.config.init.get('nonlinearity', 'linear'))
         elif self.config.init.type == 'proper':
             std = self.get_proper_std()
 
@@ -55,9 +62,10 @@ class AttrsHead(nn.Module):
             print('Not using any specific init.')
 
     def get_proper_std(self):
-        attrs_std = self.attrs.std(dim=0).mean()
-        fan_in_std = 1 / np.sqrt(self.config.hid_dim * self.attrs.shape[1]) * attrs_std
-        fan_out_std = 1 / np.sqrt(self.config.hid_dim * self.config.init.n_classes) * attrs_std
+        # attrs_std = self.attrs.std(dim=0).mean()
+        attrs_std = 1
+        fan_in_std = 1 / (np.sqrt(self.config.hid_dim * self.attrs.shape[1]) * attrs_std)
+        fan_out_std = 1 / (np.sqrt(self.config.hid_dim * self.config.init.n_classes) * attrs_std)
         fan_harmonic_std = 2 * fan_in_std * fan_out_std / (fan_in_std * fan_out_std)
 
         if self.config.init.proper_std_type == 'fan_in':
@@ -71,7 +79,9 @@ class AttrsHead(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         protos = self.transform(self.attrs)
-        x = normalize(x, self.config.scale)
-        protos = normalize(protos, self.config.scale)
+
+        if self.config.get('normalize', True):
+            x = normalize(x, self.config.scale)
+            protos = normalize(protos, self.config.scale)
 
         return x @ protos.t()

@@ -26,6 +26,9 @@ class MultiProtoTaskTrainer(TaskTrainer):
             self.init_episodic_memory()
 
     def update_episodic_memory(self):
+        if not self.config.hp.has('rehearsal'):
+            return
+
         for c in self.classes:
             mem = sample_instances_for_em(self.task_ds_train, c, self.config.hp.rehearsal.n_samples_per_class)
             self.episodic_memory.extend([xy for xy in mem])

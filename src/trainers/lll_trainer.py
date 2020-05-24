@@ -58,6 +58,8 @@ class LLLTrainer(BaseTrainer):
         self.train_logits_history = []
         self.knn_logits_history = []
         self.golden_logits_history = []
+        self.train_accs = []
+        self.test_accs = []
 
         self.save_config()
 
@@ -120,8 +122,10 @@ class LLLTrainer(BaseTrainer):
             self.num_tasks_learnt += 1
 
             if self.config.get('logging.print_accuracy_after_task'):
-                print(f'Train accuracy: {task_trainer.compute_train_accuracy()}')
-                print(f'Test accuracy: {task_trainer.compute_test_accuracy()}')
+                self.train_accs.append(task_trainer.compute_train_accuracy())
+                self.test_accs.append(task_trainer.compute_test_accuracy())
+                print(f'Train accuracy: {self.train_accs[-1]}')
+                print(f'Test accuracy: {self.test_accs[-1]}')
 
             if self.config.task_trainer == 'agem':
                 task_trainer.update_episodic_memory()
@@ -139,6 +143,10 @@ class LLLTrainer(BaseTrainer):
         if self.config.get('logging.print_forgetting'):
             values = self.compute_forgetting()
             print(f'Forgetting (mean: {np.mean(values): .03f}): {", ".join([f"{a: 0.4f}" for a in values])}')
+
+        if self.config.get('logging.print_accuracy_after_task'):
+            print(f'Train accs (mean: {np.mean(self.train_accs): .03f}): {", ".join([f"{a: 0.4f}" for a in self.train_accs])}')
+            print(f'Test accs (mean {np.mean(self.test_accs): .03f}): {", ".join([f"{a: 0.4f}" for a in self.test_accs])}')
 
 
     def save_logits_history(self):

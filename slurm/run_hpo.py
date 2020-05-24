@@ -1,12 +1,20 @@
 #!/usr/bin/env python
 
 import os
+import random
 import argparse
 from typing import Dict, List, Any, Callable
 
 from firelab.config import Config
 
 from utils import generate_experiments_from_hpo_grid
+
+random.seed(42)
+
+DATASET_FULL_NAME = {
+    'cub': 'CUB_200_2011',
+    'awa': 'Animals_with_Attributes2',
+}
 
 
 def read_args() -> argparse.Namespace:
@@ -26,6 +34,9 @@ def main():
     hpos = Config.load('slurm/hpos.yml')[args.experiment]
 
     experiments_vals = generate_experiments_from_hpo_grid(hpos.grid)
+    if hpos.search_type == 'random':
+        experiments_vals = random.sample(experiments_vals, min(len(experiments_vals), hpos.num_experiments))
+
     experiments_vals.extend([b.to_dict() for b in hpos.get('baselines', [])])
     experiments_vals = [{p.replace('|', '.'): v for p, v in exp.items()} for exp in experiments_vals]
     experiments_cli_args = [' '.join([f'--config.hp.{p} {v}' for p, v in exp.items()]) for exp in experiments_vals]
@@ -47,7 +58,8 @@ def run_hpo(args, experiments_cli_args, print_only: bool=False):
         common_cli_args = f'-c {args.config_name} -d {args.dataset} --experiments_dir {experiments_dir} -s {random_seed}'
 
         for cli_args in experiments_cli_args:
-            command = f'sbatch --account=conf-2020-neurips -o {logs_dir}/output-%j.log --mem 32G --export=ALL,cli_args="{common_cli_args} {cli_args}" slurm/slurm_lll_job.sh'
+            export = f'ALL,cli_args="{common_cli_args} {cli_args}",dataset_full_name={DATASET_FULL_NAME[args.dataset]}'
+            command = f'sbatch --account=conf-2020-neurips -o {logs_dir}/output-%j.log --mem 32G --export={export} slurm/slurm_lll_job.sh'
             if print_only:
                 print(command)
             else:
