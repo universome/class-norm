@@ -27,7 +27,14 @@ from src.trainers.multi_proto_task_trainer import MultiProtoTaskTrainer
 from src.utils.data_utils import construct_output_mask, compute_class_centroids, flatten
 from src.utils.training_utils import normalize
 from src.dataloaders.utils import create_custom_dataset, extract_features_for_dataset
-from src.utils.metrics import compute_unseen_classes_acc_history, compute_seen_classes_acc_history, compute_individual_accs_matrix, compute_forgetting_measure
+from src.utils.metrics import (
+    compute_acc_for_classes,
+    compute_unseen_classes_acc_history,
+    compute_seen_classes_acc_history,
+    compute_individual_accs_matrix,
+    compute_forgetting_measure,
+    compute_task_guessing_acc
+)
 
 TASK_TRAINERS = {
     'basic': BasicTaskTrainer,
@@ -148,6 +155,13 @@ class LLLTrainer(BaseTrainer):
             print(f'Train accs (mean: {np.mean(self.train_accs): .03f}): {", ".join([f"{a: 0.4f}" for a in self.train_accs])}')
             print(f'Test accs (mean {np.mean(self.test_accs): .03f}): {", ".join([f"{a: 0.4f}" for a in self.test_accs])}')
 
+        if self.config.get('logging.print_task_guessing_acc'):
+            values = compute_task_guessing_acc(self.logits_history, self.ds_test.labels, self.class_splits)
+            print(f'Task guessing acc (mean: {np.mean(values): .03f}): {", ".join([f"{a: 0.4f}" for a in values])}')
+
+        if self.config.get('logging.print_final_tasks_performance'):
+            values = self.compute_final_tasks_performance()
+            print(f'Individual task accs (mean: {np.mean(values): .03f}): {", ".join([f"{a: 0.4f}" for a in values])}')
 
     def save_logits_history(self):
         if self.config.get('logging.save_logits'):
@@ -241,3 +255,6 @@ class LLLTrainer(BaseTrainer):
         values = 2 * values_unseen[1:] * values_seen[:-1] / (values_unseen[1:] + values_seen[:-1] + 1e-8)
 
         return values
+
+    def compute_final_tasks_performance(self) -> np.ndarray:
+        return [compute_acc_for_classes(self.logits_history[-1], self.ds_test.labels, cs, restrict_space=True) for cs in self.class_splits]

@@ -325,7 +325,7 @@ def compute_cross_entropy_for_task(logits: np.ndarray, targets: np.ndarray, task
     return loss.item()
 
 
-def compute_next_task_acc(logits: np.ndarray, targets: np.ndarray, task_classes: np.ndarray):
+def compute_next_task_acc(logits: np.ndarray, targets: np.ndarray, task_classes: np.ndarray, restrict_space: bool=True) -> List[float]:
     """
     Computes zero-shot accuracy for the next task
     - param logits: logits matrix. Size: [DATASET_SIZE, NUM_CLASSES]
@@ -334,4 +334,23 @@ def compute_next_task_acc(logits: np.ndarray, targets: np.ndarray, task_classes:
 
     - return next_task_accs: vector of accuracies [NUM_TASK_CLASSES]
     """
-    return [compute_acc_for_classes(logits[t], targets, cs) for t, s in enumerate(task_classes)]
+    return [compute_acc_for_classes(logits[t], targets, cs, restrict_space=restrict_space) for t, cs in enumerate(task_classes)]
+
+
+def compute_task_guessing_acc(logits: np.ndarray, targets: np.ndarray, class_splits: List[List[int]]) -> List[float]:
+    """
+    Measures how good the model is at guessing the tasks. This helps to analyze if the model just has
+    a bad time to distinguish between tasks and when provided with a task identity, it has a good performance
+
+    - param logits: logits matrix. Size: [DATASET_SIZE, NUM_CLASSES]
+    - param targets: labels vector. Size:  [DATASET_SIZE]
+    - param class_splits: list of classes for each task of size [NUM_TASKS x NUM_CLASSES_PER_TASK]
+    """
+
+    class_predictions = [ls.argmax(axis=1) for ls in logits]
+    get_task_idx = lambda c: next(t for t, cs in enumerate(class_splits) if c in cs)
+    task_targets = [get_task_idx(c) for c in targets]
+    task_predictions = [[get_task_idx(c) for c in ls] for ls in class_predictions]
+    task_accs = [(np.array(ps) == np.array(task_targets)).mean() for ps in task_predictions]
+
+    return task_accs
