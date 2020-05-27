@@ -15,7 +15,7 @@ class AttrsHead(nn.Module):
 
         self.config = config
 
-        if self.config.get('normalize_attrs'):
+        if self.config.get('renormalize_attrs'):
             attrs = (attrs - attrs.mean(axis=0)) / attrs.std(axis=0)
         self.register_buffer('attrs', torch.from_numpy(attrs))
 
@@ -78,10 +78,35 @@ class AttrsHead(nn.Module):
             raise NotImplementedError(f"Unknown init type: {self.config.init.proper_std_type}")
 
     def forward(self, x: Tensor) -> Tensor:
-        protos = self.transform(self.attrs)
+        if self.config.get('attrs_dropout.p') and self.training:
+            mask = (torch.rand(self.attrs.shape[1]) > self.config.attrs_dropout.p)
+            mask = mask.unsqueeze(0).float().to(x.device)
+            attrs = self.attrs * mask
+            attrs = attrs / (1 - self.config.attrs_dropout.p)
+        else:
+            attrs = self.attrs
 
-        if self.config.get('normalize', True):
+        if self.config.get('attrs_noise.std') and self.training:
+            noise = torch.randn(self.attrs.shape[1]) * self.config.attrs_noise.std
+            noise = noise.unsqueeze(0).float().to(x.device)
+            attrs += noise
+
+        if self.config.get('feats_dropout.p'):
+            x = F.dropout(x, p=self.config.feats_dropout.p, training=self.training)
+
+        W = self.transform.weight # [hid_dim, attr_dim]
+        if self.config.get('normalize_weights'):
+            avg_w_norm = W.norm(dim=0).mean() # Compute avg norm for each attr column
+            W = normalize(W, avg_w_norm, dim=0) # Renormalize
+        protos = attrs @ W.t() # [n_classes, hid_dim]
+
+        if self.config.get('protos_dropout.p'):
+            protos = F.dropout(protos, p=self.config.protos_dropout.p, training=self.training)
+
+        if self.config.get('normalize_feats', True):
             x = normalize(x, self.config.scale)
+
+        if self.config.get('normalize_protos', True):
             protos = normalize(protos, self.config.scale)
 
         return x @ protos.t()

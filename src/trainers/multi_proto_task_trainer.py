@@ -4,6 +4,7 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor
 from torch.nn.utils import clip_grad_norm_
+from torch import autograd
 
 from src.trainers.task_trainer import TaskTrainer
 from src.utils.training_utils import prune_logits, normalize
@@ -170,6 +171,11 @@ class MultiProtoTaskTrainer(TaskTrainer):
         #     loss += self.config.hp.creativity_reg.loss_coef * creativity_reg_loss
         #     self.writer.add_scalar(f'creativity_reg_loss', creativity_reg_loss.item(), self.num_iters_done)
 
+        if self.config.hp.head.get('grad_reg_coef'):
+            grad_reg = self.compute_gradient_penalty(loss)
+            loss += self.config.hp.head.grad_reg_coef * grad_reg
+            self.writer.add_scalar(f'grad_reg', grad_reg.item(), self.num_iters_done)
+
         self.optim.zero_grad()
         loss.backward()
         if self.config.hp.get('clip_grad.value', float('inf')) < float('inf'):
@@ -290,3 +296,30 @@ class MultiProtoTaskTrainer(TaskTrainer):
     #         prototypes = normalize(prototypes, self.model.head.config.scale.value)
     #     filename = os.path.join(self.main_trainer.paths.custom_data_path, f'prototypes-{self.task_idx + 1}')
     #     np.save(filename, prototypes.cpu().numpy())
+    # def compute_grad_regularization(self):
+    #     if self.task_idx - self.config.get('start_task', 0) <= 0:
+    #         return torch.tensor(0.)
+
+    #     lr = self.config.hp.optim.kwargs.lr
+    #     W = self.model.head.transform.weight # [hid_dim, attr_dim]
+    #     W_next = W - lr * W.grad
+    #     old_attrs = torch.from_numpy(self.attrs[self.seen_classes]).to(self.device_name)
+    #     old_protos = old_attrs @ W.t() # [n_seen_classes, hid_dim]
+    #     new_protos = old_attrs @ W_next.t() # [n_seen_classes, hid_dim]
+    #     diff = (old_protos - new_protos).norm(dim=1).mean()
+
+    #     return diff
+
+    def compute_gradient_penalty(self, loss):
+        if self.task_idx - self.config.get('start_task', 0) <= 0:
+            return torch.tensor(0.)
+
+        old_attrs = torch.from_numpy(self.attrs[self.seen_classes]).to(self.device_name)
+
+        # loss = discriminator(interpolations, y)
+
+        W_grad = autograd.grad(loss, self.model.head.transform.weight, create_graph=True)[0]
+        penalty = (old_attrs @ W_grad.t()).norm(dim=1).mean()
+
+        return penalty
+

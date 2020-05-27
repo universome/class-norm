@@ -18,7 +18,7 @@ from src.models.layers import ResNetConvEmbedder
 from src.utils.constants import IMAGENET_MEAN, IMAGENET_STD
 
 
-def read_column(filename:PathLike, column_idx:int, sep: str=' ') -> List[str]:
+def read_column(filename: PathLike, column_idx: int, sep: str=' ') -> List[str]:
     with open(filename) as f:
         column = [line.split(sep)[column_idx] for line in f.read().splitlines()]
 

@@ -6,11 +6,11 @@ proper_init:
     head|normalize_attrs: [true]
     head|normalize: [false]
 
-    head|init|proper_std_type: ["fan_in", "fan_out", "fan_harmonic"]
+    head|init|proper_std_type: ["fan_in"]
     head|init|dist_type: ["normal", "uniform"]
-    optim|groups|head|lr: [0.0001, 0.0005, 0.001, 0.005, 0.01]
-    optim|groups|embedder|lr: [0.0001, 0.0005, 0.001, 0.005, 0.01]
-    optim|decrease_lr_coef: [1.0, 0.95, 0.9, 0.75, 0.5]
+    optim|groups|head|lr: [0.0001, 0.0005, 0.001, 0.005]
+    optim|groups|embedder|lr: [0.0001, 0.0005, 0.001, 0.005]
+    optim|decrease_lr_coef: [1.0, 0.95, 0.9, 0.75]
     clip_grad: [1, 5, 10, 50, 100, 1000, 100000000]
 
 xavier_init:
@@ -24,7 +24,7 @@ xavier_init:
     head|init|dist_type: ["normal", "uniform"]
     optim|groups|head|lr: [0.0001, 0.0005, 0.001, 0.005, 0.01]
     optim|groups|embedder|lr: [0.0001, 0.0005, 0.001, 0.005, 0.01]
-    optim|decrease_lr_coef: [1.0, 0.95, 0.9, 0.75, 0.5]
+    optim|decrease_lr_coef: [1.0, 0.95, 0.9, 0.75]
     head|scale: [1.0, 2.5, 5.0, 10.0, 20.0]
     clip_grad: [1, 5, 10, 50, 100, 1000, 100000000]
 
@@ -40,6 +40,6 @@ kaiming_init:
     head|init|dist_type: ["normal", "uniform"]
     optim|groups|head|lr: [0.0001, 0.0005, 0.001, 0.005, 0.01]
     optim|groups|embedder|lr: [0.0001, 0.0005, 0.001, 0.005, 0.01]
-    optim|decrease_lr_coef: [1.0, 0.95, 0.9, 0.75, 0.5]
+    optim|decrease_lr_coef: [1.0, 0.95, 0.9, 0.75]
     head|scale: [1.0, 2.5, 5.0, 10.0, 20.0]
     clip_grad: [1, 5, 10, 50, 100, 1000, 100000000]

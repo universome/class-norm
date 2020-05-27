@@ -5,20 +5,32 @@ all:
     save_prototypes: true
     print_unseen_accuracy: true
     print_forgetting: true
+    print_task_guessing_acc: true
+    print_final_tasks_performance: true
   hp:
     max_num_epochs: 5
     use_class_attrs: true
-    clip_grad: {value: 10}
+    clip_grad: {value: 100}
     optim:
+      type: "adam"
       groups:
-        head: {lr: 0.001, momentum: 0.9}
-        embedder: {lr: 0.003}
+        head: {lr: 0.00005, betas: [0.9, 0.999]}
+        embedder: {lr: 0.00001}
+      decrease_lr_coef: 0.9
+    # optim:
+    #   type: "adam"
+    #   kwargs: {"lr": 0.0001}
+    #   # decrease_lr_coef: 0.9
     use_class_attrs: true
     img_target_shape: [256, 256]
     batch_size: 10
 
     head:
       has_bias: false
+      feats_dropout: {p: 0.0}
+      protos_dropout: {p: 0.0}
+      attrs_dropout: {p: 0.0}
+      attrs_noise: {std: 0.0}
       init:
         type: "proper"
         proper_std_type: "fan_in"
@@ -27,8 +39,11 @@ all:
         # gain: 0.5
       scale: 10
       hid_dim: 512
-      normalize: false
-      normalize_attrs: true
+      normalize_feats: false
+      normalize_protos: false
+      normalize_weights: false
+      renormalize_attrs: true
+      grad_reg_coef: 0.1
 
   # validation_sequence:
   #   num_tasks: 3

@@ -55,7 +55,7 @@ def run_hpo(args, experiments_cli_args, print_only: bool=False):
     os.makedirs(logs_dir, exist_ok=True)
 
     for random_seed in range(1, args.num_runs + 1):
-        common_cli_args = f'-c {args.config_name} -d {args.dataset} --experiments_dir {experiments_dir} -s {random_seed}'
+        common_cli_args = f'-c {args.config_name} -d {args.dataset} --experiments_dir {args.dataset}_{experiments_dir} -s {random_seed}'
 
         for cli_args in experiments_cli_args:
             export = f'ALL,cli_args="{common_cli_args} {cli_args}",dataset_full_name={DATASET_FULL_NAME[args.dataset]}'
