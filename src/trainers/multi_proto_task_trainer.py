@@ -176,6 +176,11 @@ class MultiProtoTaskTrainer(TaskTrainer):
             loss += self.config.hp.head.grad_reg_coef * grad_reg
             self.writer.add_scalar(f'grad_reg', grad_reg.item(), self.num_iters_done)
 
+        if self.config.hp.head.get('weight_cov_reg_coef'):
+            weight_cov_reg = self.compute_head_weight_cov_reg()
+            loss += self.config.hp.head.weight_cov_reg_coef * weight_cov_reg
+            self.writer.add_scalar(f'weight_cov_reg', weight_cov_reg.item(), self.num_iters_done)
+
         self.optim.zero_grad()
         loss.backward()
         if self.config.hp.get('clip_grad.value', float('inf')) < float('inf'):
@@ -203,6 +208,13 @@ class MultiProtoTaskTrainer(TaskTrainer):
         logits = prune_logits(self.model(X), self.seen_classes_mask)
 
         return F.cross_entropy(logits, y)
+
+    def compute_head_weight_cov_reg(self) -> Tensor:
+        W = self.model.head.transform.weight # [hid_dim, attr_dim]
+        cov = W @ W.t()
+        non_diag_elements = cov.masked_select(~torch.eye(len(cov), dtype=bool).to(cov.device))
+
+        return non_diag_elements.abs().mean()
 
     # def compute_pull_golden_protos_loss(self) -> Tensor:
     #     protos = self.model.head.generate_prototypes(1, golden=True) # [1, n_classes, hid_dim]
