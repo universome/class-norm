@@ -7,7 +7,7 @@ from torch.nn.utils import clip_grad_norm_
 from firelab.base_trainer import BaseTrainer
 from firelab.config import Config
 
-from src.utils.training_utils import construct_optimizer, prune_logits
+from src.utils.training_utils import construct_optimizer, prune_logits, normalize
 from src.utils.data_utils import construct_output_mask
 
 
@@ -31,7 +31,7 @@ class ZSLTrainer(BaseTrainer):
         self.train_dataloader = DataLoader(ds_train, batch_size=self.config.hp.batch_size, shuffle=True, num_workers=0)
         self.val_dataloader = DataLoader(ds_test, batch_size=2048, num_workers=0)
         self.attrs = torch.from_numpy(attrs).to(self.device_name)
-        self.attrs = (self.attrs - self.attrs.mean(dim=0, keepdim=True)) / self.attrs.std(dim=0, keepdim=True)
+        # self.attrs = (self.attrs - self.attrs.mean(dim=0, keepdim=True)) / self.attrs.std(dim=0, keepdim=True)
 
         self.seen_mask = construct_output_mask(self.config.data.seen_classes, self.config.data.num_classes)
         self.unseen_mask = construct_output_mask(self.config.data.seen_classes, self.config.data.num_classes)
@@ -51,6 +51,7 @@ class ZSLTrainer(BaseTrainer):
                 self.validate()
 
     def train_on_batch(self, batch):
+        self.model.train()
         feats = torch.from_numpy(np.array(batch[0])).to(self.device_name)
         labels = torch.from_numpy(np.array(batch[1])).to(self.device_name)
         logits = self.compute_logits(feats, prune='seen')
@@ -63,7 +64,20 @@ class ZSLTrainer(BaseTrainer):
         self.optim.step()
 
     def compute_logits(self, feats, prune: str='none'):
-        protos = self.model(self.attrs)
+        if self.config.hp.get('attrs_dropout.p') and self.model.training:
+            mask = (torch.rand(self.attrs.shape[1]) > self.config.hp.attrs_dropout.p)
+            mask = mask.unsqueeze(0).float().to(self.attrs.device)
+            attrs = self.attrs * mask
+            attrs = attrs / (1 - self.config.hp.attrs_dropout.p)
+        else:
+            attrs = self.attrs
+
+        if self.config.hp.get('feats_dropout.p') and self.model.training:
+            feats = F.dropout(feats, p=self.config.hp.feats_dropout.p)
+
+        protos = self.model(attrs)
+        feats = normalize(feats, scale_value=self.config.hp.scale)
+        protos = normalize(protos, scale_value=self.config.hp.scale)
         logits = feats @ protos.t()
 
         if prune == 'seen':
@@ -81,6 +95,17 @@ class ZSLTrainer(BaseTrainer):
             nn.ReLU()
         ).to(self.device_name)
 
+        # self.model = nn.Sequential(
+        #     nn.Linear(self.attrs.shape[1], self.config.hp.feat_dim),
+        # ).to(self.device_name)
+
+        self.init_output_layer(self.model[2])
+
+    def init_output_layer(self, layer: nn.Linear):
+        # attrs_mean_norm = self.attrs.norm(dim=1).pow(2).mean()
+        std = 1 / np.sqrt(self.config.hp.hid_dim * self.config.hp.feat_dim)
+        layer.weight.data.normal_(0, std)
+
     def init_optimizers(self):
         self.optim = construct_optimizer(self.model.parameters(), self.config.hp.optim)
 
@@ -92,6 +117,7 @@ class ZSLTrainer(BaseTrainer):
         return logits
 
     def validate(self):
+        self.model.eval()
         logits = self.run_inference(self.val_dataloader)
         preds = logits.argmax(dim=1).numpy()
         guessed = (preds == self.test_labels)

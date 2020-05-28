@@ -9,6 +9,7 @@ hp:
   hid_dim: 1600
   feat_dim: 2048
   attrs_dropout: {p: 0.0}
+  feats_dropout: {p: 0.0}
   optim:
     type: "adam"
     kwargs:
