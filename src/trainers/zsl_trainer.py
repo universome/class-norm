@@ -62,13 +62,13 @@ class ZSLTrainer(BaseTrainer):
                 scores = self.validate()
                 self.print_scores(scores)
 
-                if scores[2] >= 0.5:
+                if scores[2] >= 0.42:
                     print('You won!')
                     break
 
-                if scores[0] <= 0.5 and self.num_epochs_done >= 100:
-                    print('You lost!')
-                    break
+                # if scores[0] <= 0.42 and self.num_epochs_done >= 100:
+                #     print('You lost!')
+                #     break
 
             self.scheduler.step()
 
@@ -150,7 +150,7 @@ class ZSLTrainer(BaseTrainer):
             ).to(self.device_name)
         else:
             output_layer = nn.Linear(self.config.hp.hid_dim, self.config.hp.feat_dim)
-            bn_layer = nn.BatchNorm1d(self.config.hp.hid_dim, affine=False)
+            bn_layer = nn.BatchNorm1d(self.config.hp.hid_dim, affine=True)
             std = 1 / np.sqrt(self.config.hp.hid_dim * self.config.hp.feat_dim)
 
             self.model = nn.Sequential(
@@ -166,7 +166,7 @@ class ZSLTrainer(BaseTrainer):
 
     def init_optimizers(self):
         self.optim = construct_optimizer(self.model.parameters(), self.config.hp.optim)
-        self.scheduler = torch.optim.lr_scheduler.StepLR(self.optim, step_size=100)
+        self.scheduler = torch.optim.lr_scheduler.StepLR(self.optim, step_size=250)
 
     def run_inference(self, dataloader: DataLoader, prune: str='none'):
         with torch.no_grad():
