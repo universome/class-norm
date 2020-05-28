@@ -88,19 +88,17 @@ class ZSLTrainer(BaseTrainer):
         return logits
 
     def init_models(self):
+        output_layer = nn.Linear(self.config.hp.hid_dim, self.config.hp.feat_dim)
+
         self.model = nn.Sequential(
             nn.Linear(self.attrs.shape[1], self.config.hp.hid_dim),
             nn.ReLU(),
-            nn.BatchNorm1d(self.config.hp.hid_dim),
-            nn.Linear(self.config.hp.hid_dim, self.config.hp.feat_dim),
+            nn.BatchNorm1d(self.config.hp.hid_dim, affine=False),
+            output_layer,
             nn.ReLU()
         ).to(self.device_name)
 
-        # self.model = nn.Sequential(
-        #     nn.Linear(self.attrs.shape[1], self.config.hp.feat_dim),
-        # ).to(self.device_name)
-
-        self.init_output_layer(self.model[2])
+        self.init_output_layer(output_layer)
 
     def init_output_layer(self, layer: nn.Linear):
         # attrs_mean_norm = self.attrs.norm(dim=1).pow(2).mean()
