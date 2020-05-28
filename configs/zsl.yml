@@ -6,7 +6,7 @@ hp:
   max_num_epochs: 1000
   scale: 5
   batch_size: 512
-  grad_clip_val: 1000
+  # grad_clip_val: 10
   hid_dim: 256
   feat_dim: 2048
   n_layers: 2
@@ -18,7 +18,7 @@ hp:
   optim:
     type: "adam"
     kwargs:
-      lr: 0.001
+      lr: 0.005
 
 data:
   awa2:

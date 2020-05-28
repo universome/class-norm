@@ -57,15 +57,22 @@ class ZSLTrainer(BaseTrainer):
                 self.num_iters_done += 1
 
             if epoch % self.config.val_freq_epochs == 0:
-                self.validate()
+                scores = self.validate()
+                self.print_scores(scores)
 
+                if scores[2] >= 0.5:
+                    print('You won!')
+                    return
+
+                if scores[0] <= 0.5 and self.num_epochs_done >= 100:
+                    print('You lost!')
+                    return
+
+            self.scheduler.step()
             self.num_epochs_done += 1
 
         print('<===== Best scores =====>')
         self.print_scores(self.best_scores)
-
-        if self.best_scores[2] >= 50.0:
-            print('You won!')
 
     def train_on_batch(self, batch):
         self.model.train()
@@ -142,7 +149,7 @@ class ZSLTrainer(BaseTrainer):
             ).to(self.device_name)
         else:
             output_layer = nn.Linear(self.config.hp.hid_dim, self.config.hp.feat_dim)
-            bn_layer = nn.BatchNorm1d(self.config.hp.hid_dim, affine=True)
+            bn_layer = nn.BatchNorm1d(self.config.hp.hid_dim, affine=False)
             std = 1 / np.sqrt(self.config.hp.hid_dim * self.config.hp.feat_dim)
 
             self.model = nn.Sequential(
@@ -158,6 +165,7 @@ class ZSLTrainer(BaseTrainer):
 
     def init_optimizers(self):
         self.optim = construct_optimizer(self.model.parameters(), self.config.hp.optim)
+        self.scheduler = torch.optim.lr_scheduler.StepLR(self.optim, step_size=300)
 
     def run_inference(self, dataloader: DataLoader, prune: str='none'):
         with torch.no_grad():
@@ -179,7 +187,7 @@ class ZSLTrainer(BaseTrainer):
         if scores[2] > self.best_scores[2]:
             self.best_scores = scores
 
-        self.print_scores(scores)
+        return scores
 
     def print_scores(self, scores: List[float]):
         scores = np.array(scores) * 100
