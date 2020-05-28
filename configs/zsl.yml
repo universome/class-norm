@@ -1,9 +1,9 @@
 trainer: "ZSLTrainer"
 dataset: "awa2"
-val_freq_epochs: 10
+val_freq_epochs: 5
 hp:
   max_num_epochs: 1000
-  scale: 10
+  scale: 5
   batch_size: 512
   grad_clip_val: 100
   hid_dim: 1600

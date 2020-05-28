@@ -91,6 +91,7 @@ class ZSLTrainer(BaseTrainer):
         self.model = nn.Sequential(
             nn.Linear(self.attrs.shape[1], self.config.hp.hid_dim),
             nn.ReLU(),
+            nn.BatchNorm1d(self.config.hp.hid_dim),
             nn.Linear(self.config.hp.hid_dim, self.config.hp.feat_dim),
             nn.ReLU()
         ).to(self.device_name)
@@ -104,7 +105,6 @@ class ZSLTrainer(BaseTrainer):
     def init_output_layer(self, layer: nn.Linear):
         # attrs_mean_norm = self.attrs.norm(dim=1).pow(2).mean()
         std = 1 / np.sqrt(self.config.hp.hid_dim * self.config.hp.feat_dim)
-        std *= 0.1
         layer.weight.data.normal_(0, std)
 
     def init_optimizers(self):
