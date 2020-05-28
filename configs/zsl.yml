@@ -12,9 +12,9 @@ hp:
   n_layers: 2
   attrs_dropout: {p: 0.0}
   feats_dropout: {p: 0.0}
-  # entropy_reg_coef: 0.1
-  # cross_entropy_reg_coef: 0.1
-  # label_smoothing: 0.999999
+  # entropy_reg_coef: 0.01
+  cross_entropy_reg_coef: 0.001
+  label_smoothing: 0.9
   optim:
     type: "adam"
     kwargs:

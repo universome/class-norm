@@ -56,20 +56,21 @@ class ZSLTrainer(BaseTrainer):
                 self.train_on_batch(batch)
                 self.num_iters_done += 1
 
+            self.num_epochs_done += 1
+
             if epoch % self.config.val_freq_epochs == 0:
                 scores = self.validate()
                 self.print_scores(scores)
 
                 if scores[2] >= 0.5:
                     print('You won!')
-                    return
+                    break
 
                 if scores[0] <= 0.5 and self.num_epochs_done >= 100:
                     print('You lost!')
-                    return
+                    break
 
             self.scheduler.step()
-            self.num_epochs_done += 1
 
         print('<===== Best scores =====>')
         self.print_scores(self.best_scores)
@@ -165,7 +166,7 @@ class ZSLTrainer(BaseTrainer):
 
     def init_optimizers(self):
         self.optim = construct_optimizer(self.model.parameters(), self.config.hp.optim)
-        self.scheduler = torch.optim.lr_scheduler.StepLR(self.optim, step_size=300)
+        self.scheduler = torch.optim.lr_scheduler.StepLR(self.optim, step_size=100)
 
     def run_inference(self, dataloader: DataLoader, prune: str='none'):
         with torch.no_grad():
