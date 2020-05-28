@@ -74,7 +74,7 @@ def construct_output_mask(classes: List[int], total_num_classes:int) -> np.ndarr
     mask = np.zeros(total_num_classes).astype(bool)
 
     if len(classes) > 0:
-        mask[classes] = True
+        mask[list(classes)] = True
 
     return mask
 
