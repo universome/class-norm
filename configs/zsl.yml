@@ -1,6 +1,6 @@
 trainer: "ZSLTrainer"
 dataset: "awa2"
-val_freq_epochs: 5
+val_freq_epochs: 1
 hp:
   max_num_epochs: 1000
   scale: 5
@@ -13,7 +13,7 @@ hp:
   optim:
     type: "adam"
     kwargs:
-      lr: 0.001
+      lr: 0.0005
 
 data:
   awa2:

@@ -1,3 +1,4 @@
+from typing import List
 import numpy as np
 import torch
 import torch.nn as nn
@@ -9,6 +10,7 @@ from firelab.config import Config
 
 from src.utils.training_utils import construct_optimizer, prune_logits, normalize
 from src.utils.data_utils import construct_output_mask
+from src.utils.metrics import remap_targets
 
 
 class ZSLTrainer(BaseTrainer):
@@ -25,7 +27,9 @@ class ZSLTrainer(BaseTrainer):
         train_idx = np.load(f'{self.config.data.dir}/train_idx.npy')
         test_idx = np.load(f'{self.config.data.dir}/test_idx.npy')
 
-        ds_train = [(feats[i], labels[i]) for i in train_idx]
+        train_classes = list(sorted(list(self.config.data.seen_classes)))
+        train_labels = remap_targets([labels[i] for i in train_idx], train_classes)
+        ds_train = [(feats[i], l) for i, l in zip(train_idx, train_labels)]
         ds_test = [(feats[i], labels[i]) for i in test_idx]
 
         self.train_dataloader = DataLoader(ds_train, batch_size=self.config.hp.batch_size, shuffle=True, num_workers=0)
@@ -35,20 +39,27 @@ class ZSLTrainer(BaseTrainer):
 
         self.seen_mask = construct_output_mask(self.config.data.seen_classes, self.config.data.num_classes)
         self.unseen_mask = construct_output_mask(self.config.data.seen_classes, self.config.data.num_classes)
+        self.attrs_seen = self.attrs[self.seen_mask]
+        self.attrs_unseen = self.attrs[self.unseen_mask]
 
         self.test_labels = np.array([labels[i] for i in test_idx])
         self.test_seen_idx = [i for i, y in enumerate(self.test_labels) if y in self.config.data.seen_classes]
         self.test_unseen_idx = [i for i, y in enumerate(self.test_labels) if y in self.config.data.unseen_classes]
 
+        self.best_scores = [0, 0, 0]
+
     def _run_training(self):
         from tqdm import tqdm
 
         for epoch in range(1, self.config.hp.max_num_epochs + 1):
-            for batch in tqdm(self.train_dataloader):
+            for batch in self.train_dataloader:
                 self.train_on_batch(batch)
 
             if epoch % self.config.val_freq_epochs == 0:
                 self.validate()
+
+        print('<===== Best scores =====>')
+        self.print_scores(self.best_scores)
 
     def train_on_batch(self, batch):
         self.model.train()
@@ -64,26 +75,27 @@ class ZSLTrainer(BaseTrainer):
         self.optim.step()
 
     def compute_logits(self, feats, prune: str='none'):
-        if self.config.hp.get('attrs_dropout.p') and self.model.training:
-            mask = (torch.rand(self.attrs.shape[1]) > self.config.hp.attrs_dropout.p)
-            mask = mask.unsqueeze(0).float().to(self.attrs.device)
-            attrs = self.attrs * mask
-            attrs = attrs / (1 - self.config.hp.attrs_dropout.p)
+        # if self.config.hp.get('attrs_dropout.p') and self.model.training:
+        #     mask = (torch.rand(self.attrs.shape[1]) > self.config.hp.attrs_dropout.p)
+        #     mask = mask.unsqueeze(0).float().to(self.attrs.device)
+        #     attrs = self.attrs * mask
+        #     attrs = attrs / (1 - self.config.hp.attrs_dropout.p)
+        # else:
+        #     attrs = self.attrs
+
+        # if self.config.hp.get('feats_dropout.p') and self.model.training:
+        #     feats = F.dropout(feats, p=self.config.hp.feats_dropout.p)
+
+        if prune == 'seen':
+            # Otherwise unseen classes will leak through batch norm
+            attrs = self.attrs[self.seen_mask]
         else:
             attrs = self.attrs
-
-        if self.config.hp.get('feats_dropout.p') and self.model.training:
-            feats = F.dropout(feats, p=self.config.hp.feats_dropout.p)
 
         protos = self.model(attrs)
         feats = normalize(feats, scale_value=self.config.hp.scale)
         protos = normalize(protos, scale_value=self.config.hp.scale)
         logits = feats @ protos.t()
-
-        if prune == 'seen':
-            logits = prune_logits(logits, self.seen_mask)
-        elif prune == 'unseen':
-            logits = prune_logits(logits, self.unseen_mask)
 
         return logits
 
@@ -93,7 +105,7 @@ class ZSLTrainer(BaseTrainer):
         self.model = nn.Sequential(
             nn.Linear(self.attrs.shape[1], self.config.hp.hid_dim),
             nn.ReLU(),
-            nn.BatchNorm1d(self.config.hp.hid_dim, affine=False),
+            nn.BatchNorm1d(self.config.hp.hid_dim, affine=True),
             output_layer,
             nn.ReLU()
         ).to(self.device_name)
@@ -123,5 +135,13 @@ class ZSLTrainer(BaseTrainer):
         seen_acc = guessed[self.test_seen_idx].mean()
         unseen_acc = guessed[self.test_unseen_idx].mean()
         harmonic = 2 * (seen_acc * unseen_acc) / (seen_acc + unseen_acc)
+        scores = [seen_acc, unseen_acc, harmonic]
 
-        print(f'GZSL-S: {seen_acc: .4f}. GZSL-U: {unseen_acc: .4f}. GZSL-H: {harmonic: .4f}')
+        if scores[2] > self.best_scores[2]:
+            self.best_scores = scores
+
+        self.print_scores(scores)
+
+    def print_scores(self, scores: List[float]):
+        scores = np.array(scores) * 100
+        print(f'GZSL-S: {scores[0]: .4f}. GZSL-U: {scores[1]: .4f}. GZSL-H: {scores[2]: .4f}')
