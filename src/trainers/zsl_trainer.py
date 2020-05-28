@@ -54,12 +54,18 @@ class ZSLTrainer(BaseTrainer):
         for epoch in range(1, self.config.hp.max_num_epochs + 1):
             for batch in self.train_dataloader:
                 self.train_on_batch(batch)
+                self.num_iters_done += 1
 
             if epoch % self.config.val_freq_epochs == 0:
                 self.validate()
 
+            self.num_epochs_done += 1
+
         print('<===== Best scores =====>')
         self.print_scores(self.best_scores)
+
+        if self.best_scores[2] >= 50.0:
+            print('You won!')
 
     def train_on_batch(self, batch):
         self.model.train()
@@ -136,17 +142,19 @@ class ZSLTrainer(BaseTrainer):
             ).to(self.device_name)
         else:
             output_layer = nn.Linear(self.config.hp.hid_dim, self.config.hp.feat_dim)
+            bn_layer = nn.BatchNorm1d(self.config.hp.hid_dim, affine=True)
             std = 1 / np.sqrt(self.config.hp.hid_dim * self.config.hp.feat_dim)
 
             self.model = nn.Sequential(
                 nn.Linear(self.attrs.shape[1], self.config.hp.hid_dim),
                 nn.ReLU(),
-                nn.BatchNorm1d(self.config.hp.hid_dim, affine=True),
+                bn_layer,
                 output_layer,
                 nn.ReLU()
             ).to(self.device_name)
 
         output_layer.weight.data.normal_(0, std)
+        # bn_layer.weight.data.normal_(0, std)
 
     def init_optimizers(self):
         self.optim = construct_optimizer(self.model.parameters(), self.config.hp.optim)
@@ -175,4 +183,4 @@ class ZSLTrainer(BaseTrainer):
 
     def print_scores(self, scores: List[float]):
         scores = np.array(scores) * 100
-        print(f'GZSL-S: {scores[0]: .4f}. GZSL-U: {scores[1]: .4f}. GZSL-H: {scores[2]: .4f}')
+        print(f'[Epoch #{self.num_epochs_done: 3d}] GZSL-S: {scores[0]: .4f}. GZSL-U: {scores[1]: .4f}. GZSL-H: {scores[2]: .4f}')
