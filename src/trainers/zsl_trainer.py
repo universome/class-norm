@@ -66,7 +66,23 @@ class ZSLTrainer(BaseTrainer):
         feats = torch.from_numpy(np.array(batch[0])).to(self.device_name)
         labels = torch.from_numpy(np.array(batch[1])).to(self.device_name)
         logits = self.compute_logits(feats, prune='seen')
-        loss = F.cross_entropy(logits, labels)
+
+        if self.config.hp.get('label_smoothing', 1.0) < 1.0:
+            n_classes = logits.shape[1]
+            other_prob_val = (1 - self.config.hp.label_smoothing) / n_classes
+            targets = torch.ones_like(logits) * other_prob_val
+            targets.scatter_(1, labels.unsqueeze(1), self.config.hp.label_smoothing)
+
+            log_probs = logits.log_softmax(dim=1)
+            loss = F.kl_div(log_probs, targets)
+        else:
+            loss = F.cross_entropy(logits, labels)
+
+        if self.config.hp.get('entropy_reg_coef', 0) > 0:
+            loss -= self.config.hp.entropy_reg_coef * self.compute_entropy_reg(logits)
+
+        if self.config.hp.get('cross_entropy_reg_coef', 0) > 0:
+            loss -= self.config.hp.cross_entropy_reg_coef * self.compute_cross_entropy_reg(logits)
 
         self.optim.zero_grad()
         loss.backward()
@@ -99,23 +115,38 @@ class ZSLTrainer(BaseTrainer):
 
         return logits
 
+    def compute_entropy_reg(self, logits):
+        log_probs = logits.log_softmax(dim=1)
+        probs = log_probs.exp()
+        entropy = -(probs * log_probs).sum(dim=1)
+
+        return entropy.mean()
+
+    def compute_cross_entropy_reg(self, logits):
+        return logits.log_softmax(dim=1).mean()
+
     def init_models(self):
-        output_layer = nn.Linear(self.config.hp.hid_dim, self.config.hp.feat_dim)
+        if self.config.hp.n_layers == 1:
+            output_layer = nn.Linear(self.attrs.shape[1], self.config.hp.feat_dim)
+            std = 1 / np.sqrt(self.attrs.shape[1] * self.config.hp.feat_dim)
 
-        self.model = nn.Sequential(
-            nn.Linear(self.attrs.shape[1], self.config.hp.hid_dim),
-            nn.ReLU(),
-            nn.BatchNorm1d(self.config.hp.hid_dim, affine=True),
-            output_layer,
-            nn.ReLU()
-        ).to(self.device_name)
+            self.model = nn.Sequential(
+                output_layer,
+                # nn.ReLU(),
+            ).to(self.device_name)
+        else:
+            output_layer = nn.Linear(self.config.hp.hid_dim, self.config.hp.feat_dim)
+            std = 1 / np.sqrt(self.config.hp.hid_dim * self.config.hp.feat_dim)
 
-        self.init_output_layer(output_layer)
+            self.model = nn.Sequential(
+                nn.Linear(self.attrs.shape[1], self.config.hp.hid_dim),
+                nn.ReLU(),
+                nn.BatchNorm1d(self.config.hp.hid_dim, affine=True),
+                output_layer,
+                nn.ReLU()
+            ).to(self.device_name)
 
-    def init_output_layer(self, layer: nn.Linear):
-        # attrs_mean_norm = self.attrs.norm(dim=1).pow(2).mean()
-        std = 1 / np.sqrt(self.config.hp.hid_dim * self.config.hp.feat_dim)
-        layer.weight.data.normal_(0, std)
+        output_layer.weight.data.normal_(0, std)
 
     def init_optimizers(self):
         self.optim = construct_optimizer(self.model.parameters(), self.config.hp.optim)
