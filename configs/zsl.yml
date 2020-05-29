@@ -15,7 +15,7 @@ hp:
   # entropy_reg_coef: 0.01
   # cross_entropy_reg_coef: 0.0001
   label_smoothing: 0.99
-  bn_affine: false
+  bn_affine: true
   optim:
     type: "adam"
     kwargs:

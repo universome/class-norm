@@ -302,7 +302,7 @@ def remap_targets(targets: List[int], classes: List[int]) -> List[int]:
     Takes target classes and remaps them into a smaller range, determined by classes argument
 
     :param targets: dataset targets, vector if length [DATASET_SIZE]
-    :param classes: classes to map
+    :param classes: classes to map to
     :return: remapped classes
     """
     return [(classes.index(t) if t in classes else -1) for t in targets]

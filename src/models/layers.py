@@ -183,6 +183,36 @@ class FeatEmbedder(nn.Module):
         return self.model(inputs)
 
 
+class EqualLRLinear(nn.Module):
+    def __init__(self, n_in: int, n_out: int, init_strategy: str):
+        super().__init__()
+
+        self.n_in = n_in
+        self.n_out = n_out
+        self.init_strategy = init_strategy
+
+        self.weight = nn.Parameter(torch.randn(n_out, n_in))
+        self.bias = nn.Parameter(torch.zeros(n_out))
+
+    def get_std(self):
+        if self.init_strategy == 'kaiming_fan_in':
+            return np.sqrt(2 / self.n_in)
+        elif self.init_strategy == 'kaiming_fan_out':
+            return np.sqrt(2 / self.n_out)
+        elif self.init_strategy == 'xavier':
+            return np.sqrt(1 / (self.n_in + self.n_out))
+        elif self.init_strategy == 'attrs':
+            return np.sqrt(2 / (self.n_in * self.n_out * (1 - 1/np.pi)))
+        else:
+            raise ValueError(f'Unknown init strategy: {self.init_strategy}')
+
+    def forward(self, x):
+        W = self.weight * self.get_std()
+        out = x @ W.t() + self.bias.unsqueeze(0)
+
+        return out
+
+
 class MILayer(nn.Module):
     """
     A Multiplicative Interaction layer: f(x, z) = z'Wx + z'U + Vx + b

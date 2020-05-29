@@ -13,36 +13,6 @@ from src.utils.data_utils import construct_output_mask
 from src.utils.metrics import remap_targets
 
 
-class EqualLRLinear(nn.Module):
-    def __init__(self, n_in: int, n_out: int, init_strategy: str):
-        super().__init__()
-
-        self.n_in = n_in
-        self.n_out = n_out
-        self.init_strategy = init_strategy
-
-        self.weight = nn.Parameter(torch.randn(n_out, n_in))
-        self.bias = nn.Parameter(torch.zeros(n_out))
-
-    def get_std(self):
-        if self.init_strategy == 'kaiming_fan_in':
-            return np.sqrt(2 / self.n_in)
-        elif self.init_strategy == 'kaiming_fan_out':
-            return np.sqrt(2 / self.n_out)
-        elif self.init_strategy == 'xavier':
-            return np.sqrt(1 / (self.n_in + self.n_out))
-        elif self.init_strategy == 'attrs':
-            return np.sqrt(2 / (self.n_in * self.n_out * (1 - 1/np.pi)))
-        else:
-            raise ValueError(f'Unknown init strategy: {self.init_strategy}')
-
-    def forward(self, x):
-        W = self.weight * self.get_std()
-        out = x @ W.t() + self.bias.unsqueeze(0)
-
-        return out
-
-
 class ZSLTrainer(BaseTrainer):
     def __init__(self, config: Config):
         config = config.clone(frozen=False)
@@ -181,24 +151,23 @@ class ZSLTrainer(BaseTrainer):
         else:
             output_layer = nn.Linear(self.config.hp.hid_dim, self.config.hp.feat_dim)
             bn_layer = nn.BatchNorm1d(self.config.hp.hid_dim, affine=self.config.hp.bn_affine)
-            # var = 2 / (self.config.hp.hid_dim * self.config.hp.feat_dim * (1 - 1/np.pi))
+            var = 2 / (self.config.hp.hid_dim * self.config.hp.feat_dim * (1 - 1/np.pi))
 
             self.model = nn.Sequential(
                 nn.Linear(self.attrs.shape[1], self.config.hp.hid_dim),
-                # EqualLRLinear(self.attrs.shape[1], self.config.hp.hid_dim, 'xavier'),
                 nn.ReLU(),
                 bn_layer,
                 output_layer,
-                # EqualLRLinear(self.config.hp.hid_dim, self.config.hp.feat_dim, 'xavier'),
                 nn.ReLU()
             ).to(self.device_name)
 
-        # output_layer.weight.data.normal_(0, np.sqrt(var))
+        output_layer.weight.data.normal_(0, np.sqrt(var))
         # bn_layer.weight.data.normal_(0, std)
 
     def init_optimizers(self):
         self.optim = construct_optimizer(self.model.parameters(), self.config.hp.optim)
-        self.scheduler = torch.optim.lr_scheduler.StepLR(self.optim, step_size=self.config.hp.optim.scheduler_step_size)
+        self.scheduler = torch.optim.lr_scheduler.StepLR(
+            self.optim, step_size=self.config.hp.optim.scheduler_step_size, gamma=0.5)
 
     def run_inference(self, dataloader: DataLoader, prune: str='none'):
         with torch.no_grad():
