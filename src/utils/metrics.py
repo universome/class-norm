@@ -348,7 +348,7 @@ def compute_task_guessing_acc(logits: np.ndarray, targets: np.ndarray, class_spl
     """
 
     class_predictions = [ls.argmax(axis=1) for ls in logits]
-    get_task_idx = lambda c: next(t for t, cs in enumerate(class_splits) if c in cs)
+    get_task_idx = lambda c: next((t for t, cs in enumerate(class_splits) if c in cs), -1)
     task_targets = [get_task_idx(c) for c in targets]
     task_predictions = [[get_task_idx(c) for c in ls] for ls in class_predictions]
     task_accs = [(np.array(ps) == np.array(task_targets)).mean() for ps in task_predictions]

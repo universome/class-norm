@@ -1,7 +1,7 @@
 trainer: "ZSLTrainer"
 dataset: "cub"
 val_freq_epochs: 1
-random_seed: 3
+random_seed: 1
 hp:
   max_num_epochs: 500
   scale: 5
@@ -14,12 +14,12 @@ hp:
     with_relu: false
     type: "proper"
     dist: "uniform"
-  bn_affine: false
+  bn_affine: true
   optim:
     type: "adam"
     kwargs: {lr: 0.001}
     scheduler:
-      step_size: 250
+      step_size: 100
       gamma: 0.5
 
 awa2:
@@ -34,7 +34,6 @@ awa2:
     batch_size: 128
     hid_dim: 1600
     cross_entropy_reg_coef: 0.001
-    bn_affine: true
     optim: {scheduler: {step_size: 10, gamma: 0.5}}
     # init: {type: "normal"}
 
@@ -44,16 +43,15 @@ cub:
     unseen_classes: [6,18,20,28,33,35,49,55,61,67,68,71,78,79,86,87,90,94,97,99,103,107,115,119,121,123,124,128,138,140,141,149,151,156,158,159,165,166,170,173,175,178,181,184,186,188,190,191,192,194]
     dir: "/tmp/skoroki/czsl/data/cub_feats"
     num_classes: 200
-
   hp:
     max_num_epochs: 50
-    batch_size: 512
-    hid_dim: 256
+    batch_size: 256
+    hid_dim: 512
     cross_entropy_reg_coef: 0.001
     label_smoothing: 0.9
     bn_affine: false
     init: {with_relu: false}
-    # optim: {scheduler: {step_size: 100, gamma: 0.2}}
+    optim: {scheduler: {step_size: 10, gamma: 0.9}}
 
 sun:
   data:
@@ -62,4 +60,7 @@ sun:
     dir: "/tmp/skoroki/czsl/data/sun_feats"
     num_classes: 717
   hp:
+    max_num_epochs: 200
     hid_dim: 2048
+    # cross_entropy_reg_coef: 0.001
+    # label_smoothing: 0.99

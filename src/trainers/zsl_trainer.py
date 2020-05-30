@@ -1,4 +1,5 @@
 from typing import List
+from time import time
 import numpy as np
 import torch
 import torch.nn as nn
@@ -18,7 +19,7 @@ class ZSLTrainer(BaseTrainer):
     def __init__(self, config: Config):
         config = config.overwrite(config[config.dataset])
         config = config.overwrite(Config.read_from_cli())
-        config.exp_name = f'zsl_{config.dataset}'
+        config.exp_name = f'zsl_{config.dataset}_{config.hp.compute_hash()}_{config.random_seed}'
         print(config.hp)
         self.random = np.random.RandomState(config.random_seed)
         super().__init__(config)
@@ -89,7 +90,7 @@ class ZSLTrainer(BaseTrainer):
         self.test_scores = [0, 0, 0]
 
     def _run_training(self):
-        from tqdm import tqdm
+        start_time = time()
 
         for epoch in range(1, self.config.hp.max_num_epochs + 1):
             for batch in self.train_dataloader:
@@ -107,6 +108,8 @@ class ZSLTrainer(BaseTrainer):
         if self.config.hp.val_ratio > 0:
             self.logger.info('<===== Test scores (computed for the highest val scores) =====>')
             self.print_scores(self.test_scores)
+
+        print(f'Training took time: {time() - start_time: .02f} seconds')
 
     def train_on_batch(self, batch):
         self.model.train()
@@ -240,7 +243,7 @@ class ZSLTrainer(BaseTrainer):
 
             # Compute test scores but keep it hidden
             self.test_scores = self.compute_scores(dataset='test')
-            # self.logger.info(f'[TEST SCORES] GZSL-S: {self.test_scores[0]: .4f}. GZSL-U: {self.test_scores[1]: .4f}. GZSL-H: {self.test_scores[2]: .4f}')
+            self.logger.info(f'[TEST SCORES] GZSL-S: {self.test_scores[0]: .4f}. GZSL-U: {self.test_scores[1]: .4f}. GZSL-H: {self.test_scores[2]: .4f}')
 
         return scores
 

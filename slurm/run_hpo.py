@@ -14,6 +14,7 @@ random.seed(42)
 DATASET_FULL_NAME = {
     'cub': 'CUB_200_2011',
     'awa': 'Animals_with_Attributes2',
+    'sun': 'SUN'
 }
 
 
@@ -24,6 +25,7 @@ def read_args() -> argparse.Namespace:
     parser.add_argument('-c', '--config_name', type=str, help='Which config to run?')
     parser.add_argument('-e', '--experiment', type=str, help='Which HPO experiment to run.')
     parser.add_argument('-r', '--runner', default='lll', type=str, help='Which runner to use: lll or firelab.')
+    parser.add_argument('--neurips_account', action='store_true', help='Should we run in the priveleged queue?')
     parser.add_argument('--count', action='store_true', help='Flag which says that we just need to count the experiments.')
     parser.add_argument('--print', action='store_true', help='Flag which says that we just need to print the CLI arguments.')
 
@@ -51,16 +53,17 @@ def run_hpo(args, experiments_cli_args, print_only: bool=False):
     experiments_dir = os.path.join('/ibex/scratch/skoroki/experiments', args.experiment)
     logs_dir = os.path.join('/ibex/scratch/skoroki/logs', f'{args.experiment}')
     runner = 'slurm_lll_job.sh' if args.runner == 'lll' else 'slurm_firelab_job.sh'
+    account = "--account=conf-2020-neurips" if args.neurips_account else ""
 
     os.makedirs(experiments_dir, exist_ok=True)
     os.makedirs(logs_dir, exist_ok=True)
 
     for random_seed in range(1, args.num_runs + 1):
-        common_cli_args = f'-c {args.config_name} -d {args.dataset} --experiments_dir {args.dataset}_{experiments_dir} -s {random_seed}'
+        common_cli_args = f'-c {args.config_name} -d {args.dataset} --experiments_dir {experiments_dir}-{args.dataset} -s {random_seed}'
 
         for cli_args in experiments_cli_args:
             export = f'ALL,cli_args="{common_cli_args} {cli_args}",dataset_full_name={DATASET_FULL_NAME.get(args.dataset)},dataset={args.dataset}'
-            command = f'sbatch -o {logs_dir}/output-%j.log --mem 32G --export={export} slurm/{runner}'
+            command = f'sbatch {account} -o {logs_dir}/output-%j.log --mem 32G --export={export} slurm/{runner}'
 
             if print_only:
                 print(command)

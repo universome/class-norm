@@ -2,7 +2,7 @@ inits:
   grid:
     head|init|type: ["proper", "xavier", "kaiming"]
     head|init|mode: ["fan_in", "fan_out"]
-    head|init|dist_type: ["uniform"]
+    head|init|dist_type: ["uniform", "normal"]
 
 baseline:
   grid:
