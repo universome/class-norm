@@ -1,10 +1,11 @@
 trainer: "ZSLTrainer"
-dataset: "awa2"
+dataset: "cub"
 val_freq_epochs: 1
 random_seed: 40
 hp:
   max_num_epochs: 1000
   scale: 5
+  val_ratio: 0.15
   batch_size: 128
   grad_clip_val: 100
   hid_dim: 1600

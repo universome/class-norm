@@ -7,6 +7,7 @@ from torch.utils.data import DataLoader
 from torch.nn.utils import clip_grad_norm_
 from firelab.base_trainer import BaseTrainer
 from firelab.config import Config
+from sklearn.model_selection import train_test_split
 
 from src.utils.training_utils import construct_optimizer, prune_logits, normalize
 from src.utils.data_utils import construct_output_mask
@@ -18,6 +19,7 @@ class ZSLTrainer(BaseTrainer):
         config = config.clone(frozen=False)
         config.data = config.data[config.dataset]
         config.exp_name = f'zsl_{config.dataset}'
+        self.random = np.random.RandomState(config.random_seed)
         super().__init__(config)
 
     def init_dataloaders(self):
@@ -27,26 +29,49 @@ class ZSLTrainer(BaseTrainer):
         train_idx = np.load(f'{self.config.data.dir}/train_idx.npy')
         test_idx = np.load(f'{self.config.data.dir}/test_idx.npy')
 
-        train_classes = list(sorted(list(self.config.data.seen_classes)))
-        train_labels = remap_targets([labels[i] for i in train_idx], train_classes)
-        ds_train = [(feats[i], l) for i, l in zip(train_idx, train_labels)]
+        seen_classes = list(sorted(list(self.config.data.seen_classes)))
+        val_remapped_labels = np.array(remap_targets(labels, seen_classes))
+
+        # Allocating ~15% of the train set for validation
+        num_train_classes = int(len(seen_classes) * (1 - self.config.hp.val_ratio))
+        self.train_classes = self.random.choice(seen_classes, size=num_train_classes, replace=False)
+        self.train_classes = sorted(self.train_classes)
+        self.val_classes = [c for c in seen_classes if not c in self.train_classes]
+
+        val_pseudo_unseen_idx = np.array([i for i, c in enumerate(labels) if c in self.val_classes])
+        train_idx = np.array([i for i, c in enumerate(labels) if c in self.train_classes])
+        train_remapped_labels = np.array(remap_targets(labels, self.train_classes))
+
+        # Additionally extend seen_val_idx with "seen seen" data
+        # seen_seen_val_idx = seen_train_idx[self.random.choice(seen_train_idx, size=)]
+        self.train_idx, val_pseudo_seen_idx = train_test_split(train_idx, test_size=self.config.hp.val_ratio)
+        self.val_idx = np.hstack([val_pseudo_seen_idx, val_pseudo_unseen_idx])
+        self.val_pseudo_seen_idx = np.arange(len(val_pseudo_seen_idx))
+        self.val_pseudo_unseen_idx = len(val_pseudo_seen_idx) + np.arange(len(val_pseudo_unseen_idx))
+
+        assert np.all(np.array(train_remapped_labels)[self.train_idx] >= 0)
+        assert np.all(np.array(val_remapped_labels)[self.val_idx] >= 0)
+
+        ds_train = [(feats[i], train_remapped_labels[i]) for i in self.train_idx]
+        ds_val = [(feats[i], val_remapped_labels[i]) for i in self.val_idx]
         ds_test = [(feats[i], labels[i]) for i in test_idx]
 
         self.train_dataloader = DataLoader(ds_train, batch_size=self.config.hp.batch_size, shuffle=True, num_workers=0)
-        self.val_dataloader = DataLoader(ds_test, batch_size=2048, num_workers=0)
+        self.val_dataloader = DataLoader(ds_val, batch_size=2048, num_workers=0)
+        self.test_dataloader = DataLoader(ds_test, batch_size=2048, num_workers=0)
         self.attrs = torch.from_numpy(attrs).to(self.device_name)
-        # self.attrs = (self.attrs - self.attrs.mean(dim=0, keepdim=True)) / self.attrs.std(dim=0, keepdim=True)
 
+        self.train_seen_mask = construct_output_mask(self.train_classes, self.config.data.num_classes)
         self.seen_mask = construct_output_mask(self.config.data.seen_classes, self.config.data.num_classes)
-        self.unseen_mask = construct_output_mask(self.config.data.seen_classes, self.config.data.num_classes)
         self.attrs_seen = self.attrs[self.seen_mask]
-        self.attrs_unseen = self.attrs[self.unseen_mask]
 
+        self.val_labels = np.array([val_remapped_labels[i] for i in self.val_idx])
         self.test_labels = np.array([labels[i] for i in test_idx])
         self.test_seen_idx = [i for i, y in enumerate(self.test_labels) if y in self.config.data.seen_classes]
         self.test_unseen_idx = [i for i, y in enumerate(self.test_labels) if y in self.config.data.unseen_classes]
 
-        self.best_scores = [0, 0, 0]
+        self.best_val_scores = [0, 0, 0]
+        self.test_scores = [0, 0, 0]
 
     def _run_training(self):
         from tqdm import tqdm
@@ -62,9 +87,9 @@ class ZSLTrainer(BaseTrainer):
                 scores = self.validate()
                 self.print_scores(scores)
 
-                if scores[2] >= 0.72:
-                    print('You won!')
-                    break
+                # if scores[2] >= 0.72:
+                #     print('You won!')
+                #     break
 
                 # if scores[0] <= 0.42 and self.num_epochs_done >= 100:
                 #     print('You lost!')
@@ -73,13 +98,13 @@ class ZSLTrainer(BaseTrainer):
             self.scheduler.step()
 
         print('<===== Best scores =====>')
-        self.print_scores(self.best_scores)
+        self.print_scores(self.best_val_scores)
 
     def train_on_batch(self, batch):
         self.model.train()
         feats = torch.from_numpy(np.array(batch[0])).to(self.device_name)
         labels = torch.from_numpy(np.array(batch[1])).to(self.device_name)
-        logits = self.compute_logits(feats, prune='seen')
+        logits = self.compute_logits(feats, prune='train')
 
         if self.config.hp.get('label_smoothing', 1.0) < 1.0:
             n_classes = logits.shape[1]
@@ -116,10 +141,12 @@ class ZSLTrainer(BaseTrainer):
         # if self.config.hp.get('feats_dropout.p') and self.model.training:
         #     feats = F.dropout(feats, p=self.config.hp.feats_dropout.p)
 
-        if prune == 'seen':
+        if prune == 'train':
             # Otherwise unseen classes will leak through batch norm
+            attrs = self.attrs[self.train_seen_mask]
+        elif prune == 'seen':
             attrs = self.attrs[self.seen_mask]
-        else:
+        elif prune == 'none':
             attrs = self.attrs
 
         protos = self.model(attrs)
@@ -161,7 +188,7 @@ class ZSLTrainer(BaseTrainer):
                 nn.ReLU()
             ).to(self.device_name)
 
-        output_layer.weight.data.normal_(0, np.sqrt(var))
+        # output_layer.weight.data.normal_(0, np.sqrt(var))
         # bn_layer.weight.data.normal_(0, std)
 
     def init_optimizers(self):
@@ -176,21 +203,39 @@ class ZSLTrainer(BaseTrainer):
 
         return logits
 
-    def validate(self):
+    def compute_scores(self, dataloader, dataset: str='val'):
         self.model.eval()
-        logits = self.run_inference(self.val_dataloader)
-        preds = logits.argmax(dim=1).numpy()
-        guessed = (preds == self.test_labels)
-        seen_acc = guessed[self.test_seen_idx].mean()
-        unseen_acc = guessed[self.test_unseen_idx].mean()
-        harmonic = 2 * (seen_acc * unseen_acc) / (seen_acc + unseen_acc)
-        scores = [seen_acc, unseen_acc, harmonic]
 
-        if scores[2] > self.best_scores[2]:
-            self.best_scores = scores
+        if dataset == 'val':
+            logits = self.run_inference(self.val_dataloader, prune='seen')
+            preds = logits.argmax(dim=1).numpy()
+            guessed = (preds == self.val_labels)
+            seen_acc = guessed[self.val_pseudo_seen_idx].mean()
+            unseen_acc = guessed[self.val_pseudo_unseen_idx].mean()
+            harmonic = 2 * (seen_acc * unseen_acc) / (seen_acc + unseen_acc)
+        elif dataset == 'test':
+            logits = self.run_inference(self.test_dataloader, prune='none')
+            preds = logits.argmax(dim=1).numpy()
+            guessed = (preds == self.test_labels)
+            seen_acc = guessed[self.test_seen_idx].mean()
+            unseen_acc = guessed[self.test_unseen_idx].mean()
+            harmonic = 2 * (seen_acc * unseen_acc) / (seen_acc + unseen_acc)
+        else:
+            raise ValueError(f"Wrong dataset for GZSL scores: {dataset}")
+
+        return 100 * np.array([seen_acc, unseen_acc, harmonic])
+
+    def validate(self):
+        scores = self.compute_scores(self.val_dataloader, dataset='val')
+
+        if scores[2] > self.best_val_scores[2]:
+            self.best_val_scores = scores
+
+            # Compute test scores but keep it hidden
+            self.test_scores = self.compute_scores(self.test_dataloader, dataset='test')
+            print(f'[TEST SCORES] GZSL-S: {self.test_scores[0]: .4f}. GZSL-U: {self.test_scores[1]: .4f}. GZSL-H: {self.test_scores[2]: .4f}')
 
         return scores
 
     def print_scores(self, scores: List[float]):
-        scores = np.array(scores) * 100
         print(f'[Epoch #{self.num_epochs_done: 3d}] GZSL-S: {scores[0]: .4f}. GZSL-U: {scores[1]: .4f}. GZSL-H: {scores[2]: .4f}')
