@@ -17,15 +17,15 @@ all:
     classifier:
       pretrained: false
       resnet_n_layers: 18
-    optim: {type: "sgd", kwargs: {lr: 0.01}}
+    optim: {type: "sgd", kwargs: {lr: 0.003}}
 
-  # validation_sequence:
-  #   num_tasks: 3
-  #   metric: "final_task_wise_acc"
-  #   hpo_grid:
-  #     optim|groups|head|lr: [0.001, 0.005, 0.01]
-  #     optim|groups|head|momentum: [0.5, 0.9, 0.95]
-  #     optim|groups|embedder|lr: [0.001, 0.005, 0.01]
+  validation_sequence:
+    num_tasks: 3
+    metric: "final_task_wise_acc"
+    hpo_grid:
+      optim|groups|head|lr: [0.001, 0.005, 0.01]
+      optim|groups|head|momentum: [0.5, 0.9, 0.95]
+      optim|groups|embedder|lr: [0.001, 0.005, 0.01]
 
 cub:
   data:

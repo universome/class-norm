@@ -6,8 +6,8 @@ all:
       loss_coef: 1.0
       gamma: 0.95
 
-  # validation_sequence:
-  #   num_tasks: 3
-  #   hpo_grid:
-  #     fisher|loss_coef: [1, 10, 100]
-  #     fisher|gamma: [0.95, 0.99]
+  validation_sequence:
+    num_tasks: 3
+    hpo_grid:
+      fisher|loss_coef: [1, 10, 100]
+      fisher|gamma: [0.95, 0.99]

@@ -15,7 +15,6 @@ from src.utils.losses import (
     compute_mmd_loss,
     compute_diagonal_cov_reg
 )
-from src.utils.metrics import remap_targets
 
 class MultiProtoTaskTrainer(TaskTrainer):
     def _after_init_hook(self):
@@ -46,8 +45,7 @@ class MultiProtoTaskTrainer(TaskTrainer):
 
         loss = 0.
         x = torch.from_numpy(np.array(batch[0])).to(self.device_name)
-        y = remap_targets(batch[1], sorted(self.classes))
-        y = torch.from_numpy(np.array(y)).to(self.device_name)
+        y = torch.from_numpy(np.array(batch[1])).to(self.device_name)
 
         # if self.model.head.config.get('dae.enabled'):
         #     with torch.no_grad():
@@ -97,7 +95,7 @@ class MultiProtoTaskTrainer(TaskTrainer):
         #     logits, protos = self.model(x, return_protos=True)
         # else:
         feats = self.model.embedder(x)
-        logits = self.model.head(feats, self.output_mask)
+        logits = self.model.head(feats)
 
         if self.model.head.config.get('aggregation_type') == 'individual_losses':
             n_protos = logits.size(0) // y.size(0)
@@ -110,8 +108,7 @@ class MultiProtoTaskTrainer(TaskTrainer):
             log_evidence = logits_pruned.logsumexp(dim=1) # [batch_size]
             cls_loss = -(logits_for_true - log_evidence).mean()
         else:
-            # cls_loss = self.criterion(prune_logits(logits, self.output_mask), y)
-            cls_loss = self.criterion(logits, y)
+            cls_loss = self.criterion(prune_logits(logits, self.output_mask), y)
 
         loss += cls_loss * self.config.get('cls_loss.coef', 1.0)
 

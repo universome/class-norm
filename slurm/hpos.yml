@@ -4,10 +4,15 @@ inits:
     head|init|mode: ["fan_in", "fan_out"]
     head|init|dist_type: ["uniform"]
 
+baseline:
+  grid:
+    batch_size: [10]
+
 zsl:
   search_type: "random"
   num_experiments: 1
   grid:
+    val_ratio: [0.1, 0.15, 0.2]
     optim|kwargs|lr: [0.01, 0.005, 0.001, 0.0005, 0.00001]
     bn_affine: [true, false]
     optim|scheduler|step_size: [50, 100, 250]
@@ -17,9 +22,3 @@ zsl:
     batch_size: [128, 256, 512, 1024]
     hid_dim: [256, 512, 1024, 1600]
     scale: [5, 7]
-
-joint: {}
-agem: {}
-basic: {}
-ewc_online: {}
-mas: {}

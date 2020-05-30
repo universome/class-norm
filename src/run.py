@@ -50,7 +50,13 @@ def run_validation_sequence(args: argparse.Namespace, config: Config):
         trainer = LLLTrainer(c)
         trainer.start()
 
-        score = np.mean(trainer.compute_harmonic_mean_accuracy())
+        if config.validation_sequence.metric == 'harmonic_mean':
+            score = np.mean(trainer.compute_harmonic_mean_accuracy())
+        elif config.validation_sequence.metric == 'final_task_wise_acc':
+            score = np.mean(trainer.compute_final_tasks_performance())
+        else:
+            raise NotImplementedError('Unknown metric')
+
         scores.append(score)
 
     best_config = configs[np.argmax(scores)]
@@ -66,15 +72,13 @@ def load_config(args: argparse.Namespace, config_cli_args: List[str]) -> Config:
     base_config = Config.load('configs/base.yml')
     curr_config = Config.load(f'configs/{args.config_name}.yml')
 
-    assert curr_config.has(args.dataset)
-
     # Setting properties from the base config
     config = base_config.all.clone()
     config = config.overwrite(base_config.get(args.dataset))
 
     # Setting properties from the current config
     config = config.overwrite(curr_config.all)
-    config = config.overwrite(curr_config.get(args.dataset))
+    config = config.overwrite(curr_config.get(args.dataset, Config({})))
 
     # Setting experiment-specific properties
     config.set('experiments_dir', args.experiments_dir)
