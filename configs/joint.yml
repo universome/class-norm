@@ -1,48 +1,6 @@
 all:
   task_trainer: "joint"
   hp:
-    optim: {type: "sgd", kwargs: {lr: 0.003}}
-    # optim: {type: "adam", kwargs: {lr: 0.003}}
-    # optim: {type: "adam", kwargs: {lr: 0.001, betas: [0.0, 0.9]}}
-    reinit_after_each_task: false
-    model: {type: "simple_classifier"}
-    classifier:
-      resnet_n_layers: 18
-
-    use_class_attrs: true
-    attrs_head:
-      learnable_attrs: false
-      use_cls_proj: false
-      use_biases: true
-      normalize: false
-      normalize_feats: false
-
-cub_embeddings:
-  hp:
-    max_num_epochs: 50
-    model:
-      type: "feat_classifier"
-      input_type: "resnet18_feat"
-      hid_dim: 512
-      num_classes: 200
-    optim: {type: "adam", kwargs: {lr: 0.001}}
-  data:
-    input_type: "resnet18_feat"
-
-cub:
-  hp:
-    max_num_epochs: 5
-    pretrained: true
-
-awa:
-  hp:
-    max_num_epochs: 5
-    pretrained: false
-    optim: {type: "adam", kwargs: {lr: 0.003}}
-
-cifar100:
-  hp:
-    max_num_epochs: 3
-    pretrained: false
-
-tiny_imagenet: {}
+    optim:
+      type: "sgd"
+      kwargs: {lr: 0.003}

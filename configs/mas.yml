@@ -2,15 +2,12 @@ all:
   task_trainer: "mas"
   hp:
     synaptic_strength: 0.1
+    fisher:
+      loss_coef: 1.0
+      gamma: 0.95
 
-cub_embeddings:
-  hp:
-    max_num_epochs: 10
-    model:
-      type: "feat_classifier"
-      input_type: "resnet18_feat"
-      hid_dim: 512
-      num_classes: 200
-    optim: {type: "adam", kwargs: {lr: 0.001}}
-  data:
-    input_type: "resnet18_feat"
+  # validation_sequence:
+  #   num_tasks: 3
+  #   hpo_grid:
+  #     fisher|loss_coef: [1, 10, 100]
+  #     fisher|gamma: [0.95, 0.99]

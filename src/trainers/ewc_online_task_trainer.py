@@ -17,7 +17,7 @@ class EWCOnlineTaskTrainer(TaskTrainer):
         if prev_trainer != None:
             self.weights_prev = torch.cat([p.data.view(-1) for p in self.model.parameters()])
 
-            curr_fisher = compute_diagonal_fisher(self.model, self.train_dataloader, prev_trainer.output_mask)
+            curr_fisher = self.compute_importances(self.train_dataloader, prev_trainer.output_mask)
 
             if (self.task_idx - self.config.get('start_idx', 0)) == 1:
                 prev_fisher = torch.zeros_like(curr_fisher)
@@ -46,8 +46,14 @@ class EWCOnlineTaskTrainer(TaskTrainer):
         loss.backward()
         self.optim.step()
 
+    def get_weights_importances(self):
+        return self.fisher
+
+    def compute_importances(self, dataloader, output_mask):
+        return compute_diagonal_fisher(self.model, dataloader, output_mask)
+
     def compute_regularization(self) -> Tensor:
         weights_curr = torch.cat([p.view(-1) for p in self.model.parameters()])
-        reg = torch.dot((weights_curr - self.weights_prev).pow(2), self.fisher)
+        reg = torch.dot((weights_curr - self.weights_prev).pow(2), self.get_weights_importances())
 
         return reg

@@ -35,7 +35,7 @@ class AgemTaskTrainer(TaskTrainer):
         pruned_logits = self.model.compute_pruned_predictions(x, self.output_mask)
         loss = self.criterion(pruned_logits, y)
 
-        if self.task_idx > 0:
+        if self.task_idx - self.config.get('start_task', 0) > 0:
             assert len(self.episodic_memory) > 0
 
             ref_grad = self.compute_ref_grad()

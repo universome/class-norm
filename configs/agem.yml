@@ -3,18 +3,6 @@ all:
   hp:
     mem_batch_size: 128
 
-awa:
-  hp:
-    num_mem_samples_per_class: 20
-    pretrained: false
-cub:
-  hp:
-    num_mem_samples_per_class: 5
-    pretrained: true
-
-tiny_imagenet: {}
-
-# cifar100_embeddings:
-#   hp:
-#     pretrained: true
-#     num_mem_samples_per_class: 10
+awa: {hp: {num_mem_samples_per_class: 20}}
+cub: {hp: {num_mem_samples_per_class: 5}}
+sun: {hp: {num_mem_samples_per_class: 3}}

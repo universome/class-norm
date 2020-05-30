@@ -1,9 +1,4 @@
 all:
   task_trainer: "basic"
   hp:
-    use_class_attrs: true
-
-cub: {hp: {pretrained: true}}
-awa: {}
-tiny_imagenet: {}
-cifar100: {}
+    use_class_attrs: false
