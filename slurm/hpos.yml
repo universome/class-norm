@@ -1,45 +1,25 @@
-proper_init:
-  search_type: "random"
-  num_experiments: 50
+inits:
   grid:
-    head|init|type: ["proper"]
-    head|normalize_attrs: [true]
-    head|normalize: [false]
-
-    head|init|proper_std_type: ["fan_in"]
-    head|init|dist_type: ["normal", "uniform"]
-    optim|groups|head|lr: [0.0001, 0.0005, 0.001, 0.005]
-    optim|groups|embedder|lr: [0.0001, 0.0005, 0.001, 0.005]
-    optim|decrease_lr_coef: [1.0, 0.95, 0.9, 0.75]
-    clip_grad: [1, 5, 10, 50, 100, 1000, 100000000]
-
-xavier_init:
-  search_type: "random"
-  num_experiments: 50
-  grid:
-    head|init|type: ["xavier"]
-    head|normalize_attrs: [false]
-    head|normalize: [true]
-
-    head|init|dist_type: ["normal", "uniform"]
-    optim|groups|head|lr: [0.0001, 0.0005, 0.001, 0.005, 0.01]
-    optim|groups|embedder|lr: [0.0001, 0.0005, 0.001, 0.005, 0.01]
-    optim|decrease_lr_coef: [1.0, 0.95, 0.9, 0.75]
-    head|scale: [1.0, 2.5, 5.0, 10.0, 20.0]
-    clip_grad: [1, 5, 10, 50, 100, 1000, 100000000]
-
-kaiming_init:
-  search_type: "random"
-  num_experiments: 50
-  grid:
-    head|init|type: ["kaiming"]
-    head|normalize_attrs: [false]
-    head|normalize: [true]
-
+    head|init|type: ["proper", "xavier", "kaiming"]
     head|init|mode: ["fan_in", "fan_out"]
-    head|init|dist_type: ["normal", "uniform"]
-    optim|groups|head|lr: [0.0001, 0.0005, 0.001, 0.005, 0.01]
-    optim|groups|embedder|lr: [0.0001, 0.0005, 0.001, 0.005, 0.01]
-    optim|decrease_lr_coef: [1.0, 0.95, 0.9, 0.75]
-    head|scale: [1.0, 2.5, 5.0, 10.0, 20.0]
-    clip_grad: [1, 5, 10, 50, 100, 1000, 100000000]
+    head|init|dist_type: ["uniform"]
+
+zsl:
+  search_type: "random"
+  num_experiments: 1
+  grid:
+    optim|kwargs|lr: [0.01, 0.005, 0.001, 0.0005, 0.00001]
+    bn_affine: [true, false]
+    optim|scheduler|step_size: [50, 100, 250]
+    optim|scheduler|gamma: [0.1, 0.2, 0.5, 0.9]
+    grad_clip_val: [10, 100, 0]
+    label_smoothing: [0.9, 0.95, 0.99, 1.0]
+    batch_size: [128, 256, 512, 1024]
+    hid_dim: [256, 512, 1024, 1600]
+    scale: [5, 7]
+
+joint: {}
+agem: {}
+basic: {}
+ewc_online: {}
+mas: {}

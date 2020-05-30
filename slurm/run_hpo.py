@@ -23,6 +23,7 @@ def read_args() -> argparse.Namespace:
     parser.add_argument('-d', '--dataset', type=str, help='Which dataset to run on?')
     parser.add_argument('-c', '--config_name', type=str, help='Which config to run?')
     parser.add_argument('-e', '--experiment', type=str, help='Which HPO experiment to run.')
+    parser.add_argument('-r', '--runner', default='lll', type=str, help='Which runner to use: lll or firelab.')
     parser.add_argument('--count', action='store_true', help='Flag which says that we just need to count the experiments.')
     parser.add_argument('--print', action='store_true', help='Flag which says that we just need to print the CLI arguments.')
 
@@ -32,9 +33,8 @@ def read_args() -> argparse.Namespace:
 def main():
     args = read_args()
     hpos = Config.load('slurm/hpos.yml')[args.experiment]
-
     experiments_vals = generate_experiments_from_hpo_grid(hpos.grid)
-    if hpos.search_type == 'random':
+    if hpos.get('search_type') == 'random':
         experiments_vals = random.sample(experiments_vals, min(len(experiments_vals), hpos.num_experiments))
 
     experiments_vals.extend([b.to_dict() for b in hpos.get('baselines', [])])
@@ -50,6 +50,7 @@ def main():
 def run_hpo(args, experiments_cli_args, print_only: bool=False):
     experiments_dir = os.path.join('/ibex/scratch/skoroki/experiments', args.experiment)
     logs_dir = os.path.join('/ibex/scratch/skoroki/logs', f'{args.experiment}')
+    runner = 'slurm_lll_job.sh' if args.runner == 'lll' else 'slurm_firelab_job.sh'
 
     os.makedirs(experiments_dir, exist_ok=True)
     os.makedirs(logs_dir, exist_ok=True)
@@ -58,8 +59,9 @@ def run_hpo(args, experiments_cli_args, print_only: bool=False):
         common_cli_args = f'-c {args.config_name} -d {args.dataset} --experiments_dir {args.dataset}_{experiments_dir} -s {random_seed}'
 
         for cli_args in experiments_cli_args:
-            export = f'ALL,cli_args="{common_cli_args} {cli_args}",dataset_full_name={DATASET_FULL_NAME[args.dataset]}'
-            command = f'sbatch --account=conf-2020-neurips -o {logs_dir}/output-%j.log --mem 32G --export={export} slurm/slurm_lll_job.sh'
+            export = f'ALL,cli_args="{common_cli_args} {cli_args}",dataset_full_name={DATASET_FULL_NAME.get(args.dataset)},dataset={args.dataset}'
+            command = f'sbatch --account=conf-2020-neurips -o {logs_dir}/output-%j.log --mem 32G --export={export} slurm/{runner}'
+
             if print_only:
                 print(command)
             else:
