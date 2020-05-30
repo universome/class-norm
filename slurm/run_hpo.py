@@ -60,7 +60,7 @@ def run_hpo(args, experiments_cli_args, print_only: bool=False):
 
         for cli_args in experiments_cli_args:
             export = f'ALL,cli_args="{common_cli_args} {cli_args}",dataset_full_name={DATASET_FULL_NAME.get(args.dataset)},dataset={args.dataset}'
-            command = f'sbatch --account=conf-2020-neurips -o {logs_dir}/output-%j.log --mem 32G --export={export} slurm/{runner}'
+            command = f'sbatch -o {logs_dir}/output-%j.log --mem 32G --export={export} slurm/{runner}'
 
             if print_only:
                 print(command)
