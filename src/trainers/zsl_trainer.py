@@ -86,6 +86,7 @@ class ZSLTrainer(BaseTrainer):
         self.test_dataloader = DataLoader(ds_test, batch_size=2048, num_workers=0)
         self.train_seen_mask = construct_output_mask(self.train_classes, self.config.data.num_classes)
 
+        self.curr_val_scores = [0, 0, 0]
         self.best_val_scores = [0, 0, 0]
         self.test_scores = [0, 0, 0]
 
@@ -100,8 +101,8 @@ class ZSLTrainer(BaseTrainer):
             self.num_epochs_done += 1
 
             if epoch % self.config.val_freq_epochs == 0:
-                scores = self.validate()
-                self.print_scores(scores)
+                self.curr_val_scores = self.validate()
+                self.print_scores(self.curr_val_scores)
 
             self.scheduler.step()
 
