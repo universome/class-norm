@@ -51,15 +51,18 @@ def run_hpo(args, hps):
     best_last_score_val = 0
     best_best_score_val = 0
 
-    for hp in hps:
+    for i, hp in enumerate(hps):
+        print(f'<======= Running hp #{i+1}/{len(hps)} =======>')
         last_scores = []
         best_scores = []
 
         for random_seed in range(1, args.num_runs + 1):
+            print(f'=> Seed #{random_seed}/{args.num_runs + 1}')
             config = default_config.clone(frozen=False)
-            config[args.dataset].hp = config[args.dataset].hp.overwrite(hp)
-            config.random_seed = random_seed
-            config.dataset = args.dataset
+            config[args.dataset].set('hp',config[args.dataset].hp.overwrite(hp))
+            config.set('random_seed', random_seed)
+            config.set('dataset', args.dataset)
+            config.set('silent', True)
 
             trainer = ZSLTrainer(config)
             trainer.start()
@@ -74,9 +77,15 @@ def run_hpo(args, hps):
             best_last_score_val = mean_last_score
             best_last_score_hp = hp
 
+            print(f'Found new best_last_score_val: {best_last_score_val}')
+            print(best_last_score_hp)
+
         if mean_best_score > best_best_score_val:
             best_best_score_val = mean_best_score
             best_best_score_hp = hp
+
+            print(f'Found new best_best_score_val: {best_best_score_val}')
+            print(best_best_score_hp)
 
     print(f'Best last score hp (value: {best_last_score_val})')
     print(best_last_score_hp)

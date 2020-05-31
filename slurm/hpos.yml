@@ -9,17 +9,16 @@ baseline_new:
     batch_size: [10]
 
 zsl:
-  search_type: "random"
-  num_experiments: 200
+  # search_type: "random"
+  # num_experiments: 200
   grid:
     # val_ratio: [0.1, 0.15, 0.2]
-    max_num_epochs: [25, 50, 100, 250, 500]
-    optim|kwargs|lr: [0.01, 0.005, 0.001, 0.0005, 0.00001]
-    bn_affine: [true, false]
-    optim|scheduler|step_size: [50, 100, 250]
-    optim|scheduler|gamma: [0.1, 0.2, 0.5, 0.9]
-    grad_clip_val: [10, 100, 0]
-    label_smoothing: [0.9, 0.95, 0.99, 1.0]
-    batch_size: [128, 256, 512, 1024]
-    hid_dim: [256, 512, 1024, 1600]
-    scale: [5, 7, 10]
+    max_num_epochs: [25]
+    optim|kwargs|lr: [0.005, 0.004, 0.003, 0.002, 0.001]
+    bn_affine: [false]
+    # optim|scheduler|step_size: [50, 100, 250]
+    # optim|scheduler|gamma: [0.1, 0.2, 0.5, 0.9]
+    label_smoothing: [0.9, 1.0]
+    batch_size: [128, 512]
+    hid_dim: [256, 512]
+    scale: [5]

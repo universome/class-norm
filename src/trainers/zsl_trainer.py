@@ -20,7 +20,8 @@ class ZSLTrainer(BaseTrainer):
         config = config.overwrite(config[config.dataset])
         config = config.overwrite(Config.read_from_cli())
         config.exp_name = f'zsl_{config.dataset}_{config.hp.compute_hash()}_{config.random_seed}'
-        print(config.hp)
+        if not config.get('silent'):
+            print(config.hp)
         self.random = np.random.RandomState(config.random_seed)
         super().__init__(config)
 
@@ -102,13 +103,15 @@ class ZSLTrainer(BaseTrainer):
 
             if epoch % self.config.val_freq_epochs == 0:
                 self.curr_val_scores = self.validate()
-                self.print_scores(self.curr_val_scores)
+                if not self.config.get('silent'):
+                    self.print_scores(self.curr_val_scores)
 
             self.scheduler.step()
 
         if self.config.hp.val_ratio > 0:
-            self.logger.info('<===== Test scores (computed for the highest val scores) =====>')
-            self.print_scores(self.test_scores)
+            if not self.config.get('silent'):
+                self.logger.info('<===== Test scores (computed for the highest val scores) =====>')
+                self.print_scores(self.test_scores)
 
         print(f'Training took time: {time() - start_time: .02f} seconds')
 

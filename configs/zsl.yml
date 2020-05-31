@@ -3,7 +3,7 @@ dataset: "cub"
 val_freq_epochs: 1
 random_seed: 1
 hp:
-  max_num_epochs: 500
+  max_num_epochs: 250
   scale: 5
   val_ratio: 0.0
   batch_size: 512
@@ -22,20 +22,34 @@ hp:
       step_size: 100
       gamma: 0.5
 
+awa1:
+  data:
+    seen_classes: [0,1,2,3,4,5,7,9,10,11,12,13,14,15,16,17,18,19,20,21,24,25,26,27,28,31,32,34,35,36,37,38,39,41,42,43,44,45,47,48]
+    unseen_classes: [6,8,22,23,29,30,33,40,46,49]
+    dir: "/tmp/skoroki/czsl/data/awa1_feats"
+    num_classes: 50
+  hp:
+    max_num_epochs: 100
+    batch_size: 128
+    hid_dim: 256
+    grad_clip_val: 5
+    bn_affine: false
+    # init: {type: "none"}
+    cross_entropy_reg_coef: 0.001
+    optim: {scheduler: {step_size: 50, gamma: 0.5}}
+
 awa2:
   data:
-    seen_classes: [2,3,4,5,7,9,10,11,12,13,14,16,18,19,20,24,25,21,26,28,31,32,34,35,36,37,38,41,42,44,45,48,39,43,17,0,1,27,47,15]
-    unseen_classes: [22,49,29,23,8,33,6,46,30,40]
+    seen_classes: [0,1,2,3,4,5,7,9,10,11,12,13,14,15,16,17,18,19,20,21,24,25,26,27,28,31,32,34,35,36,37,38,39,41,42,43,44,45,47,48]
+    unseen_classes: [6,8,22,23,29,30,33,40,46,49]
     dir: "/tmp/skoroki/czsl/data/awa2_feats"
     num_classes: 50
-    attrs_dim: 85
   hp:
     max_num_epochs: 50
     batch_size: 128
     hid_dim: 1600
     cross_entropy_reg_coef: 0.001
     optim: {scheduler: {step_size: 10, gamma: 0.5}}
-    # init: {type: "normal"}
 
 cub:
   data:
@@ -49,21 +63,8 @@ cub:
     hid_dim: 512
     label_smoothing: 0.9
     max_num_epochs: 25
-    optim:
-      kwargs:
-        lr: 0.005
-      scheduler:
-        gamma: 0.9
-        step_size: 250
+    optim: {kwargs: {lr: 0.002}}
     scale: 5
-    # batch_size: 256
-    # bn_affine: false
-    # grad_clip_val: 10
-    # label_smoothing: 0.99
-    # max_num_epochs: 250
-    # optim:
-    #   kwargs: {lr: 0.005}
-    #   scheduler: {gamma: 0.5, step_size: 100}
 
 sun:
   data:
@@ -76,3 +77,18 @@ sun:
     hid_dim: 2048
     # cross_entropy_reg_coef: 0.001
     # label_smoothing: 0.99
+
+apy:
+  data:
+    seen_classes: [0,1,2,3,4,5,6,7,8,10,11,17,21,23,25,26,27,29,30,31]
+    unseen_classes: [9,12,13,14,15,16,18,19,20,22,24,28]
+    dir: "/tmp/skoroki/czsl/data/apy_feats"
+    num_classes: 32
+  hp:
+    max_num_epochs: 100
+    batch_size: 512
+    hid_dim: 1024
+    grad_clip_val: 100
+    bn_affine: false
+    # optim: {scheduler: {step_size: 50, gamma: 0.5}}
+    optim: {kwargs: {lr: 0.01}}
