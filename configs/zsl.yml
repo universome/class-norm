@@ -44,14 +44,26 @@ cub:
     dir: "/tmp/skoroki/czsl/data/cub_feats"
     num_classes: 200
   hp:
-    max_num_epochs: 50
-    batch_size: 256
-    hid_dim: 512
-    cross_entropy_reg_coef: 0.001
-    label_smoothing: 0.9
+    batch_size: 512
     bn_affine: false
-    init: {with_relu: false}
-    optim: {scheduler: {step_size: 10, gamma: 0.9}}
+    hid_dim: 512
+    label_smoothing: 0.9
+    max_num_epochs: 25
+    optim:
+      kwargs:
+        lr: 0.005
+      scheduler:
+        gamma: 0.9
+        step_size: 250
+    scale: 5
+    # batch_size: 256
+    # bn_affine: false
+    # grad_clip_val: 10
+    # label_smoothing: 0.99
+    # max_num_epochs: 250
+    # optim:
+    #   kwargs: {lr: 0.005}
+    #   scheduler: {gamma: 0.5, step_size: 100}
 
 sun:
   data:
