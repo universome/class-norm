@@ -6,10 +6,11 @@ hp:
   max_num_epochs: 250
   scale: 5
   val_ratio: 0.0
-  batch_size: 512
+  batch_size: 256
   grad_clip_val: 100
   hid_dim: 1600
   feat_dim: 2048
+  has_bn: true
   init:
     with_relu: false
     type: "proper"
@@ -53,11 +54,11 @@ cub:
     dir: "/tmp/skoroki/czsl/data/cub_feats"
     num_classes: 200
   hp:
-    batch_size: 256
-    grad_clip_val: 50
+    grad_clip_val: 100
     hid_dim: 512
     label_smoothing: 0.9
     max_num_epochs: 25
+    cross_entropy_reg_coef: 0.001
     optim:
       kwargs: {lr: 0.005}
       scheduler: {gamma: 0.5, step_size: 10}
@@ -69,7 +70,6 @@ sun:
     dir: "/tmp/skoroki/czsl/data/sun_feats"
     num_classes: 717
   hp:
-    batch_size: 256
     grad_clip_val: 10
     label_smoothing: 0.95
     max_num_epochs: 100
@@ -84,11 +84,11 @@ apy:
     dir: "/tmp/skoroki/czsl/data/apy_feats"
     num_classes: 32
   hp:
-    batch_size: 256
+    batch_size: 512
     bn_affine: true
-    hid_dim: 256
+    hid_dim: 512
     label_smoothing: 0.9
     max_num_epochs: 100
     optim:
-      kwargs: {lr: 0.01}
+      kwargs: {lr: 0.002}
       scheduler: {gamma: 0.5, step_size: 10}
