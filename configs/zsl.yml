@@ -34,7 +34,7 @@ awa1:
     hid_dim: 256
     grad_clip_val: 5
     # init: {type: "none"}
-    cross_entropy_reg_coef: 0.001
+    # cross_entropy_reg_coef: 0.001
     optim: {scheduler: {step_size: 50, gamma: 0.5}}
 
 awa2:
@@ -44,11 +44,10 @@ awa2:
     dir: "/tmp/skoroki/czsl/data/awa2_feats"
     num_classes: 50
   hp:
-    max_num_epochs: 50
     batch_size: 128
-    hid_dim: 1600
-    cross_entropy_reg_coef: 0.001
-    optim: {scheduler: {step_size: 10, gamma: 0.5}}
+    # cross_entropy_reg_coef: 0.0001
+    grad_clip_val: 50
+    optim: {scheduler: {gamma: 0.9, step_size: 25}}
 
 cub:
   data:
@@ -57,12 +56,14 @@ cub:
     dir: "/tmp/skoroki/czsl/data/cub_feats"
     num_classes: 200
   hp:
-    batch_size: 512
+    batch_size: 256
+    grad_clip_val: 50
     hid_dim: 512
     label_smoothing: 0.9
     max_num_epochs: 25
-    optim: {kwargs: {lr: 0.002}}
-    scale: 5
+    optim:
+      kwargs: {lr: 0.005}
+      scheduler: {gamma: 0.5, step_size: 10}
 
 sun:
   data:
@@ -76,8 +77,7 @@ sun:
     label_smoothing: 0.95
     max_num_epochs: 100
     optim:
-      kwargs:
-        lr: 0.0005
+      kwargs: {lr: 0.0005}
       scheduler: {gamma: 0.1, step_size: 50}
     # batch_size: 128
     # grad_clip_val: 10
@@ -94,10 +94,33 @@ apy:
     dir: "/tmp/skoroki/czsl/data/apy_feats"
     num_classes: 32
   hp:
-    max_num_epochs: 100
-    batch_size: 512
-    label_smoothing: 0.9
-    hid_dim: 1024
+    # max_num_epochs: 100
+    # batch_size: 512
+    # label_smoothing: 0.9
+    # hid_dim: 1024
+    # grad_clip_val: 100
+    # optim: {kwargs: {lr: 0.01}}
+    # batch_size: 128
+    # bn_affine: true
+    # grad_clip_val: 100
+    # hid_dim: 1600
+    # label_smoothing: 0.99
+    # max_num_epochs: 50
+    # optim:
+    #   kwargs:
+    #     lr: 0.0005
+    #   scheduler:
+    #     gamma: 0.5
+    #     step_size: 50
+    batch_size: 128
+    bn_affine: true
     grad_clip_val: 100
-    # optim: {scheduler: {step_size: 50, gamma: 0.5}}
-    optim: {kwargs: {lr: 0.01}}
+    hid_dim: 1600
+    label_smoothing: 1.0
+    max_num_epochs: 50
+    optim:
+      kwargs:
+        lr: 0.0001
+      scheduler:
+        gamma: 0.5
+        step_size: 10
