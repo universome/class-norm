@@ -19,6 +19,7 @@ def read_args() -> argparse.Namespace:
     parser.add_argument('-n', '--num_runs', type=int, help='Number of runs for each experimental setup')
     parser.add_argument('-d', '--dataset', type=str, help='Which dataset to run on?')
     parser.add_argument('-e', '--experiment', type=str, help='Which HPO experiment to run.')
+    parser.add_argument('--silent', action='store_true', help='Should we run the trainer in a silent mode?')
     parser.add_argument('--count', action='store_true', help='Should we just count and exit?')
 
     return parser.parse_args()
@@ -57,12 +58,12 @@ def run_hpo(args, hps):
         best_scores = []
 
         for random_seed in range(1, args.num_runs + 1):
-            print(f'=> Seed #{random_seed}/{args.num_runs + 1}')
+            print(f'=> Seed #{random_seed}/{args.num_runs}')
             config = default_config.clone(frozen=False)
             config[args.dataset].set('hp',config[args.dataset].hp.overwrite(hp))
             config.set('random_seed', random_seed)
             config.set('dataset', args.dataset)
-            config.set('silent', True)
+            config.set('silent', args.silent)
 
             trainer = ZSLTrainer(config)
             trainer.start()

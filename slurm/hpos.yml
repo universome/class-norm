@@ -4,9 +4,8 @@ inits:
     head|init|mode: ["fan_in", "fan_out"]
     head|init|dist_type: ["uniform", "normal"]
 
-baseline_new:
-  grid:
-    batch_size: [10]
+several_runs:
+  grid: {dummy_property: [0]}
 
 zsl:
   search_type: "random"
@@ -55,13 +54,13 @@ zsl_awa2:
   search_type: "random"
   num_experiments: 100
   grid:
+    optim|kwargs|lr: [0.002, 0.001, 0.0005]
     max_num_epochs: [25, 50, 100]
     optim|kwargs|lr: [0.002, 0.001, 0.0005]
     optim|scheduler|step_size: [10, 25, 50]
     optim|scheduler|gamma: [0.5, 0.9]
     cross_entropy_reg_coef: [0.0001, 0.001, 0.01]
     batch_size: [128, 256]
-    hid_dim: [1600]
     grad_clip_val: [5, 10, 50, 100]
 
 zsl_cub:
