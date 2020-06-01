@@ -14,7 +14,7 @@ hp:
     with_relu: false
     type: "proper"
     dist: "uniform"
-  bn_affine: true
+  bn_affine: false
   optim:
     type: "adam"
     kwargs: {lr: 0.001}
@@ -33,7 +33,6 @@ awa1:
     batch_size: 128
     hid_dim: 256
     grad_clip_val: 5
-    bn_affine: false
     # init: {type: "none"}
     cross_entropy_reg_coef: 0.001
     optim: {scheduler: {step_size: 50, gamma: 0.5}}
@@ -59,7 +58,6 @@ cub:
     num_classes: 200
   hp:
     batch_size: 512
-    bn_affine: false
     hid_dim: 512
     label_smoothing: 0.9
     max_num_epochs: 25
@@ -73,10 +71,21 @@ sun:
     dir: "/tmp/skoroki/czsl/data/sun_feats"
     num_classes: 717
   hp:
-    max_num_epochs: 200
-    hid_dim: 2048
-    # cross_entropy_reg_coef: 0.001
-    # label_smoothing: 0.99
+    batch_size: 256
+    grad_clip_val: 10
+    label_smoothing: 0.95
+    max_num_epochs: 100
+    optim:
+      kwargs:
+        lr: 0.0005
+      scheduler: {gamma: 0.1, step_size: 50}
+    # batch_size: 128
+    # grad_clip_val: 10
+    # max_num_epochs: 250
+    # optim:
+    #   kwargs: {lr: 0.001}
+    #   scheduler: {gamma: 0.1, step_size: 250}
+    # scale: 5
 
 apy:
   data:
@@ -87,8 +96,8 @@ apy:
   hp:
     max_num_epochs: 100
     batch_size: 512
+    label_smoothing: 0.9
     hid_dim: 1024
     grad_clip_val: 100
-    bn_affine: false
     # optim: {scheduler: {step_size: 50, gamma: 0.5}}
     optim: {kwargs: {lr: 0.01}}

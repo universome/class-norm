@@ -75,7 +75,9 @@ def normalize_img(img: np.ndarray) -> np.ndarray:
 
 
 def default_transform(img: np.ndarray, target_shape: Tuple[int]=None) -> np.ndarray:
-    if not target_shape is None:
+    if target_shape is None:
+        result = img
+    else:
         result = cv2.resize(img, target_shape)
 
     result = normalize_img(result)

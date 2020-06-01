@@ -1,0 +1,6 @@
+all:
+  task_trainer: "multi_task"
+  hp:
+    optim:
+      type: "adam"
+      kwargs: {lr: 0.003}

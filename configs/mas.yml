@@ -1,13 +1,12 @@
 all:
   task_trainer: "mas"
   hp:
-    synaptic_strength: 0.1
     fisher:
-      loss_coef: 1.0
+      loss_coef: 0.1
       gamma: 0.95
 
   validation_sequence:
     num_tasks: 3
     hpo_grid:
-      fisher|loss_coef: [1, 10, 100]
+      fisher|loss_coef: [0.1, 1.0]
       fisher|gamma: [0.95, 0.99]

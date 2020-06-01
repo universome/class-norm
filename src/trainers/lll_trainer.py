@@ -44,7 +44,7 @@ TASK_TRAINERS = {
     'joint': JointTaskTrainer,
     'dem': DEMTaskTrainer,
     'icarl': iCarlTaskTrainer,
-    'multi_proto': MultiProtoTaskTrainer
+    'multi_proto': MultiProtoTaskTrainer,
 }
 
 MODELS = {

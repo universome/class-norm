@@ -27,6 +27,7 @@ class ZSLTrainer(BaseTrainer):
 
     def init_dataloaders(self):
         feats = np.load(f'{self.config.data.dir}/feats.npy').astype(np.float32)
+        # feats = (feats - feats.mean(axis=0, keepdims=True)) / feats.std(axis=0, keepdims=True)
         labels = np.load(f'{self.config.data.dir}/labels.npy').astype(int)
         attrs = np.load(f'{self.config.data.dir}/attrs.npy').astype(np.float32)
         train_idx = np.load(f'{self.config.data.dir}/train_idx.npy')

@@ -18,7 +18,7 @@ def read_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser('Running LLL trainer')
     parser.add_argument('-n', '--num_runs', type=int, help='Number of runs for each experimental setup')
     parser.add_argument('-d', '--dataset', type=str, help='Which dataset to run on?')
-    parser.add_argument('-e', '--experiments_dir', type=str, help='Where to save the results?')
+    parser.add_argument('-e', '--experiment', type=str, help='Which HPO experiment to run.')
     parser.add_argument('--count', action='store_true', help='Should we just count and exit?')
 
     return parser.parse_args()
@@ -26,7 +26,7 @@ def read_args() -> argparse.Namespace:
 
 def main():
     args = read_args()
-    hpos = Config.load('slurm/hpos.yml')['zsl']
+    hpos = Config.load('slurm/hpos.yml')[args.experiment]
     experiments_vals = generate_experiments_from_hpo_grid(hpos.grid)
     if hpos.get('search_type') == 'random':
         experiments_vals = random.sample(experiments_vals, min(len(experiments_vals), hpos.num_experiments))
@@ -41,7 +41,7 @@ def main():
 
 
 def run_hpo(args, hps):
-    experiments_dir = os.path.join('/ibex/scratch/skoroki/zsl-experiments', args.experiments_dir)
+    experiments_dir = f'/ibex/scratch/skoroki/zsl-experiments/{args.experiment}'
     os.makedirs(experiments_dir, exist_ok=True)
     default_config = Config.load('configs/zsl.yml', frozen=False)
     default_config.experiments_dir = experiments_dir
