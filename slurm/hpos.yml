@@ -24,15 +24,69 @@ zsl:
     scale: [3, 5, 7]
 
 zsl_apy:
-  # search_type: "random"
-  # num_experiments: 250
+  search_type: "random"
+  num_experiments: 250
   grid:
-    # val_ratio: [0.1, 0.15, 0.2]
     max_num_epochs: [25, 50]
-    optim|kwargs|lr: [0.002, 0.001, 0.0005]
+    optim|kwargs|lr: [0.002, 0.001, 0.0005, 0.0001]
     bn_affine: [true, false]
     optim|scheduler|step_size: [10, 25, 50]
     optim|scheduler|gamma: [0.5]
     label_smoothing: [0.99, 1.0]
     batch_size: [128, 256]
     hid_dim: [1024, 1600]
+    grad_clip_val: [5, 10, 50, 100]
+
+zsl_awa1:
+  search_type: "random"
+  num_experiments: 100
+  grid:
+    max_num_epochs: [50, 100, 250]
+    optim|kwargs|lr: [0.002, 0.001, 0.0005]
+    optim|scheduler|step_size: [25, 50, 100]
+    optim|scheduler|gamma: [0.5, 0.9]
+    label_smoothing: [0.99, 1.0]
+    batch_size: [64, 128, 256]
+    hid_dim: [1024, 1600]
+    grad_clip_val: [1., 2.5, 5., 10., 50.]
+    cross_entropy_reg_coef: [0.0001, 0.001, 0.01]
+
+zsl_awa2:
+  search_type: "random"
+  num_experiments: 100
+  grid:
+    max_num_epochs: [25, 50, 100]
+    optim|kwargs|lr: [0.002, 0.001, 0.0005]
+    optim|scheduler|step_size: [10, 25, 50]
+    optim|scheduler|gamma: [0.5, 0.9]
+    cross_entropy_reg_coef: [0.0001, 0.001, 0.01]
+    batch_size: [128, 256]
+    hid_dim: [1600]
+    grad_clip_val: [5, 10, 50, 100]
+
+zsl_cub:
+  search_type: "random"
+  num_experiments: 250
+  grid:
+    max_num_epochs: [25, 50]
+    optim|kwargs|lr: [0.005, 0.002, 0.001, 0.0005]
+    optim|scheduler|step_size: [10, 25, 50]
+    optim|scheduler|gamma: [0.5]
+    label_smoothing: [0.9, 0.95, 0.99, 1.0]
+    batch_size: [256, 512]
+    hid_dim: [256, 512, 1024]
+    grad_clip_val: [5, 10, 50, 100]
+
+
+zsl_sun:
+  search_type: "random"
+  num_experiments: 250
+  grid:
+    max_num_epochs: [100, 250]
+    optim|kwargs|lr: [0.002, 0.001, 0.0005, 0.0001]
+    optim|scheduler|step_size: [50, 250]
+    optim|scheduler|gamma: [0.1, 0.5]
+    label_smoothing: [0.95, 1.0]
+    batch_size: [128, 256]
+    hid_dim: [1024, 1600]
+    grad_clip_val: [5, 10, 50, 100]
