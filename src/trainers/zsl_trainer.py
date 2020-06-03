@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch.nn.utils import clip_grad_norm_
+import torch.nn.init as init
 from firelab.base_trainer import BaseTrainer
 from firelab.config import Config
 from sklearn.model_selection import train_test_split
@@ -105,16 +106,15 @@ class ZSLTrainer(BaseTrainer):
             if epoch % self.config.val_freq_epochs == 0:
                 self.curr_val_scores = self.validate()
                 if not self.config.get('silent'):
-                    self.print_scores(self.curr_val_scores)
+                    self.print_scores(self.curr_val_scores, prefix='[CURR VAL] ')
 
             self.scheduler.step()
 
-        if self.config.hp.val_ratio > 0:
-            if not self.config.get('silent'):
-                self.logger.info('<===== Test scores (computed for the highest val scores) =====>')
-                self.print_scores(self.test_scores)
+        self.print_scores(self.test_scores, prefix='[TEST] ')
+        self.print_scores(self.curr_val_scores, prefix='[FINAL VAL] ')
 
-        print(f'Training took time: {time() - start_time: .02f} seconds')
+        self.elapsed = time() - start_time
+        print(f'Training took time: {self.elapsed: .02f} seconds')
 
     def train_on_batch(self, batch):
         self.model.train()
@@ -184,7 +184,7 @@ class ZSLTrainer(BaseTrainer):
 
     def init_models(self):
         output_layer = nn.Linear(self.config.hp.hid_dim, self.config.hp.feat_dim)
-        bn_layer = nn.BatchNorm1d(self.config.hp.hid_dim, affine=self.config.hp.bn_affine)
+        bn_layer = nn.BatchNorm1d(self.config.hp.hid_dim, affine=False) if self.config.hp.has_bn else nn.Identity()
 
         self.model = nn.Sequential(
             nn.Linear(self.attrs.shape[1], self.config.hp.hid_dim),
@@ -205,6 +205,12 @@ class ZSLTrainer(BaseTrainer):
                 output_layer.weight.data.uniform_(-b, b)
             else:
                 output_layer.weight.data.normal_(0, np.sqrt(var))
+        elif self.config.hp.init.type == 'xavier':
+            init.xavier_uniform_(output_layer.weight)
+        elif self.config.hp.init.type == 'kaiming':
+            init.kaiming_uniform_(output_layer.weight, mode=self.config.hp.init.mode, nonlinearity='relu')
+        else:
+            raise ValueError(f'Unknown init type: {self.config.hp.init.type}')
 
     def init_optimizers(self):
         self.optim = construct_optimizer(self.model.parameters(), self.config.hp.optim)
@@ -248,9 +254,11 @@ class ZSLTrainer(BaseTrainer):
 
             # Compute test scores but keep it hidden
             self.test_scores = self.compute_scores(dataset='test')
-            self.logger.info(f'[TEST SCORES] GZSL-S: {self.test_scores[0]: .4f}. GZSL-U: {self.test_scores[1]: .4f}. GZSL-H: {self.test_scores[2]: .4f}')
+
+            if not self.config.get('silent'):
+                self.logger.info(f'[TEST SCORES epoch #{self.num_epochs_done: 3d}] GZSL-S: {self.test_scores[0]: .4f}. GZSL-U: {self.test_scores[1]: .4f}. GZSL-H: {self.test_scores[2]: .4f}')
 
         return scores
 
-    def print_scores(self, scores: List[float]):
-        self.logger.info(f'[Epoch #{self.num_epochs_done: 3d}] GZSL-S: {scores[0]: .4f}. GZSL-U: {scores[1]: .4f}. GZSL-H: {scores[2]: .4f}')
+    def print_scores(self, scores: List[float], prefix=''):
+        self.logger.info(f'{prefix}[Epoch #{self.num_epochs_done: 3d}] GZSL-S: {scores[0]: .4f}. GZSL-U: {scores[1]: .4f}. GZSL-H: {scores[2]: .4f}')

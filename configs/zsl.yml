@@ -15,13 +15,10 @@ hp:
     with_relu: false
     type: "proper"
     dist: "uniform"
-  bn_affine: false
   optim:
     type: "adam"
     kwargs: {lr: 0.001}
-    scheduler:
-      step_size: 100
-      gamma: 0.5
+    scheduler: {gamma: 0.5, step_size: 100}
 
 awa1:
   data:
@@ -30,11 +27,11 @@ awa1:
     dir: "/tmp/skoroki/czsl/data/awa1_feats"
     num_classes: 50
   hp:
-    max_num_epochs: 100
     batch_size: 128
-    hid_dim: 256
-    grad_clip_val: 5
-    optim: {scheduler: {step_size: 50, gamma: 0.5}}
+    grad_clip_val: 10
+    optim:
+      kwargs: {lr: 0.003}
+      scheduler: {gamma: 1.0}
 
 awa2:
   data:
@@ -44,8 +41,18 @@ awa2:
     num_classes: 50
   hp:
     batch_size: 128
-    grad_clip_val: 50
-    optim: {scheduler: {gamma: 0.9, step_size: 25}}
+    grad_clip_val: 10
+    max_num_epochs: 100
+    optim:
+      kwargs: {lr: 0.002}
+      scheduler: {gamma: 0.9, step_size: 10}
+    # batch_size: 128
+    # entropy_reg_coef: 0.001
+    # grad_clip_val: 10
+    # label_smoothing: 0.99
+    # max_num_epochs: 25
+    # optim:
+    #   scheduler: {gamma: 1.0, step_size: 50}
 
 cub:
   data:
@@ -54,14 +61,13 @@ cub:
     dir: "/tmp/skoroki/czsl/data/cub_feats"
     num_classes: 200
   hp:
-    grad_clip_val: 100
-    hid_dim: 512
-    label_smoothing: 0.9
-    max_num_epochs: 25
     cross_entropy_reg_coef: 0.001
+    hid_dim: 256
+    label_smoothing: 0.9
+    max_num_epochs: 100
     optim:
       kwargs: {lr: 0.005}
-      scheduler: {gamma: 0.5, step_size: 10}
+      scheduler: {gamma: 0.5, step_size: 50}
 
 sun:
   data:
@@ -84,11 +90,19 @@ apy:
     dir: "/tmp/skoroki/czsl/data/apy_feats"
     num_classes: 32
   hp:
-    batch_size: 512
-    bn_affine: true
-    hid_dim: 512
-    label_smoothing: 0.9
-    max_num_epochs: 100
+    batch_size: 256
+    cross_entropy_reg_coef: 0.01
+    entropy_reg_coef: 0.001
+    hid_dim: 1024
+    max_num_epochs: 50
     optim:
-      kwargs: {lr: 0.002}
-      scheduler: {gamma: 0.5, step_size: 10}
+      scheduler: {gamma: 0.9, step_size: 25}
+    # batch_size: 64
+    # cross_entropy_reg_coef: 0.01
+    # entropy_reg_coef: 0.01
+    # grad_clip_val: 1
+    # hid_dim: 512
+    # max_num_epochs: 50
+    # optim:
+    #   kwargs: {lr: 0.002}
+    #   scheduler: {gamma: 0.5, step_size: 10}
