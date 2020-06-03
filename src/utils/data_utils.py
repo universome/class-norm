@@ -72,6 +72,7 @@ def construct_output_mask(classes: List[int], total_num_classes:int) -> np.ndarr
     """Returns 1D array of the output mask"""
 
     mask = np.zeros(total_num_classes).astype(bool)
+    assert np.array(classes).ndim == 1
 
     if len(classes) > 0:
         mask[list(classes)] = True

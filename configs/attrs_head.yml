@@ -1,4 +1,5 @@
 all:
+  start_task: 3
   task_trainer: "multi_proto"
   logging:
     save_train_logits: true
@@ -14,21 +15,24 @@ all:
     optim:
       type: "sgd"
       groups:
-        head: {lr: 0.005, momentum: 0.9}
-        embedder: {lr: 0.003}
+        head: {lr: 0.005, momentum: 0.99}
+        embedder: {lr: 0.005}
       decrease_lr_coef: 0.9
-    use_class_attrs: true
-    batch_size: 10
+    batch_size: 32
 
     head:
-      has_bias: false
-      head_hid_dim: 512
       init:
         type: "proper"
         mode: "fan_in"
-        dist_type: "uniform"
-        n_classes: 10
+        dist: "uniform"
+        with_relu: false
       scale: 10
-      hid_dim: 512
+      hid_dim: 256
+      feat_dim: 512
 
-  validation_sequence: {metric: "harmonic_mean"}
+  validation_sequence:
+    enabled: true
+    metric: "harmonic_mean"
+    hpo_grid:
+      head|init|dist: ["uniform", "normal"]
+      clip_grad|value: [10, 100]
