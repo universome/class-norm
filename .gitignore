@@ -140,5 +140,6 @@ experiments-debug-val-seqs/
 old-experiments*/
 .vscode/
 logs/
+plots/
 
 

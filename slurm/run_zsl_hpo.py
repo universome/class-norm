@@ -20,6 +20,7 @@ def read_args() -> argparse.Namespace:
     parser.add_argument('-d', '--dataset', type=str, help='Which dataset to run on?')
     parser.add_argument('-e', '--experiment', type=str, help='Which HPO experiment to run.')
     parser.add_argument('--silent', action='store_true', help='Should we run the trainer in a silent mode?')
+    parser.add_argument('--metric', default='mean')
     parser.add_argument('--count', action='store_true', help='Should we just count and exit?')
 
     return parser.parse_args()
@@ -71,8 +72,14 @@ def run_hpo(args, hps):
             last_scores.append(trainer.curr_val_scores[2])
             best_scores.append(trainer.best_val_scores[2])
 
-        mean_last_score = np.mean(last_scores)
-        mean_best_score = np.mean(best_scores)
+        if args.metric == 'mean':
+            mean_last_score = np.mean(last_scores)
+            mean_best_score = np.mean(best_scores)
+        elif args.metric == 'median':
+            mean_last_score = np.median(last_scores)
+            mean_best_score = np.median(best_scores)
+        else:
+            raise ValueError(f'Unknown metric: {args.metric}')
 
         if mean_last_score > best_last_score_val:
             best_last_score_val = mean_last_score
