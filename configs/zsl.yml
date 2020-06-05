@@ -27,11 +27,15 @@ awa1:
     dir: "/tmp/skoroki/czsl/data/awa1_feats"
     num_classes: 50
   hp:
-    batch_size: 128
+    batch_size: 256
+    cross_entropy_reg_coef: 0.001
+    entropy_reg_coef: 0.001
     grad_clip_val: 10
+    hid_dim: 512
+    max_num_epochs: 50
     optim:
-      kwargs: {lr: 0.003}
-      scheduler: {gamma: 1.0}
+      kwargs: {lr: 0.005}
+      scheduler: {gamma: 1.0, step_size: 100}
 
 awa2:
   data:
