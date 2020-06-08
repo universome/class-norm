@@ -11,7 +11,7 @@ from firelab.base_trainer import BaseTrainer
 from firelab.config import Config
 from sklearn.model_selection import train_test_split
 
-from src.utils.training_utils import construct_optimizer, prune_logits, normalize
+from src.utils.training_utils import construct_optimizer, normalize, prune_logits
 from src.utils.data_utils import construct_output_mask
 from src.utils.metrics import remap_targets
 
@@ -34,24 +34,25 @@ class ZSLTrainer(BaseTrainer):
         train_idx = np.load(f'{self.config.data.dir}/train_idx.npy')
         test_idx = np.load(f'{self.config.data.dir}/test_idx.npy')
 
-        self.seen_mask = construct_output_mask(self.config.data.seen_classes, self.config.data.num_classes)
+        self.seen_classes = list(sorted(list(self.config.data.seen_classes)))
+        self.unseen_classes = list(sorted(list(self.config.data.unseen_classes)))
+        self.seen_mask = construct_output_mask(self.seen_classes, self.config.data.num_classes)
+        self.unseen_mask = construct_output_mask(self.unseen_classes, self.config.data.num_classes)
         self.attrs = torch.from_numpy(attrs).to(self.device_name)
         self.attrs_seen = self.attrs[self.seen_mask]
         self.test_labels = np.array([labels[i] for i in test_idx])
-        self.test_seen_idx = [i for i, y in enumerate(self.test_labels) if y in self.config.data.seen_classes]
-        self.test_unseen_idx = [i for i, y in enumerate(self.test_labels) if y in self.config.data.unseen_classes]
-
-        seen_classes = list(sorted(list(self.config.data.seen_classes)))
-        val_remapped_labels = np.array(remap_targets(labels, seen_classes))
+        self.test_seen_idx = [i for i, y in enumerate(self.test_labels) if y in self.seen_classes]
+        self.test_unseen_idx = [i for i, y in enumerate(self.test_labels) if y in self.unseen_classes]
+        self.remapped_unseen_test_labels = remap_targets(labels[self.test_unseen_idx], self.unseen_classes)
 
         # Allocating a portion of the train set for cross-validation
         if self.config.hp.val_ratio > 0:
-            num_train_classes = int(len(seen_classes) * (1 - self.config.hp.val_ratio))
-            self.train_classes = self.random.choice(seen_classes, size=num_train_classes, replace=False)
+            num_train_classes = int(len(self.seen_classes) * (1 - self.config.hp.val_ratio))
+            self.train_classes = self.random.choice(self.seen_classes, size=num_train_classes, replace=False)
             self.train_classes = sorted(self.train_classes)
-            self.val_classes = [c for c in seen_classes if not c in self.train_classes]
+            self.pseudo_unseen_classes = [c for c in self.seen_classes if not c in self.train_classes]
 
-            val_pseudo_unseen_idx = np.array([i for i, c in enumerate(labels) if c in self.val_classes])
+            val_pseudo_unseen_idx = np.array([i for i, c in enumerate(labels) if c in self.pseudo_unseen_classes])
             train_idx = np.array([i for i, c in enumerate(labels) if c in self.train_classes])
             train_remapped_labels = np.array(remap_targets(labels, self.train_classes))
 
@@ -61,8 +62,11 @@ class ZSLTrainer(BaseTrainer):
             val_idx = np.hstack([val_pseudo_seen_idx, val_pseudo_unseen_idx])
             self.val_pseudo_seen_idx = np.arange(len(val_pseudo_seen_idx))
             self.val_pseudo_unseen_idx = len(val_pseudo_seen_idx) + np.arange(len(val_pseudo_unseen_idx))
+            val_remapped_labels = np.array(remap_targets(labels, self.seen_classes))
             self.val_labels = np.array([val_remapped_labels[i] for i in val_idx])
             self.val_scope = 'seen'
+            self.pseudo_unseen_mask = construct_output_mask(
+                remap_targets(self.pseudo_unseen_classes, self.seen_classes), len(self.seen_classes))
 
             ds_train = [(feats[i], train_remapped_labels[i]) for i in train_idx]
             ds_val = [(feats[i], val_remapped_labels[i]) for i in val_idx]
@@ -73,10 +77,12 @@ class ZSLTrainer(BaseTrainer):
         else:
             self.logger.warn('Running without validation!')
             # We are doing the final run, so let's use all the data for training
-            self.train_classes = sorted(seen_classes)
+            self.train_classes = self.seen_classes
             train_remapped_labels = np.array(remap_targets(labels, self.train_classes))
             self.val_pseudo_seen_idx = self.test_seen_idx
             self.val_pseudo_unseen_idx = self.test_unseen_idx
+            self.pseudo_unseen_classes = self.unseen_classes
+            self.pseudo_unseen_mask = self.unseen_mask
             self.val_labels = self.test_labels
             self.val_scope = 'all'
 
@@ -89,9 +95,9 @@ class ZSLTrainer(BaseTrainer):
         self.test_dataloader = DataLoader(ds_test, batch_size=2048, num_workers=0)
         self.train_seen_mask = construct_output_mask(self.train_classes, self.config.data.num_classes)
 
-        self.curr_val_scores = [0, 0, 0]
-        self.best_val_scores = [0, 0, 0]
-        self.test_scores = [0, 0, 0]
+        self.curr_val_scores = [0, 0, 0, 0]
+        self.best_val_scores = [0, 0, 0, 0]
+        self.test_scores = [0, 0, 0, 0]
 
     def _run_training(self):
         start_time = time()
@@ -164,6 +170,8 @@ class ZSLTrainer(BaseTrainer):
             attrs = self.attrs[self.seen_mask]
         elif scope == 'none':
             attrs = self.attrs
+        elif scope == 'unseen':
+            attrs = self.attrs[self.unseen_mask]
 
         protos = self.model(attrs)
         feats = normalize(feats, scale_value=self.config.hp.scale)
@@ -234,6 +242,10 @@ class ZSLTrainer(BaseTrainer):
             seen_acc = guessed[self.val_pseudo_seen_idx].mean()
             unseen_acc = guessed[self.val_pseudo_unseen_idx].mean()
             harmonic = 2 * (seen_acc * unseen_acc) / (seen_acc + unseen_acc)
+
+            zsl_logits = prune_logits(logits, self.pseudo_unseen_mask)
+            zsl_preds = zsl_logits.argmax(dim=1).numpy()
+            zsl_acc = (zsl_preds == self.val_labels)[self.val_pseudo_unseen_idx].mean()
         elif dataset == 'test':
             logits = self.run_inference(self.test_dataloader, scope='all')
             preds = logits.argmax(dim=1).numpy()
@@ -241,10 +253,14 @@ class ZSLTrainer(BaseTrainer):
             seen_acc = guessed[self.test_seen_idx].mean()
             unseen_acc = guessed[self.test_unseen_idx].mean()
             harmonic = 2 * (seen_acc * unseen_acc) / (seen_acc + unseen_acc)
+
+            zsl_logits = prune_logits(logits, self.unseen_mask)
+            zsl_preds = zsl_logits.argmax(dim=1).numpy()
+            zsl_acc = (zsl_preds == self.test_labels)[self.test_unseen_idx].mean()
         else:
             raise ValueError(f"Wrong dataset for GZSL scores: {dataset}")
 
-        return 100 * np.array([seen_acc, unseen_acc, harmonic])
+        return 100 * np.array([seen_acc, unseen_acc, harmonic, zsl_acc])
 
     def validate(self):
         scores = self.compute_scores(dataset='val')
@@ -256,9 +272,9 @@ class ZSLTrainer(BaseTrainer):
             self.test_scores = self.compute_scores(dataset='test')
 
             if not self.config.get('silent'):
-                self.logger.info(f'[TEST SCORES epoch #{self.num_epochs_done: 3d}] GZSL-S: {self.test_scores[0]: .4f}. GZSL-U: {self.test_scores[1]: .4f}. GZSL-H: {self.test_scores[2]: .4f}')
+                self.print_scores(self.test_scores, prefix='[TEST] ')
 
         return scores
 
     def print_scores(self, scores: List[float], prefix=''):
-        self.logger.info(f'{prefix}[Epoch #{self.num_epochs_done: 3d}] GZSL-S: {scores[0]: .4f}. GZSL-U: {scores[1]: .4f}. GZSL-H: {scores[2]: .4f}')
+        self.logger.info(f'{prefix}[Epoch #{self.num_epochs_done: 3d}] GZSL-S: {scores[0]: .4f}. GZSL-U: {scores[1]: .4f}. GZSL-H: {scores[2]: .4f}. ZSL: {scores[3]: .4f}.')
