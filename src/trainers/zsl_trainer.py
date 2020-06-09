@@ -34,6 +34,9 @@ class ZSLTrainer(BaseTrainer):
         train_idx = np.load(f'{self.config.data.dir}/train_idx.npy')
         test_idx = np.load(f'{self.config.data.dir}/test_idx.npy')
 
+        if self.config.hp.standardize_attrs:
+            attrs = (attrs - attrs.mean(axis=0, keepdims=True)) / attrs.std(axis=0, keepdims=True)
+
         self.seen_classes = list(sorted(list(self.config.data.seen_classes)))
         self.unseen_classes = list(sorted(list(self.config.data.unseen_classes)))
         self.seen_mask = construct_output_mask(self.seen_classes, self.config.data.num_classes)
@@ -174,8 +177,9 @@ class ZSLTrainer(BaseTrainer):
             attrs = self.attrs[self.unseen_mask]
 
         protos = self.model(attrs)
-        feats = normalize(feats, scale_value=self.config.hp.scale)
-        protos = normalize(protos, scale_value=self.config.hp.scale)
+        if self.config.hp.normalize_and_scale:
+            feats = normalize(feats, scale_value=self.config.hp.scale)
+            protos = normalize(protos, scale_value=self.config.hp.scale)
         logits = feats @ protos.t()
 
         return logits
@@ -191,10 +195,20 @@ class ZSLTrainer(BaseTrainer):
         return logits.log_softmax(dim=1).mean()
 
     def init_models(self):
-        output_layer = nn.Linear(self.config.hp.hid_dim, self.config.hp.feat_dim)
+        if self.config.hp.model_type == 'deep':
+            penultimate_dim = self.config.hp.hid_dim
+            early_layers = nn.Sequential(
+                nn.Linear(self.attrs.shape[1], penultimate_dim),
+                nn.ReLU(),
+            )
+            final_activation = nn.ReLU()
+        else:
+            penultimate_dim = self.attrs.shape[1]
+            early_layers = nn.Identity()
+            final_activation = nn.Identity()
 
         if self.config.hp.has_bn:
-            bn_layer = nn.BatchNorm1d(self.config.hp.hid_dim, affine=self.config.hp.get('bn_affine', False))
+            bn_layer = nn.BatchNorm1d(penultimate_dim, affine=self.config.hp.get('bn_affine', False))
         else:
             bn_layer = nn.Identity()
 
@@ -203,20 +217,21 @@ class ZSLTrainer(BaseTrainer):
         else:
             dn_layer = nn.Identity()
 
+        output_layer = nn.Linear(penultimate_dim, self.config.hp.feat_dim)
+
         self.model = nn.Sequential(
-            nn.Linear(self.attrs.shape[1], self.config.hp.hid_dim),
-            nn.ReLU(),
+            early_layers,
             bn_layer,
             dn_layer,
             output_layer,
-            nn.ReLU()
+            final_activation
         ).to(self.device_name)
 
         if self.config.hp.init.type == 'proper':
             if self.config.hp.init.with_relu:
-                var = 2 / (self.config.hp.hid_dim * self.config.hp.feat_dim * (1 - 1/np.pi))
+                var = 2 / (penultimate_dim * self.config.hp.feat_dim * (1 - 1/np.pi))
             else:
-                var = 1 / (self.config.hp.hid_dim * self.config.hp.feat_dim)
+                var = 1 / (penultimate_dim * self.config.hp.feat_dim)
 
             if self.config.hp.init.dist == 'uniform':
                 b = np.sqrt(3 * var)

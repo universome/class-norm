@@ -1,6 +1,6 @@
 import os
 
-for dataset in ["cub", "awa", "sun"]:
-    for method in ["basic", "agem", "ewc_online", "mas"]:
-        command = f"python slurm/run_hpo.py -c {method} -d {dataset} -e baseline_new -n 5"
+for i, dataset in enumerate(["cub", "awa1", "awa2", "apy" "sun"]):
+    for exp in ["zsl_linear_ns_no_std", "zsl_linear_ns_std", "zsl_linear_no_ns_std", "zsl_linear_no_ns_no_std"]:
+        command = f"CUDA_VISIBLE_DEVICES={i} python slurm/run_zsl_hpo.py -e {exp} -d {dataset} -n 5"
         os.system(command)

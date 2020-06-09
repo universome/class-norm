@@ -16,6 +16,7 @@ def read_args() -> argparse.Namespace:
     parser.add_argument('-n', '--num_runs', type=int, help='Number of runs for each experimental setup')
     parser.add_argument('-d', '--dataset', type=str, help='Which dataset to run on?')
     parser.add_argument('-e', '--experiment', type=str, help='Which HPO experiment to run.')
+    parser.add_argument('--count', action='store_true', default=True, help='Should we just count number of experiments?')
 
     return parser.parse_args()
 
@@ -28,13 +29,16 @@ def main():
     experiments_vals = [{p.replace('|', '.'): v for p, v in exp.items()} for exp in experiments_vals]
     hps = [Config(e) for e in experiments_vals]
 
-    run_series(args, hps)
+    if args.count:
+        print(f'Total number of experiments: {len(hps)} x [{args.num_runs} seed] = {len(hps) * args.num_runs}')
+    else:
+        run_series(args, hps)
 
 
 def run_series(args, hps):
     experiments_dir = f'/ibex/scratch/skoroki/zsl-experiments/{args.experiment}'
-    log_file = f'logs/{args.dataset}-{args.experiment}.log'
-    os.makedirs('logs/', exist_ok=True)
+    os.makedirs(f'logs/{args.experiment}', exist_ok=True)
+    log_file = f'logs/{args.experiment}/{args.dataset}.log'
     os.makedirs(experiments_dir, exist_ok=True)
     default_config = Config.load('configs/zsl.yml', frozen=False)
     default_config.experiments_dir = experiments_dir

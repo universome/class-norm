@@ -3,6 +3,8 @@ dataset: "cub"
 val_freq_epochs: 1
 random_seed: 1
 hp:
+  normalize_and_scale: true
+  standardize_attrs: false
   max_num_epochs: 250
   scale: 5
   val_ratio: 0.0
@@ -11,6 +13,8 @@ hp:
   hid_dim: 1600
   feat_dim: 2048
   has_bn: true
+  has_dn: false
+  model_type: "deep"
   init:
     with_relu: false
     type: "proper"
@@ -50,13 +54,6 @@ awa2:
     optim:
       kwargs: {lr: 0.002}
       scheduler: {gamma: 0.9, step_size: 10}
-    # batch_size: 128
-    # entropy_reg_coef: 0.001
-    # grad_clip_val: 10
-    # label_smoothing: 0.99
-    # max_num_epochs: 25
-    # optim:
-    #   scheduler: {gamma: 1.0, step_size: 50}
 
 cub:
   data:
@@ -101,12 +98,3 @@ apy:
     max_num_epochs: 50
     optim:
       scheduler: {gamma: 0.9, step_size: 25}
-    # batch_size: 64
-    # cross_entropy_reg_coef: 0.01
-    # entropy_reg_coef: 0.01
-    # grad_clip_val: 1
-    # hid_dim: 512
-    # max_num_epochs: 50
-    # optim:
-    #   kwargs: {lr: 0.002}
-    #   scheduler: {gamma: 0.5, step_size: 10}

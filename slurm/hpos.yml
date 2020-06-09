@@ -7,7 +7,6 @@ xavier:
   grid:
     head|init|type: ["xavier"]
 
-
 several_runs:
   grid: {dummy_property: [0]}
 
@@ -73,6 +72,77 @@ zsl:
     label_smoothing: [0.5, 0.9, 0.95, 0.99, 1.0]
     batch_size: [64, 128, 256, 512]
     hid_dim: [128, 256, 512, 1024]
+
+
+zsl_linear_ns_no_std:
+  search_type: "random"
+  num_experiments: 100
+
+  grid:
+    model_type: "linear"
+    init|type: ["xavier"]
+    normalize_and_scale: [true]
+    standardize_attrs: [false]
+
+    grad_clip_val: [10, 100, 1000]
+    max_num_epochs: [25, 50]
+    optim|kwargs|lr: [0.01, 0.005, 0.001, 0.0005]
+    optim|scheduler|step_size: [10, 50]
+    optim|scheduler|gamma: [0.5, 0.9, 1.0]
+    batch_size: [128, 256, 512]
+
+zsl_linear_ns_std:
+  search_type: "random"
+  num_experiments: 100
+
+  grid:
+    model_type: "linear"
+    init|type: ["xavier"]
+    normalize_and_scale: [true]
+    standardize_attrs: [true]
+
+    grad_clip_val: [10, 100, 1000]
+    max_num_epochs: [25, 50]
+    optim|kwargs|lr: [0.01, 0.005, 0.001, 0.0005]
+    optim|scheduler|step_size: [10, 50]
+    optim|scheduler|gamma: [0.5, 0.9, 1.0]
+    batch_size: [128, 256, 512]
+
+zsl_linear_no_ns_std:
+  search_type: "random"
+  num_experiments: 100
+
+  grid:
+    model_type: "linear"
+    init|type: ["xavier"]
+    normalize_and_scale: [false]
+    standardize_attrs: [true]
+
+    grad_clip_val: [10, 100, 1000]
+    max_num_epochs: [25, 50]
+    optim|kwargs|lr: [0.01, 0.005, 0.001, 0.0005]
+    optim|scheduler|step_size: [10, 50]
+    optim|scheduler|gamma: [0.5, 0.9, 1.0]
+    batch_size: [128, 256, 512]
+
+
+zsl_linear_no_ns_no_std:
+  search_type: "random"
+  num_experiments: 100
+
+  grid:
+    model_type: "linear"
+    init|type: ["xavier"]
+    normalize_and_scale: [false]
+    standardize_attrs: [false]
+
+    grad_clip_val: [10, 100, 1000]
+    max_num_epochs: [25, 50]
+    optim|kwargs|lr: [0.01, 0.005, 0.001, 0.0005]
+    optim|scheduler|step_size: [10, 50]
+    optim|scheduler|gamma: [0.5, 0.9, 1.0]
+    batch_size: [128, 256, 512]
+
 
 different_scalings:
   grid:

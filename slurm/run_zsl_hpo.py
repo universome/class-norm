@@ -45,13 +45,17 @@ def main():
 def run_hpo(args, hps):
     experiments_dir = f'/ibex/scratch/skoroki/zsl-experiments/{args.experiment}'
     os.makedirs(experiments_dir, exist_ok=True)
+    os.makedirs(f'hpo_logs/{args.experiment}', exist_ok=True)
+    log_file = f'hpo_logs/{args.experiment}/{args.dataset}.log'
     default_config = Config.load('configs/zsl.yml', frozen=False)
     default_config.experiments_dir = experiments_dir
 
     best_last_score_hp = None
     best_best_score_hp = None
     best_last_score_val = 0
+    best_last_score_std = 0
     best_best_score_val = 0
+    best_best_score_std = 0
 
     for i, hp in enumerate(hps):
         print(f'<======= Running hp #{i+1}/{len(hps)} =======>')
@@ -81,25 +85,45 @@ def run_hpo(args, hps):
         else:
             raise ValueError(f'Unknown metric: {args.metric}')
 
+        std_last_score = np.std(last_scores)
+        std_best_score = np.std(best_scores)
+
         if mean_last_score > best_last_score_val:
             best_last_score_val = mean_last_score
+            best_last_score_std = std_last_score
             best_last_score_hp = hp
 
-            print(f'Found new best_last_score_val: {best_last_score_val}')
-            print(best_last_score_hp)
+            log_str = f'Found new best_last_score_val: {best_last_score_val} (std: {best_last_score_std})\n'
+            log_str += str(best_last_score_hp)
+
+            with open(log_file, 'a') as f:
+                f.write('\n======================================\n')
+                f.write(log_str)
 
         if mean_best_score > best_best_score_val:
             best_best_score_val = mean_best_score
+            best_best_score_std = std_best_score
             best_best_score_hp = hp
 
-            print(f'Found new best_best_score_val: {best_best_score_val}')
-            print(best_best_score_hp)
+            log_str += f'Found new best_best_score_val: {best_best_score_val} (std: {best_best_score_std})\n'
+            log_str += str(best_best_score_hp)
 
-    print(f'Best last score hp (value: {best_last_score_val})')
-    print(best_last_score_hp)
+            with open(log_file, 'a') as f:
+                f.write('\n======================================\n')
+                f.write(log_str)
 
-    print(f'Best best score hp (value: {best_best_score_val})')
-    print(best_best_score_hp)
+    log_str = f'Best last score hp (value: {best_last_score_val}, std: {best_last_score_std})\n'
+    log_str += str(best_last_score_hp)
+    log_str += f'Best best score hp (value: {best_best_score_val}, std: {best_best_score_std})\n'
+    log_str += str(best_best_score_hp)
+
+    with open(log_file, 'a') as f:
+        f.write('\n======================================\n')
+        f.write('\n========== HPO FINAL RESULT ==========\n')
+        f.write('\n======================================\n')
+        f.write(log_str)
+
+    print(log_str)
 
 
 if __name__ == "__main__":
