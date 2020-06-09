@@ -3,18 +3,10 @@ inits:
     head|init|type: ["proper", "xavier", "kaiming"]
     head|init|mode: ["fan_in", "fan_out"]
 
-proper_init:
-  search_type: "random"
-  num_experiments: 30
+xavier:
   grid:
-    no_val: [true]
-    head|init|dist: ["uniform", "normal"]
-    head|init|with_relu: [true, false]
-    batch_size: [16, 32, 64]
-    clip_grad|value: [5, 10, 100]
-    optim|groups|head|lr: [0.0001, 0.0005, 0.001, 0.0025, 0.005, 0.01]
-    optim|groups|embedder|lr: [0.001, 0.0025, 0.005]
-    optim|groups|head|momentum: [0.9, 0.95, 0.99]
+    head|init|type: ["xavier"]
+
 
 several_runs:
   grid: {dummy_property: [0]}
@@ -25,9 +17,51 @@ other_inits:
     init|mode: ["fan_in", "fan_out"]
     has_bn: [false]
 
+other_inits_bn:
+  grid:
+    optim|kwargs|lr: [0.01, 0.005, 0.004, 0.003, 0.002, 0.001]
+    init|type: ["kaiming", "xavier"]
+    init|mode: ["fan_in", "fan_out"]
+    has_bn: [true]
+    bn_affine: [true]
+
+no_bn_ablation:
+  grid:
+    optim|kwargs|lr: [0.01, 0.005, 0.004, 0.003, 0.002, 0.001]
+    has_bn: [false]
+
+other_inits_sn:
+  grid:
+    optim|kwargs|lr: [0.01, 0.005, 0.004, 0.003, 0.002, 0.001]
+    init|type: ["kaiming", "xavier"]
+    init|mode: ["fan_in", "fan_out"]
+    has_bn: [true]
+    bn_affine: [false]
+
+dn:
+  search_type: "random"
+  num_experiments: 300
+  grid:
+    has_bn: [false]
+    has_dn: [true]
+    init|type: ["kaiming"]
+    init|mode: ["fan_out"]
+
+    grad_clip_val: [1, 5, 10, 25, 50, 100, 1000]
+    max_num_epochs: [25, 50]
+    optim|kwargs|lr: [0.01, 0.005, 0.004, 0.003, 0.002, 0.001]
+    optim|scheduler|step_size: [10, 25, 50]
+    optim|scheduler|gamma: [0.5, 0.9, 1.0]
+    cross_entropy_reg_coef: [0., 0.01, 0.001]
+    entropy_reg_coef: [0., 0.01, 0.001]
+    label_smoothing: [0.5, 0.9, 0.95, 0.99, 1.0]
+    batch_size: [64, 128, 256, 512]
+    hid_dim: [128, 256, 512, 1024]
+
+
 zsl:
   search_type: "random"
-  num_experiments: 500
+  num_experiments: 100
   grid:
     grad_clip_val: [1, 5, 10, 25, 50, 100, 1000]
     max_num_epochs: [25, 50]

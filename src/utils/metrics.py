@@ -45,6 +45,33 @@ def compute_forgetting_measure(accuracies_history: List[List[float]], after_task
     return forgetting_measure
 
 
+def compute_generalized_forgetting_measure(logits_history: List[List[float]], targets: List[int], class_splits: List[List[int]], task_idx: int=-1) -> float:
+    """
+    Computes Generalized Forgetting Measure for task {task_idx}
+    GFM — is a forgetting measure where we do not use task identities
+
+    :param logits_history: matrix of size [NUM_TASKS x NUM_TASKS]
+    :param task_idx: for which task we should compute this measure
+    :return: generalized forgetting measure
+    """
+    if task_idx == 0:
+        return 0. # We cannot forget anything if we have not learned anything
+    elif task_idx == -1:
+        task_idx = len(logits_history)
+
+    logits_history = np.array(logits_history)
+    targets = np.array(targets)
+    seen_classes = set(flatten(class_splits[:task_idx]))
+    test_seen_idx = [i for i, y in enumerate(targets) if y in seen_classes]
+
+    # Removing unseen samples
+    targets = targets[test_seen_idx]
+    logits_history = [ls[test_seen_idx] for ls in logits_history]
+    guessed_history = [(ls.argmax(axis=1) == targets) for ls in logits_history]
+
+    return np.mean([g.mean() for g in guessed_history])
+
+
 def compute_learning_curve_area(accs: List[List[float]], beta: int=10) -> float:
     """
     Comptues learning curve area for a specific value of beta

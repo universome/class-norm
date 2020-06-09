@@ -20,7 +20,7 @@ def run(args: argparse.Namespace, config_cli_args: List[str]):
 
     fix_random_seed(config.random_seed, enable_cudnn_deterministic=True, disable_cudnn_benchmark=True)
 
-    if config.has('validation_sequence') and not config.hp.get('no_val'):
+    if config.has('validation_sequence') and not config.hp.get('skip_val'):
         run_validation_sequence(args, config)
     else:
         LLLTrainer(config).start()

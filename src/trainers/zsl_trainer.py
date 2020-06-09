@@ -192,12 +192,22 @@ class ZSLTrainer(BaseTrainer):
 
     def init_models(self):
         output_layer = nn.Linear(self.config.hp.hid_dim, self.config.hp.feat_dim)
-        bn_layer = nn.BatchNorm1d(self.config.hp.hid_dim, affine=False) if self.config.hp.has_bn else nn.Identity()
+
+        if self.config.hp.has_bn:
+            bn_layer = nn.BatchNorm1d(self.config.hp.hid_dim, affine=self.config.hp.get('bn_affine', False))
+        else:
+            bn_layer = nn.Identity()
+
+        if self.config.hp.has_dn:
+            dn_layer = DynamicNormalization()
+        else:
+            dn_layer = nn.Identity()
 
         self.model = nn.Sequential(
             nn.Linear(self.attrs.shape[1], self.config.hp.hid_dim),
             nn.ReLU(),
             bn_layer,
+            dn_layer,
             output_layer,
             nn.ReLU()
         ).to(self.device_name)
@@ -278,3 +288,10 @@ class ZSLTrainer(BaseTrainer):
 
     def print_scores(self, scores: List[float], prefix=''):
         self.logger.info(f'{prefix}[Epoch #{self.num_epochs_done: 3d}] GZSL-S: {scores[0]: .4f}. GZSL-U: {scores[1]: .4f}. GZSL-H: {scores[2]: .4f}. ZSL: {scores[3]: .4f}.')
+
+
+class DynamicNormalization(nn.Module):
+    def forward(self, x):
+        assert x.ndim == 2, f"Wrong shape: {x.shape}"
+
+        return normalize(x, detach=True)

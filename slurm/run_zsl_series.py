@@ -33,6 +33,8 @@ def main():
 
 def run_series(args, hps):
     experiments_dir = f'/ibex/scratch/skoroki/zsl-experiments/{args.experiment}'
+    log_file = f'logs/{args.dataset}-{args.experiment}.log'
+    os.makedirs('logs/', exist_ok=True)
     os.makedirs(experiments_dir, exist_ok=True)
     default_config = Config.load('configs/zsl.yml', frozen=False)
     default_config.experiments_dir = experiments_dir
@@ -62,14 +64,22 @@ def run_series(args, hps):
         test_scores = np.array(test_scores)
         training_times = np.array(training_times)
 
-        print(hp)
-        print(f'[VAL] S: {val_scores[:,0].mean():.02f} (std: {val_scores[:,0].std():.02f}). ' \
-                    f'U: {val_scores[:,1].mean():.02f} (std: {val_scores[:,1].std():.02f}). ' \
-                    f'H: {val_scores[:,2].mean():.02f} (std: {val_scores[:,2].std():.02f}).')
-        print(f'[TEST] S: {test_scores[:,0].mean():.02f} (std: {test_scores[:,0].std():.02f}). ' \
-                     f'U: {test_scores[:,1].mean():.02f} (std: {test_scores[:,1].std():.02f}). ' \
-                     f'H: {test_scores[:,2].mean():.02f} (std: {test_scores[:,2].std():.02f}).')
-        print(f'Training time: {training_times.mean():.02f} (std: {training_times.std():.02f})')
+        log_str = str(hp)
+        log_str += f'[VAL] S: {val_scores[:,0].mean():.02f} (std: {val_scores[:,0].std():.02f}). ' \
+                   f'U: {val_scores[:,1].mean():.02f} (std: {val_scores[:,1].std():.02f}). ' \
+                   f'H: {val_scores[:,2].mean():.02f} (std: {val_scores[:,2].std():.02f}).' \
+                   f'Z: {val_scores[:,3].mean():.02f} (std: {val_scores[:,3].std():.02f}).\n'
+        log_str += f'[TEST] S: {test_scores[:,0].mean():.02f} (std: {test_scores[:,0].std():.02f}). ' \
+                   f'U: {test_scores[:,1].mean():.02f} (std: {test_scores[:,1].std():.02f}). ' \
+                   f'H: {test_scores[:,2].mean():.02f} (std: {test_scores[:,2].std():.02f}).' \
+                   f'Z: {test_scores[:,3].mean():.02f} (std: {test_scores[:,3].std():.02f}).\n'
+        log_str += f'Training time: {training_times.mean():.02f} (std: {training_times.std():.02f})'
+
+        with open(log_file, 'a') as f:
+            f.write('\n======================================\n')
+            f.write(log_str)
+
+        print(log_str)
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import sys; sys.path.append('.')
 import os
-import random
+import numpy as np
 import argparse
 from typing import Dict, List, Any, Callable
 
@@ -11,15 +11,14 @@ from src.trainers.zsl_trainer import ZSLTrainer
 
 from utils import generate_experiments_from_hpo_grid
 
-random.seed(42)
-
 
 def read_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser('Running LLL trainer')
     parser.add_argument('-n', '--num_runs', type=int, help='Number of runs for each experimental setup')
     parser.add_argument('-d', '--dataset', type=str, help='Which dataset to run on?')
     parser.add_argument('-e', '--experiment', type=str, help='Which HPO experiment to run.')
-    parser.add_argument('--silent', action='store_true', help='Should we run the trainer in a silent mode?')
+    parser.add_argument('--random_search_seed', type=int, default=42, help='Random seed for Random Grid Search')
+    parser.add_argument('--silent', type=bool, default=True, help='Should we run the trainer in a silent mode?')
     parser.add_argument('--metric', default='mean')
     parser.add_argument('--count', action='store_true', help='Should we just count and exit?')
 
@@ -31,7 +30,8 @@ def main():
     hpos = Config.load('slurm/hpos.yml')[args.experiment]
     experiments_vals = generate_experiments_from_hpo_grid(hpos.grid)
     if hpos.get('search_type') == 'random':
-        experiments_vals = random.sample(experiments_vals, min(len(experiments_vals), hpos.num_experiments))
+        experiments_vals = np.random.RandomState(args.random_search_seed).choice(
+            experiments_vals, size=(min(len(experiments_vals), hpos.num_experiments),), replace=False)
 
     experiments_vals = [{p.replace('|', '.'): v for p, v in exp.items()} for exp in experiments_vals]
     hps = [Config(e) for e in experiments_vals]
@@ -61,7 +61,7 @@ def run_hpo(args, hps):
         for random_seed in range(1, args.num_runs + 1):
             print(f'=> Seed #{random_seed}/{args.num_runs}')
             config = default_config.clone(frozen=False)
-            config[args.dataset].set('hp',config[args.dataset].hp.overwrite(hp))
+            config[args.dataset].set('hp', config[args.dataset].hp.overwrite(hp))
             config.set('random_seed', random_seed)
             config.set('dataset', args.dataset)
             config.set('silent', args.silent)
