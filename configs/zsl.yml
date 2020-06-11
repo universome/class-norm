@@ -2,6 +2,7 @@ trainer: "ZSLTrainer"
 dataset: "cub"
 val_freq_epochs: 1
 random_seed: 1
+logging: {compute_ausuc: false}
 hp:
   normalize_and_scale: true
   standardize_attrs: false
@@ -31,7 +32,6 @@ awa1:
     dir: "/tmp/skoroki/czsl/data/awa1_feats"
     num_classes: 50
   hp:
-    batch_size: 256
     cross_entropy_reg_coef: 0.001
     entropy_reg_coef: 0.001
     grad_clip_val: 10
@@ -91,7 +91,6 @@ apy:
     dir: "/tmp/skoroki/czsl/data/apy_feats"
     num_classes: 32
   hp:
-    batch_size: 256
     cross_entropy_reg_coef: 0.01
     entropy_reg_coef: 0.001
     hid_dim: 1024

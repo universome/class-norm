@@ -13,7 +13,7 @@ from sklearn.model_selection import train_test_split
 
 from src.utils.training_utils import construct_optimizer, normalize, prune_logits
 from src.utils.data_utils import construct_output_mask
-from src.utils.metrics import remap_targets
+from src.utils.metrics import remap_targets, compute_ausuc
 
 
 class ZSLTrainer(BaseTrainer):
@@ -261,6 +261,7 @@ class ZSLTrainer(BaseTrainer):
         self.model.eval()
 
         if dataset == 'val':
+            # GZSL metrics
             logits = self.run_inference(self.val_dataloader, scope=self.val_scope)
             preds = logits.argmax(dim=1).numpy()
             guessed = (preds == self.val_labels)
@@ -268,10 +269,18 @@ class ZSLTrainer(BaseTrainer):
             unseen_acc = guessed[self.val_pseudo_unseen_idx].mean()
             harmonic = 2 * (seen_acc * unseen_acc) / (seen_acc + unseen_acc)
 
+            # ZSL
             zsl_logits = prune_logits(logits, self.pseudo_unseen_mask)
             zsl_preds = zsl_logits.argmax(dim=1).numpy()
             zsl_acc = (zsl_preds == self.val_labels)[self.val_pseudo_unseen_idx].mean()
+
+            # AUSUC
+            if self.config.get('logging.compute_ausuc'):
+                ausuc = compute_ausuc(logits, self.val_labels, self.train_seen_mask) * 0.01
+            else:
+                ausuc = 0
         elif dataset == 'test':
+            # GZSL metrics
             logits = self.run_inference(self.test_dataloader, scope='all')
             preds = logits.argmax(dim=1).numpy()
             guessed = (preds == self.test_labels)
@@ -279,13 +288,20 @@ class ZSLTrainer(BaseTrainer):
             unseen_acc = guessed[self.test_unseen_idx].mean()
             harmonic = 2 * (seen_acc * unseen_acc) / (seen_acc + unseen_acc)
 
+            # ZSL
             zsl_logits = prune_logits(logits, self.unseen_mask)
             zsl_preds = zsl_logits.argmax(dim=1).numpy()
             zsl_acc = (zsl_preds == self.test_labels)[self.test_unseen_idx].mean()
+
+            # AUSUC
+            if self.config.get('logging.compute_ausuc'):
+                ausuc = compute_ausuc(logits, self.test_labels, self.seen_mask) * 0.01
+            else:
+                ausuc = 0
         else:
             raise ValueError(f"Wrong dataset for GZSL scores: {dataset}")
 
-        return 100 * np.array([seen_acc, unseen_acc, harmonic, zsl_acc])
+        return 100 * np.array([seen_acc, unseen_acc, harmonic, zsl_acc, ausuc])
 
     def validate(self):
         scores = self.compute_scores(dataset='val')
@@ -302,11 +318,19 @@ class ZSLTrainer(BaseTrainer):
         return scores
 
     def print_scores(self, scores: List[float], prefix=''):
-        self.logger.info(f'{prefix}[Epoch #{self.num_epochs_done: 3d}] GZSL-S: {scores[0]: .4f}. GZSL-U: {scores[1]: .4f}. GZSL-H: {scores[2]: .4f}. ZSL: {scores[3]: .4f}.')
+        self.logger.info(
+            f'{prefix}[Epoch #{self.num_epochs_done: 3d}] ' \
+            f'GZSL-S: {scores[0]:.4f}. ' \
+            f'GZSL-U: {scores[1]:.4f}. ' \
+            f'GZSL-H: {scores[2]:.4f}. ' \
+            f'ZSL: {scores[3]:.4f}. ' \
+            f'AUSUC: {scores[4]:.4f}.')
 
 
 class DynamicNormalization(nn.Module):
     def forward(self, x):
         assert x.ndim == 2, f"Wrong shape: {x.shape}"
 
-        return normalize(x, detach=True)
+        mean_norm = x.norm(dim=1).mean()
+        return x / mean_norm.pow(2)
+
