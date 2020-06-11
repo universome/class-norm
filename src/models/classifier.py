@@ -76,7 +76,7 @@ class ResnetEmbedder(nn.Module):
 
         self.resnet = RESNET_CLS[resnet_n_layers](pretrained=pretrained)
 
-        del self.resnet.fc # So it's not included in parameters
+        del self.resnet.fc # So it's not included in the parameters
 
     def forward(self, x):
         return resnet_embedder_forward(self.resnet, x)

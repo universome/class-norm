@@ -3,6 +3,7 @@ dataset: "cub"
 val_freq_epochs: 1
 random_seed: 1
 logging: {compute_ausuc: false}
+save_checkpoint: false
 hp:
   normalize_and_scale: true
   standardize_attrs: false

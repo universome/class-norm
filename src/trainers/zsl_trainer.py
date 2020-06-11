@@ -125,6 +125,9 @@ class ZSLTrainer(BaseTrainer):
         self.elapsed = time() - start_time
         print(f'Training took time: {self.elapsed: .02f} seconds')
 
+        if self.config.get('save_checkpoint'):
+            torch.save(self.model.state_dict(), f'models/checkpoint-{self.config.dataset}-{self.config.hp.compute_hash()}.pt')
+
     def train_on_batch(self, batch):
         self.model.train()
         feats = torch.from_numpy(np.array(batch[0])).to(self.device_name)
@@ -333,4 +336,3 @@ class DynamicNormalization(nn.Module):
 
         mean_norm = x.norm(dim=1).mean()
         return x / mean_norm.pow(2)
-
