@@ -105,7 +105,7 @@ def run_hpo(args, hps):
             best_best_score_std = std_best_score
             best_best_score_hp = hp
 
-            log_str += f'Found new best_best_score_val: {best_best_score_val} (std: {best_best_score_std})\n'
+            log_str = f'Found new best_best_score_val: {best_best_score_val} (std: {best_best_score_std})\n'
             log_str += str(best_best_score_hp)
 
             with open(log_file, 'a') as f:
@@ -118,9 +118,9 @@ def run_hpo(args, hps):
     log_str += str(best_best_score_hp)
 
     with open(log_file, 'a') as f:
-        f.write('\n======================================\n')
-        f.write('\n========== HPO FINAL RESULT ==========\n')
-        f.write('\n======================================\n')
+        f.write('======================================')
+        f.write('========== HPO FINAL RESULT ==========')
+        f.write('======================================')
         f.write(log_str)
 
     print(log_str)

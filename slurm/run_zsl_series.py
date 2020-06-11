@@ -16,7 +16,7 @@ def read_args() -> argparse.Namespace:
     parser.add_argument('-n', '--num_runs', type=int, help='Number of runs for each experimental setup')
     parser.add_argument('-d', '--dataset', type=str, help='Which dataset to run on?')
     parser.add_argument('-e', '--experiment', type=str, help='Which HPO experiment to run.')
-    parser.add_argument('--count', action='store_true', default=True, help='Should we just count number of experiments?')
+    parser.add_argument('--count', action='store_true', help='Should we just count number of experiments?')
 
     return parser.parse_args()
 
@@ -53,6 +53,8 @@ def run_series(args, hps):
             print(f'=> Seed #{random_seed}/{args.num_runs}')
             config = default_config.clone(frozen=False)
             config[args.dataset].set('hp',config[args.dataset].hp.overwrite(hp))
+            if args.experiment == 'dn_several_runs':
+                config[args.dataset].hp = config[args.dataset].hp.overwrite(Config.load('configs/zsl_dn.yml', frozen=False)[args.dataset].hp)
             config.set('random_seed', random_seed)
             config.set('dataset', args.dataset)
             config.set('silent', True)
@@ -72,11 +74,13 @@ def run_series(args, hps):
         log_str += f'[VAL] S: {val_scores[:,0].mean():.02f} (std: {val_scores[:,0].std():.02f}). ' \
                    f'U: {val_scores[:,1].mean():.02f} (std: {val_scores[:,1].std():.02f}). ' \
                    f'H: {val_scores[:,2].mean():.02f} (std: {val_scores[:,2].std():.02f}).' \
-                   f'Z: {val_scores[:,3].mean():.02f} (std: {val_scores[:,3].std():.02f}).\n'
+                   f'Z: {val_scores[:,3].mean():.02f} (std: {val_scores[:,3].std():.02f}).' \
+                   f'A: {val_scores[:,4].mean():.02f} (std: {val_scores[:,4].std():.02f}).\n'
         log_str += f'[TEST] S: {test_scores[:,0].mean():.02f} (std: {test_scores[:,0].std():.02f}). ' \
                    f'U: {test_scores[:,1].mean():.02f} (std: {test_scores[:,1].std():.02f}). ' \
                    f'H: {test_scores[:,2].mean():.02f} (std: {test_scores[:,2].std():.02f}).' \
-                   f'Z: {test_scores[:,3].mean():.02f} (std: {test_scores[:,3].std():.02f}).\n'
+                   f'Z: {test_scores[:,3].mean():.02f} (std: {test_scores[:,3].std():.02f}).' \
+                   f'A: {test_scores[:,4].mean():.02f} (std: {test_scores[:,4].std():.02f}).\n'
         log_str += f'Training time: {training_times.mean():.02f} (std: {training_times.std():.02f})'
 
         with open(log_file, 'a') as f:
