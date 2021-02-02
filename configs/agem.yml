@@ -1,0 +1,14 @@
+all:
+  task_trainer: "agem"
+  hp:
+    mem_batch_size: 128
+
+    # optim:
+    #   type: "adam"
+    #   groups:
+    #     head: {lr: 0.001, betas: [0.9, 0.0]}
+    #     embedder: {lr: 0.005, betas: [0.0, 0.0]}
+
+awa: {hp: {num_mem_samples_per_class: 25}}
+cub: {hp: {num_mem_samples_per_class: 10}}
+sun: {hp: {num_mem_samples_per_class: 5}}

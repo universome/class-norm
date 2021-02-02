@@ -1,0 +1,21 @@
+all:
+  task_trainer: "icarl"
+  hp:
+    img_target_shape: [256, 256]
+    max_num_epochs: 5
+    batch_size: 10
+    memory:
+      batch_size: 10
+      loss_coef: 1.
+      max_size: 1000
+    optim: {"type": "sgd", "kwargs": {"lr": 0.003}}
+
+cub:
+  hp:
+    pretrained: true
+
+awa:
+  hp:
+    pretrained: false
+
+tiny_imagenet: {}

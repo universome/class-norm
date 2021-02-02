@@ -1,0 +1,16 @@
+czsl_ours:
+  config_names: ["joint"]
+  grid: {dummy_property: [0]}
+
+czsl_default:
+  config_names: ["joint"]
+  grid:
+    hp|head|has_bn: [false]
+    hp|head|init|type: ["kaiming"]
+
+better_agem:
+  config_names: ["agem"]
+  grid:
+    hp|optim|groups|head|lr: [0.001, 0.005]
+    hp|optim|groups|embedder|lr: [0.001, 0.005]
+    hp|optim|decrease_lr_coef: [0.9, 1.0]

@@ -1,0 +1,6 @@
+scikit-image~=0.15.0
+python-opencv~=3.4.2
+torch~=1.2.0
+torchvision~=0.4.0
+tqdm~=4.36.1
+firelab~=0.0.10

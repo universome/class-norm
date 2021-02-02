@@ -1,0 +1,157 @@
+all:
+  start_task: 0
+  inference_batch_size: 512
+#  metrics:
+#    average_accuracy: true
+#    forgetting_measure: true
+#    lca_num_batches: 10
+#    ausuc: true
+  logging:
+    save_logits: true
+    print_accuracy_after_task: true
+    save_frequency: "iter"
+  hp:
+    skip_val: true
+    use_class_attrs: true
+    max_num_epochs: 10
+    batch_size: 32
+    model:
+      type: "simple_classifier"
+    classifier:
+      pretrained: false
+      resnet_n_layers: 18
+    optim:
+      type: "sgd"
+      groups:
+        head: {lr: 0.001, momentum: 0.9}
+        embedder: {lr: 0.005}
+      kwargs: {lr: 0.001}
+
+    head:
+      num_additional_hidden_layers: 0
+      normalize_and_scale: true
+      standardize_attrs: false
+      scale: 10
+      hid_dim: 256
+      feat_dim: 512
+      has_bn: true
+      has_dn: false
+      bn_affine: false
+      type: "deep"
+      final_activation: "relu"
+      bn_type: "batch_norm"
+
+      init:
+        with_relu: false
+        type: "proper"
+        dist: "uniform"
+        mode: "fan_in"
+
+  validation_sequence:
+    num_tasks: 3
+    metric: "final_task_wise_acc"
+    hpo_grid:
+      # optim|groups|head|lr: [0.001, 0.005]
+      # optim|groups|head|momentum: [0.9, 0.95]
+      optim|groups|embedder|lr: [0.003, 0.005]
+
+cub:
+  data:
+    name: "CUB"
+    dir: "/tmp/skoroki/datasets/CUB_200_2011"
+    num_classes: &cub_num_classes 200
+
+  lll_setup:
+    num_classes_per_task: 20
+    num_classes: *cub_num_classes
+    num_tasks: 10
+
+  hp:
+    classifier: {pretrained: true}
+    img_target_shape: [256, 256]
+
+awa:
+  data:
+    name: "AWA"
+    dir: "/tmp/skoroki/datasets/Animals_with_Attributes2"
+    num_classes: &awa_num_classes 50
+
+  lll_setup:
+    num_tasks: 5
+    num_classes_per_task: 10
+    num_classes: *awa_num_classes
+
+  hp:
+    img_target_shape: [224, 224]
+
+svhn:
+  data:
+    name: "SVHN"
+    dir: "data/SVHN"
+    num_classes: &svhn_num_classes 10
+    num_img_channels: 3
+    img_size: 32
+
+  lll_setup:
+    num_classes: *svhn_num_classes
+    num_tasks: 10
+    num_classes_per_task: 1
+
+cifar10:
+  data:
+    name: "CIFAR10"
+    dir: "data/CIFAR10"
+    num_classes: &cifar10_num_classes 10
+    num_img_channels: 3
+    img_size: 32
+
+  lll_setup:
+    num_classes: *cifar10_num_classes
+    num_tasks: 10
+    num_classes_per_task: 1
+
+cifar100:
+  data:
+    name: "CIFAR100"
+    dir: "data/CIFAR100"
+    num_classes: &cifar100_num_classes 100
+    num_img_channels: 3
+    img_size: 32
+
+  lll_setup:
+    num_classes: *cifar100_num_classes
+    num_tasks: 10
+    num_classes_per_task: 10
+
+tiny_imagenet:
+  data:
+    name: "TinyImageNet"
+    dir: "data/tiny-imagenet-200"
+    num_classes: &tiny_magenet_num_classes 200
+    num_img_channels: 3
+    img_size: 64
+
+  lll_setup:
+    num_classes: *tiny_magenet_num_classes
+    num_tasks: 8
+    num_classes_per_task: 25
+
+  hp:
+    optim:
+      type: "adam"
+      kwargs: {"lr": 0.001}
+
+sun:
+  data:
+    name: "SUN"
+    dir: "/tmp/skoroki/datasets/SUN"
+    num_classes: &sun_num_classes 717
+
+  lll_setup:
+    num_classes: *sun_num_classes
+    task_sizes: [47, 47, 47, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48]
+    num_tasks: 15
+
+  hp:
+    classifier: {pretrained: true}
+    img_target_shape: [256, 256]

@@ -1,0 +1,18 @@
+firelab start configs/zsl.yml --config.silent true --config.dataset $1 --config.hp.model.type linear --config.hp.model.has_bn false --config.hp.model.init.type kaiming --config.hp.model.normalize_and_scale true --config.hp.model.standardize_attrs false
+firelab start configs/zsl.yml --config.silent true --config.dataset $1 --config.hp.model.type linear --config.hp.model.has_bn false --config.hp.model.init.type kaiming --config.hp.model.normalize_and_scale true --config.hp.model.standardize_attrs true
+firelab start configs/zsl.yml --config.silent true --config.dataset $1 --config.hp.model.type linear --config.hp.model.has_bn false --config.hp.model.init.type kaiming --config.hp.model.normalize_and_scale false --config.hp.model.standardize_attrs false
+firelab start configs/zsl.yml --config.silent true --config.dataset $1 --config.hp.model.type linear --config.hp.model.has_bn false --config.hp.model.init.type kaiming --config.hp.model.normalize_and_scale false --config.hp.model.standardize_attrs true
+
+firelab start configs/zsl.yml --config.silent true --config.dataset $1 --config.hp.model.num_additional_hidden_layers 0 --config.hp.model.has_bn false --config.hp.model.init.type kaiming --config.hp.model.normalize_and_scale true --config.hp.model.standardize_attrs false
+firelab start configs/zsl.yml --config.silent true --config.dataset $1 --config.hp.model.num_additional_hidden_layers 0 --config.hp.model.has_bn false --config.hp.model.init.type kaiming --config.hp.model.normalize_and_scale true --config.hp.model.standardize_attrs true
+firelab start configs/zsl.yml --config.silent true --config.dataset $1 --config.hp.model.num_additional_hidden_layers 0 --config.hp.model.has_bn false --config.hp.model.init.type kaiming --config.hp.model.normalize_and_scale false --config.hp.model.standardize_attrs false
+firelab start configs/zsl.yml --config.silent true --config.dataset $1 --config.hp.model.num_additional_hidden_layers 0 --config.hp.model.has_bn false --config.hp.model.init.type kaiming --config.hp.model.normalize_and_scale false --config.hp.model.standardize_attrs true
+
+firelab start configs/zsl.yml --config.silent true --config.dataset $1 --config.hp.model.type linear --config.hp.model.has_bn false --config.hp.model.init.type kaiming --config.hp.model.normalize_and_scale true --config.hp.model.standardize_attrs true
+firelab start configs/zsl.yml --config.silent true --config.dataset $1 --config.hp.model.type linear --config.hp.model.has_bn false --config.hp.model.init.type proper --config.hp.model.normalize_and_scale true --config.hp.model.standardize_attrs true
+
+firelab start configs/zsl.yml --config.silent true --config.dataset $1 --config.hp.model.num_additional_hidden_layers 0 --config.hp.model.has_bn false --config.hp.model.init.type kaiming --config.hp.model.normalize_and_scale true --config.hp.model.standardize_attrs true
+firelab start configs/zsl.yml --config.silent true --config.dataset $1 --config.hp.model.num_additional_hidden_layers 0 --config.hp.model.has_bn false --config.hp.model.init.type proper --config.hp.model.normalize_and_scale true --config.hp.model.standardize_attrs true
+
+firelab start configs/zsl.yml --config.silent true --config.dataset $1 --config.hp.model.num_additional_hidden_layers 1 --config.hp.model.has_bn false --config.hp.model.init.type kaiming --config.hp.model.normalize_and_scale true --config.hp.model.standardize_attrs true
+firelab start configs/zsl.yml --config.silent true --config.dataset $1 --config.hp.model.num_additional_hidden_layers 1 --config.hp.model.has_bn false --config.hp.model.init.type proper --config.hp.model.normalize_and_scale true --config.hp.model.standardize_attrs true

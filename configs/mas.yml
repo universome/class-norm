@@ -1,0 +1,12 @@
+all:
+  task_trainer: "mas"
+  hp:
+    fisher:
+      loss_coef: 0.0001
+      gamma: 0.95
+
+  # validation_sequence:
+  #   num_tasks: 3
+  #   hpo_grid:
+  #     fisher|loss_coef: [0.001, 0.1]
+  #     fisher|gamma: [0.95, 0.99]

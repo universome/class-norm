@@ -1,0 +1,8 @@
+all:
+  task_trainer: "joint"
+  hp: {}
+
+# Setting `max_num_iters` since we'll do much more training steps otherwise
+cub: {hp: {max_num_iters: 200}}
+sun: {hp: {max_num_iters: 150}}
+awa: {hp: {max_num_iters: 1300}}
