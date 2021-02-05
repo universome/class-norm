@@ -40,6 +40,7 @@ all:
       type: "deep"
       final_activation: "relu"
       bn_type: "batch_norm"
+      attrs_additional_scale: 1.0
 
       init:
         with_relu: false
@@ -58,7 +59,7 @@ all:
 cub:
   data:
     name: "CUB"
-    dir: "/tmp/skoroki/datasets/CUB_200_2011"
+    dir: "data/CUB_200_2011"
     num_classes: &cub_num_classes 200
 
   lll_setup:
@@ -73,7 +74,7 @@ cub:
 awa:
   data:
     name: "AWA"
-    dir: "/tmp/skoroki/datasets/Animals_with_Attributes2"
+    dir: "data/Animals_with_Attributes2"
     num_classes: &awa_num_classes 50
 
   lll_setup:
@@ -144,7 +145,7 @@ tiny_imagenet:
 sun:
   data:
     name: "SUN"
-    dir: "/tmp/skoroki/datasets/SUN"
+    dir: "data/SUN"
     num_classes: &sun_num_classes 717
 
   lll_setup:
